@@ -1,0 +1,37 @@
+[versions]
+kotlin = "2.2.0"
+spring-boot = "4.0.0"
+quati-util = "2.2.1"
+kotlinx-coroutine = "1.10.2"
+kotlinx-serialization = "1.9.0"
+
+[libraries]
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotest = { module = "io.kotest:kotest-assertions-core", version = "6.0.7" }
+
+goquati-base = { module = "de.quati:kotlin-util", version.ref = "quati-util" }
+
+kotlinx-coroutine-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutine" }
+kotlinx-coroutine-reactor = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor", version.ref = "kotlinx-coroutine" }
+
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
+[bundles]
+kotlinx-coroutine = [
+    "kotlinx-coroutine-core",
+    "kotlinx-coroutine-reactor",
+]
+kotlinx-serialization = [
+    "kotlinx-serialization-core",
+    "kotlinx-serialization-json",
+]
+
+[plugins]
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+springBoot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+springDependencyManagement = { id = "io.spring.dependency-management", version = "1.1.7" }

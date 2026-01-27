@@ -1,0 +1,327 @@
+openapi: 3.1.0
+info:
+  title: ogen test
+  version: 1.0.0
+
+paths:
+  /api/dummy:
+    get:
+      tags:
+        - dummy
+      operationId: dummy
+      responses:
+        '200':
+          description: "ok"
+
+components:
+  schemas:
+    BigDecimal:
+      type: number
+      format: big-decimal
+    TenantId:
+      type: string
+      format: uuid
+    UserId:
+      type: string
+      format: uuid
+    UserName:
+      type: string
+    Role:
+      type: string
+      enum:
+        - admin
+        - member
+    Locale:
+      type: string
+      enum:
+        - en
+        - de
+
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - height
+        - weight
+        - verified
+        - locale
+        - friends
+      properties:
+        id:
+          $ref: "#/components/schemas/UserId"
+        name:
+          oneOf:
+            - $ref: "#/components/schemas/UserName"
+            - type: "null"
+        email:
+          type: string
+          format: email
+        height:
+          $ref: "#/components/schemas/BigDecimal"
+        weight:
+          oneOf:
+            - $ref: "#/components/schemas/BigDecimal"
+            - type: "null"
+        verified:
+          type: boolean
+        locale:
+          $ref: "#/components/schemas/Locale"
+        friends:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserId"
+
+    Tenant:
+      type: object
+      required:
+        - id
+        - createdAt
+        - parentId
+        - name
+        - members
+      properties:
+        id:
+          $ref: "#/components/schemas/TenantId"
+        createdAt:
+          type: string
+          format: date-time
+        parentId:
+          oneOf:
+            - $ref: "#/components/schemas/TenantId"
+            - type: "null"
+        name:
+          type: [string, "null"]
+        members:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - email
+              - roles
+            properties:
+              id:
+                $ref: "#/components/schemas/UserId"
+              name:
+                oneOf:
+                  - $ref: "#/components/schemas/UserName"
+                  - type: "null"
+              email:
+                type: string
+                format: email
+              roles:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+
+    OneOfDiscriminator:
+      oneOf:
+        - $ref: '#/components/schemas/OneOfDiscriminator1'
+        - $ref: '#/components/schemas/OneOfDiscriminator2'
+      discriminator:
+        propertyName: objectType
+    OneOfDiscriminator1:
+      type: object
+      required:
+        - objectType
+      properties:
+        objectType:
+          type: string
+        bar:
+          type: string
+    OneOfDiscriminator2:
+      type: object
+      required:
+        - objectType
+      properties:
+        objectType:
+          type: string
+        foo:
+          type: string
+
+    OneOfMapping:
+      oneOf:
+        - $ref: '#/components/schemas/OneOfMapping1'
+        - $ref: '#/components/schemas/OneOfMapping2'
+      discriminator:
+        propertyName: objectType
+        mapping:
+          obj1: '#/components/schemas/OneOfMapping1'
+          obj2: '#/components/schemas/OneOfMapping2'
+    OneOfMapping1:
+      type: object
+      required:
+        - objectType
+      properties:
+        objectType:
+          type: string
+        bar:
+          type: string
+    OneOfMapping2:
+      type: object
+      required:
+        - objectType
+      properties:
+        objectType:
+          type: string
+        foo:
+          type: string
+
+    AllOfRef:
+      allOf:
+        - $ref: '#/components/schemas/AllOfRef1'
+        - $ref: '#/components/schemas/AllOfRef2'
+
+    AllOfMixed1:
+      allOf:
+        - $ref: '#/components/schemas/AllOfRef1'
+        - type: object
+          required:
+            - quati1
+          properties:
+            quati1:
+              type: string
+            quati2:
+              type: string
+
+    AllOfMixed2:
+      allOf:
+        - $ref: '#/components/schemas/AllOfRef'
+        - type: object
+          required:
+            - quati1
+          properties:
+            quati1:
+              type: string
+            quati2:
+              type: string
+
+    AnyOfRef:
+      anyOf:
+        - $ref: '#/components/schemas/AllOfRef1'
+        - $ref: '#/components/schemas/AllOfRef2'
+
+    AnyOfMixed1:
+      anyOf:
+        - $ref: '#/components/schemas/AllOfRef1'
+        - type: object
+          required:
+            - quati1
+          properties:
+            quati1:
+              type: string
+            quati2:
+              type: string
+
+    AnyOfMixed2:
+      anyOf:
+        - $ref: '#/components/schemas/AllOfRef'
+        - type: object
+          required:
+            - quati1
+          properties:
+            quati1:
+              type: string
+            quati2:
+              type: string
+
+    AllOfRef1:
+      type: object
+      required:
+        - bar1
+        - bar2
+      properties:
+        bar1:
+          type: string
+        bar2:
+          type: [string, "null"]
+        bar3:
+          type: string
+        bar4:
+          type: [string, "null"]
+    AllOfRef2:
+      type: object
+      required:
+        - foo1
+        - foo2
+      properties:
+        foo1:
+          type: string
+        foo2:
+          type: [string, "null"]
+        foo3:
+          type: string
+        foo4:
+          type: [string, "null"]
+
+    OneOfPrimitive:
+      oneOf:
+        - type: string
+        - type: integer
+        - type: boolean
+
+    OneOfMixed:
+      oneOf:
+        - $ref: '#/components/schemas/AllOfRef1'
+        - type: string
+        - type: integer
+
+    AnyOfPrimitive:
+      anyOf:
+        - type: string
+        - type: integer
+
+    NestedUnion:
+      oneOf:
+        - $ref: '#/components/schemas/OneOfPrimitive'
+        - $ref: '#/components/schemas/AnyOfPrimitive'
+
+    AdditionalPropertiesObject:
+      type: object
+      properties:
+        knownProperty:
+          type: string
+      additionalProperties:
+        type: integer
+
+    AdditionalPropertiesAnyObject:
+      type: object
+      additionalProperties: true
+
+    ArrayOfUnions:
+      type: array
+      items:
+        $ref: '#/components/schemas/OneOfPrimitive'
+
+    RecursiveObject:
+      type: object
+      properties:
+        name:
+          type: string
+        parent:
+          oneOf:
+            - $ref: '#/components/schemas/RecursiveObject'
+            - type: "null"
+
+    MapRef:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/OneOfPrimitive'
+
+    MapPrimitive:
+      type: object
+      additionalProperties:
+        type: integer
+
+    MapInnerObject:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          foo:
+            type: string
+          bar:
+            type: integer
