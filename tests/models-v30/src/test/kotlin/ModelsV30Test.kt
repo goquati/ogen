@@ -402,4 +402,13 @@ class ModelsV30Test {
             ),
         )).test(expectedString = """{"key1":{},"key2":{"foo":"gg"},"key3":{"foo":"xy","bar":42}}""")
     }
+
+    @Test
+    fun `test enum values`() {
+        LocaleDto.DE.value shouldBe "de"
+        LocaleDto.EN.value shouldBe "en"
+
+        RoleDto.ADMIN.value shouldBe "admin"
+        RoleDto.MEMBER.value shouldBe "member"
+    }
 }

@@ -5,6 +5,7 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.asClassName
 import de.quati.kotlin.util.poet.dsl.addCode
 import de.quati.kotlin.util.poet.dsl.addCompanionObject
 import de.quati.kotlin.util.poet.dsl.addEnumConstant
@@ -220,9 +221,15 @@ private fun Component.Schema.EnumString.generateEnumTypeSpec(
 ): TypeSpec = TypeSpec.enumBuilder(name.prettyClassName).apply {
     addAnnotation(Poet.serializable())
     val nameMapping = values.associateWith { it.toSnakeCase(uppercase = true) }
+    val valueName = "value"
 
     nameMapping.forEach { (value, prettyName) ->
+        primaryConstructor {
+            addParameter(valueName, String::class)
+            addProperty(valueName, String::class.asClassName()) { initializer(valueName) }
+        }
         addEnumConstant(prettyName) {
+            addSuperclassConstructorParameter("%S", value)
             if (prettyName != value)
                 addAnnotation(Poet.serialName(value))
         }
@@ -234,8 +241,8 @@ private fun Component.Schema.EnumString.generateEnumTypeSpec(
             returns(name.typename.copy(nullable = true))
             addCode {
                 beginControlFlow("return when(value)")
-                nameMapping.forEach { (value, prettyName) ->
-                    addStatement("%S -> %T.%L", value, name.typename, prettyName)
+                nameMapping.values.forEach { prettyName ->
+                    addStatement("%T.%L.$valueName -> %T.%L", name.typename, prettyName, name.typename, prettyName)
                 }
                 addStatement("else -> null")
                 endControlFlow()
