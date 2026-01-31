@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 
 public class OgenPlugin : Plugin<Project> {
     override fun apply(project: Project) {
-        val configBuilder = project.extensions.create("ogen", SpecConfigBuilder::class.java)
+        val configBuilder = project.extensions.create("ogen", SpecsConfigBuilder::class.java)
         val mainName = when (project.kotlinExtension) {
             is KotlinMultiplatformExtension -> "commonMain"
             is KotlinProjectExtension -> "main"

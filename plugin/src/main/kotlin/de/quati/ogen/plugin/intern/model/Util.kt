@@ -2,6 +2,7 @@ package de.quati.ogen.plugin.intern.model
 
 import de.quati.kotlin.util.poet.toCamelCase
 import io.swagger.v3.oas.models.PathItem
+import io.swagger.v3.oas.models.security.SecurityScheme
 import io.swagger.v3.parser.core.models.SwaggerParseResult
 
 context(c: SpecInfoContext)
@@ -142,10 +143,16 @@ internal fun SwaggerParseResult.parse(): Spec {
         Spec.Version.V3_1
     else
         Spec.Version.V3_0
-    val security = raw.security.parse()
+
+    val securityRequirementObjects = raw.components.securitySchemes?.parse() ?: emptyMap()
+    val defaultSecurity = object : SpecSecurityContext {
+        override val securityRequirementObjects = securityRequirementObjects
+    }.run { raw.security.parse() }
+
     val infoContext = object : SpecInfoContext {
         override val version: Spec.Version = version
-        override val defaultSecurity: Security = security
+        override val defaultSecurity: Security = defaultSecurity
+        override val securityRequirementObjects = securityRequirementObjects
     }
     return with(infoContext) {
         val components = raw.components.parse()
@@ -154,13 +161,27 @@ internal fun SwaggerParseResult.parse(): Spec {
             version = version,
             paths = paths,
             components = components,
-            security = security,
+            security = defaultSecurity,
         )
     }
 }
 
+private fun Map<String, SecurityScheme>.parse(): Map<String, Security.RequirementObject> =
+    entries.associate { (name, schema) ->
+        name to Security.RequirementObject(
+            name = ComponentName.Security.parse(name),
+            type = schema.type ?: error("Security scheme '$name' has no type"),
+        )
+    }
+
+
+context(s: SpecSecurityContext)
 private fun List<io.swagger.v3.oas.models.security.SecurityRequirement>?.parse() =
-    Security(this?.map { it.keys.map(ComponentName.Security::parse).toSet() }?.toSet() ?: emptySet())
+    Security(this?.map { req ->
+        req.keys.map {
+            s.securityRequirementObjects[it] ?: throw IllegalArgumentException("Unknown security scheme: $it")
+        }
+    } ?: emptyList())
 
 internal fun io.swagger.v3.oas.models.media.Schema<*>.isExplicitNullType() =
     (type == "null" || types?.singleOrNull() == "null") && format == null

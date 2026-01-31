@@ -18,7 +18,6 @@ import de.quati.kotlin.util.poet.dsl.primaryConstructor
 import de.quati.kotlin.util.poet.toCamelCase
 import de.quati.kotlin.util.poet.toSnakeCase
 import de.quati.ogen.plugin.intern.model.Component
-import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.Type
 
 context(c: CodeGenContext)
@@ -126,21 +125,43 @@ private fun Component.Schema.Composed.toObjOrNull(): Component.Schema.Obj? {
     )
 }
 
+internal sealed interface SchemaTypeSpecData {
+    val schema: Component.Schema
+
+    data class Enum(override val schema: Component.Schema.EnumString) : SchemaTypeSpecData
+    data class SealedInterface(override val schema: Component.Schema.SealedInterface) : SchemaTypeSpecData
+    data class DataClass(override val schema: Component.Schema.Obj) : SchemaTypeSpecData
+    data class ValueClass(override val schema: Component.Schema) : SchemaTypeSpecData
+}
+
 context(_: CodeGenContext)
-internal fun Component.Schema.toTypeSpec(): TypeSpec? {
-    getMappingOrNull()?.also { return null }
+internal fun SchemaTypeSpecData.toTypeSpec(): TypeSpec? = when (this) {
+    is SchemaTypeSpecData.Enum -> schema.generateEnumTypeSpec()
+    is SchemaTypeSpecData.SealedInterface -> schema.generateSealedInterfaceTypeSpec()
+    is SchemaTypeSpecData.DataClass -> schema.generateDataClassTypeSpec()
+    is SchemaTypeSpecData.ValueClass -> schema.generateValueClassTypeSpec()
+}
+
+context(c: CodeGenContext)
+internal fun Component.Schema.toTypeSpecData(): SchemaTypeSpecData? {
     return when (this) {
         is Component.Schema.Ref -> null
-        is Component.Schema.EnumString -> generateEnumTypeSpec()
-        is Component.Schema.Composed -> toObjOrUnknown().toTypeSpec()
-        is Component.Schema.SealedInterface -> generateSealedInterfaceTypeSpec()
-        is Component.Schema.Obj -> generateDataClassTypeSpec()
+        is Component.Schema.EnumString -> SchemaTypeSpecData.Enum(this)
+        is Component.Schema.Composed -> toObjOrUnknown().toTypeSpecData()
+        is Component.Schema.SealedInterface -> SchemaTypeSpecData.SealedInterface(this)
+        is Component.Schema.Obj -> SchemaTypeSpecData.DataClass(this)
         is Component.Schema.Unknown,
         is Component.Schema.Null,
         is Component.Schema.MapS,
         is Component.Schema.Array,
-        is Component.Schema.PrimitivType -> generateValueClassTypeSpec(name = name)
+        is Component.Schema.PrimitivType -> SchemaTypeSpecData.ValueClass(this)
     }
+}
+
+context(_: CodeGenContext)
+internal fun Component.Schema.toTypeSpec(): TypeSpec? {
+    getMappingOrNull()?.also { return null }
+    return toTypeSpecData()?.toTypeSpec()
 }
 
 context(_: CodeGenContext)
@@ -161,9 +182,7 @@ internal fun Component.Schema.toInnerTypeSpec(): TypeSpec? {
 }
 
 context(c: CodeGenContext)
-private fun Component.Schema.generateValueClassTypeSpec(
-    name: ComponentName.Schema,
-): TypeSpec = buildValueClass(name.prettyClassName) {
+private fun Component.Schema.generateValueClassTypeSpec(): TypeSpec = buildValueClass(name.prettyClassName) {
     val type = getTypeName(isResponse = false)
     val valueName = "value"
     val discInfo = c.discriminatorInfoMap[name]
@@ -233,6 +252,12 @@ private fun Component.Schema.EnumString.generateEnumTypeSpec(
             if (prettyName != value)
                 addAnnotation(Poet.serialName(value))
         }
+    }
+
+    addFunction("toString") {
+        addModifiers(KModifier.OVERRIDE)
+        returns(String::class)
+        addStatement("return %N", valueName)
     }
 
     addCompanionObject {

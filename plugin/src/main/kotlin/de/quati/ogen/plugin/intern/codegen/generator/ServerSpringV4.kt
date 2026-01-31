@@ -1,6 +1,5 @@
-package de.quati.ogen.plugin.intern.codegen.endpoint
+package de.quati.ogen.plugin.intern.codegen.generator
 
-import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LambdaTypeName
@@ -14,10 +13,10 @@ import de.quati.kotlin.util.poet.dsl.addFunction
 import de.quati.kotlin.util.poet.dsl.addInterface
 import de.quati.kotlin.util.poet.dsl.addParameter
 import de.quati.kotlin.util.poet.dsl.addStringArrayMember
-import de.quati.kotlin.util.poet.dsl.buildAnnotationSpec
 import de.quati.kotlin.util.takeIfNotEmpty
 import de.quati.ogen.plugin.intern.DirectorySyncService
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
+import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.codegen.getTypeName
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Endpoint
@@ -26,20 +25,23 @@ import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 
 
 context(d: DirectorySyncService, c: CodeGenContext)
-internal fun GeneratorConfig.ServerSpringV4.syncEndpoints() = c.spec.paths.groupedByTag.forEach { (tag, endpoints) ->
-    val controllerName = tag.prettyName(postfix = this@syncEndpoints.postfix)
-    d.sync(fileName = "$controllerName.kt") {
-        addInterface(name = controllerName) {
-            createController(
-                controllerName = controllerName,
-                endpoints = endpoints,
-            )
+internal fun GeneratorConfig.ServerSpringV4.sync() {
+    c.spec.paths.groupedByTag.forEach { (tag, endpoints) ->
+        val controllerName = tag.prettyName(postfix = this@sync.postfix)
+        d.sync(fileName = "$controllerName.kt") {
+            addInterface(name = controllerName) {
+                createController(
+                    controllerName = controllerName,
+                    endpoints = endpoints,
+                )
+            }
         }
     }
     d.sync(fileName = "_utils.kt") {
         addWebFluxConversionConfig()
     }
 }
+
 
 context(c: CodeGenContext, config: GeneratorConfig.ServerSpringV4)
 private fun TypeSpec.Builder.createController(
@@ -48,7 +50,7 @@ private fun TypeSpec.Builder.createController(
 ) {
     val operationContexts = mutableListOf<TypeSpec>()
 
-    addAnnotation(Poet.restController)
+    addAnnotation(Poet.Spring.restController)
     for (endpoint in endpoints) {
         val paramNameResolver = NameConflictResolver()
         val requestBody = endpoint.requestBodyResolved
@@ -60,10 +62,10 @@ private fun TypeSpec.Builder.createController(
                 is ContentType.Unknown -> Any::class.asClassName()
                 is ContentType.Json -> responseBody.schemaSuccessTypeName
             }
-            val fullResponseType = Poet.responseEntity.parameterizedBy(responseType)
+            val fullResponseType = Poet.Spring.responseEntity.parameterizedBy(responseType)
             returns(fullResponseType)
-            addAnnotation(Poet.requestMapping) {
-                addMember("method = [%T.%L]", Poet.requestMethod, endpoint.method.name.uppercase())
+            addAnnotation(Poet.Spring.requestMapping) {
+                addMember("method = [%T.%L]", Poet.Spring.requestMethod, endpoint.method.name.uppercase())
                 addMember("value = [%S]", endpoint.path)
                 responseBody.successContentType?.values?.takeIfNotEmpty()?.toList()?.also { types ->
                     addStringArrayMember(name = "produces", values = types)
@@ -90,7 +92,7 @@ private fun TypeSpec.Builder.createController(
                     type = parameter.schema.getTypeName(isResponse = false)
                         .poet.copy(nullable = !parameter.required),
                 ) {
-                    addAnnotation(Poet.annotationClassName(parameter.type)) {
+                    addAnnotation(Poet.Spring.annotationClassName(parameter.type)) {
                         addMember("value = %S", parameter.name)
                         addMember("required = %L", parameter.required)
                     }
@@ -104,7 +106,7 @@ private fun TypeSpec.Builder.createController(
                         is ContentType.Json -> requestBody.typeName
                     },
                 ) {
-                    addAnnotation(Poet.requestBody)
+                    addAnnotation(Poet.Spring.requestBody)
                 }
 
             if (config.addOperationContext)
@@ -115,13 +117,13 @@ private fun TypeSpec.Builder.createController(
                             addParameter("body", responseType)
                         addParameter(
                             "block", LambdaTypeName.get(
-                                receiver = Poet.responseEntity.nestedClass("BodyBuilder"),
+                                receiver = Poet.Spring.responseEntity.nestedClass("BodyBuilder"),
                                 returnType = Unit::class.asClassName(),
                             )
                         ) { defaultValue("{}") }
                         returns(fullResponseType)
                         addCode {
-                            add("return %T.status(defaultSuccessStatus).apply(block)", Poet.responseEntity)
+                            add("return %T.status(defaultSuccessStatus).apply(block)", Poet.Spring.responseEntity)
                             if (responseType == null)
                                 add(".build()")
                             else
@@ -135,13 +137,13 @@ private fun TypeSpec.Builder.createController(
     operationContexts.forEach { addType(it) }
 }
 
-context(c: CodeGenContext)
+context(c: CodeGenContext, _: GeneratorConfig.ServerSpringV4)
 private fun FileSpec.Builder.addWebFluxConversionConfig() = addClass("OgenWebFluxConversionConfig") {
-    addAnnotation(Poet.configuration)
-    addSuperinterface(Poet.WebFlux.webFluxConfigurer)
+    addAnnotation(Poet.Spring.configuration)
+    addSuperinterface(Poet.Spring.WebFlux.webFluxConfigurer)
     addFunction("addFormatters") {
         addModifiers(KModifier.OVERRIDE)
-        addParameter("reg", Poet.formatterRegistry)
+        addParameter("reg", Poet.Spring.formatterRegistry)
         addCode {
             run {
                 val type = Type.PrimitiveType.Uuid.poet
@@ -152,26 +154,5 @@ private fun FileSpec.Builder.addWebFluxConversionConfig() = addClass("OgenWebFlu
                 add("reg.addConverter(String::class.java, %T::class.java) { %T.fromSerial(it) }\n", type, type)
             }
         }
-    }
-}
-
-private object Poet {
-    val configuration = buildAnnotationSpec("org.springframework.context.annotation", "Configuration")
-    val restController = buildAnnotationSpec("org.springframework.web.bind.annotation", "RestController")
-    val formatterRegistry = ClassName("org.springframework.format", "FormatterRegistry")
-    val requestMethod = ClassName("org.springframework.web.bind.annotation", "RequestMethod")
-    val requestMapping = ClassName("org.springframework.web.bind.annotation", "RequestMapping")
-    val requestBody = ClassName("org.springframework.web.bind.annotation", "RequestBody")
-    val responseEntity = ClassName("org.springframework.http", "ResponseEntity")
-    fun annotationClassName(type: Endpoint.Parameter.Type) = when (type) {
-        Endpoint.Parameter.Type.PATH -> "PathVariable"
-        Endpoint.Parameter.Type.QUERY -> "RequestParam"
-        Endpoint.Parameter.Type.HEADER -> "RequestHeader"
-        Endpoint.Parameter.Type.COOKIE -> "CookieValue"
-    }.let { ClassName("org.springframework.web.bind.annotation", it) }
-
-    object WebFlux {
-        val webFluxConfigurer =
-            ClassName("org.springframework.web.reactive.config", "WebFluxConfigurer")
     }
 }

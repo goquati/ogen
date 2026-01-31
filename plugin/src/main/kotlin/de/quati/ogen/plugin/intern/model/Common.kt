@@ -11,7 +11,11 @@ internal data class TypeWithFormat(
     val format: String?,
 )
 
-internal interface SpecInfoContext {
+internal interface SpecSecurityContext {
+    val securityRequirementObjects: Map<String, Security.RequirementObject>
+}
+
+internal interface SpecInfoContext : SpecSecurityContext {
     val version: Spec.Version
     val defaultSecurity: Security
 }
@@ -50,10 +54,12 @@ internal sealed interface ContentType {
     }
 
     companion object {
-        fun parse(value: String): ContentType = when (val value = value.lowercase()) {
-            "application/json" -> Json(value)
-            "application/stream+json" -> Json(value)
-            else -> Unknown(value)
+        fun parse(value: String): ContentType {
+            val value = value.lowercase()
+            if (value == "application/json") return Json(value)
+            if (value.startsWith("application/") && value.endsWith("+json"))
+                return Json(value)
+            return Unknown(value)
         }
     }
 }

@@ -1,12 +1,16 @@
 package de.quati.ogen.plugin.intern.model
 
+import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.asClassName
 import de.quati.kotlin.util.mapValuesNotNull
 import de.quati.kotlin.util.poet.toCamelCase
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.ComponentsContext
+import de.quati.ogen.plugin.intern.codegen.SchemaTypeSpecData
 import de.quati.ogen.plugin.intern.codegen.getTypeName
 import de.quati.ogen.plugin.intern.codegen.prettyName
+import de.quati.ogen.plugin.intern.codegen.toTypeSpecData
 import io.swagger.v3.oas.models.PathItem
 
 
@@ -61,6 +65,15 @@ internal data class Endpoint(
     context(_: ComponentsContext)
     val parametersContents get() = parameters.map { it.obj }
 
+    data class StringableParameter(
+        val name: String,
+        val prettyName: String,
+        val nullable: Boolean,
+        val type: TypeName,
+        val inType: Parameter.Type,
+        val toStringCodeBlock: CodeBlock,
+    )
+
     sealed interface Parameter {
         data class Ref(val value: RefString.Parameter) : Parameter
         data class Content(
@@ -76,13 +89,52 @@ internal data class Endpoint(
 
         enum class Type { QUERY, PATH, HEADER, COOKIE }
 
-
         context(_: ComponentsContext)
         val obj: Content
             get() = when (this) {
                 is Content -> this
                 is Ref -> value.obj
             }
+
+        context(_: CodeGenContext)
+        val toStringableParameter: StringableParameter
+            get() {
+                val o = obj
+                val nullable = !o.required || o.schema.isNullable
+                val toStringCodeBlock = o.schema.toStringValueCodeBlock()
+                return StringableParameter(
+                    name = o.name,
+                    prettyName = o.prettyName,
+                    nullable = nullable,
+                    inType = o.type,
+                    type = if (toStringCodeBlock == null) String::class.asClassName()
+                    else o.schema.getTypeName(isResponse = false).poet,
+                    toStringCodeBlock = toStringCodeBlock ?: CodeBlock.of("toString()")
+                )
+            }
+
+        companion object {
+            context(c: CodeGenContext)
+            private fun Component.Schema.toStringValueCodeBlock(followRef: Boolean = true): CodeBlock? = when (this) {
+                is Component.Schema.Array, is Component.Schema.Composed, is Component.Schema.MapS,
+                Component.Schema.Null, is Component.Schema.Obj, is Component.Schema.SealedInterface,
+                is Component.Schema.Unknown -> null
+
+                is Component.Schema.EnumString -> CodeBlock.of("value")
+                is Component.Schema.PrimitivType -> CodeBlock.of("toString()")
+                is Component.Schema.Ref -> run {
+                    if (!followRef) null
+                    else when (val typeSpecData = c.refToSchema[this.ref]?.toTypeSpecData()!!) {
+                        is SchemaTypeSpecData.DataClass, is SchemaTypeSpecData.SealedInterface -> null
+                        is SchemaTypeSpecData.Enum -> CodeBlock.of("value")
+                        is SchemaTypeSpecData.ValueClass -> CodeBlock.of(
+                            "value.%L",
+                            typeSpecData.schema.toStringValueCodeBlock(followRef = false) ?: return@run null,
+                        )
+                    }
+                }
+            }
+        }
     }
 
     sealed interface RequestBody {
@@ -109,6 +161,7 @@ internal data class Endpoint(
         private val mediaType: ContentMediaType?,
         private val type: Type?,
     ) {
+        val required get() = data.required
         val description get() = data.description
         val contentType get() = mediaType?.contentType
         val typeName get() = (type?.poet ?: Any::class.asClassName()).copy(nullable = !data.required)

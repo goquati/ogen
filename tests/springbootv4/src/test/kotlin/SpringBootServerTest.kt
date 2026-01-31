@@ -1,5 +1,11 @@
 package de.quati.ogen
 
+import de.quati.ogen.gen.server.DebugApi
+import de.quati.ogen.gen.server.UsersApi
+import de.quati.ogen.gen.shared.OperationContext
+import de.quati.ogen.gen.shared.SecurityRequirement
+import de.quati.ogen.gen.shared.SecurityRequirementObject
+import io.kotest.matchers.shouldBe
 import org.springframework.http.HttpMethod
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
@@ -7,7 +13,7 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import kotlin.test.Test
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class ServerTest {
+class SpringBootServerTest {
     @LocalServerPort
     private var port: Int = 0
     private val client by lazy {
@@ -105,7 +111,7 @@ class ServerTest {
             op = op,
             user = User.USER,
             body = """{"firstName":"Foo","lastName":"Bar","email":"foo@bar.com","isEmailVerified":false,"locale":"en","tenants":["75897dbc-8dea-4d14-82c6-dd0ee2243cb3","9df36116-ca51-45eb-9e2e-713d348f855a"]}""",
-            expectedInput = "testUser|Some(value=Foo)|Some(value=Bar)|foo@bar.com|Some(value=false)|Some(value=EN)|[75897dbc-8dea-4d14-82c6-dd0ee2243cb3, 9df36116-ca51-45eb-9e2e-713d348f855a]",
+            expectedInput = "testUser|Some(value=Foo)|Some(value=Bar)|foo@bar.com|Some(value=false)|Some(value=en)|[75897dbc-8dea-4d14-82c6-dd0ee2243cb3, 9df36116-ca51-45eb-9e2e-713d348f855a]",
             expectedBody = expectedBody
         )
         client.doRequest(
@@ -154,7 +160,7 @@ class ServerTest {
             user = User.USER,
             body = """{"firstName":"Jane","lastName":"Doe","locale":"de"}""",
             expectedStatus = 200,
-            expectedInput = "testUser|$userId|Some(value=DE)|Some(value=Jane)|Some(value=Doe)"
+            expectedInput = "testUser|$userId|Some(value=de)|Some(value=Jane)|Some(value=Doe)"
         )
     }
 
@@ -216,7 +222,7 @@ class ServerTest {
             user = User.USER,
             query = mapOf("email" to "new@email.com", "locale" to "en"),
             expectedStatus = 201,
-            expectedInput = "testUser|$userId|new@email.com|EN"
+            expectedInput = "testUser|$userId|new@email.com|en"
         )
         client.doRequest(
             op = op,
@@ -243,5 +249,35 @@ class ServerTest {
         client.doRequest(op = op, user = null, cookies = cookies, expectedStatus = 200, expectedInput = "foo")
         client.doRequest(op = op, user = User.USER, cookies = cookies, expectedStatus = 200, expectedInput = "foo")
         client.doRequest(op = op, user = User.ADMIN, cookies = cookies, expectedStatus = 200, expectedInput = "foo")
+    }
+
+    @Test
+    fun `test operation context`() {
+        UsersApi.GetUsersContext.name shouldBe "getUsers"
+        UsersApi.GetUsersContext.description shouldBe null
+        UsersApi.GetUsersContext.deprecated shouldBe false
+        UsersApi.GetUsersContext.tag shouldBe "Users"
+        UsersApi.GetUsersContext.security shouldBe listOf(
+            SecurityRequirement(listOf(SecurityRequirementObject.Http(name = "user"))),
+            SecurityRequirement(listOf(SecurityRequirementObject.Http(name = "service"))),
+        )
+        UsersApi.GetUsersContext.defaultSuccessStatus shouldBe 200
+        UsersApi.GetUsersContext.requestBody shouldBe null
+        UsersApi.GetUsersContext.responses shouldBe mapOf(
+            "200" to OperationContext.Body(
+                description = "get users",
+                contentTypes = setOf("application/json", "application/stream+json"),
+            ),
+        )
+
+        UsersApi.CreateUserContext.defaultSuccessStatus shouldBe 201
+        UsersApi.CreateUserContext.requestBody shouldBe OperationContext.Body(
+            description = null,
+            contentTypes = setOf("application/json"),
+        )
+
+        UsersApi.DeleteUserContext.responses shouldBe emptyMap()
+
+        DebugApi.DebugInfoContext.security shouldBe emptyList()
     }
 }

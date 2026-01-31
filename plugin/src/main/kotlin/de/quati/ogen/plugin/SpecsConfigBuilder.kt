@@ -6,81 +6,99 @@ import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.model.Type
 import de.quati.ogen.plugin.intern.model.TypeWithFormat
+import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import java.nio.file.Path
 import kotlin.collections.mutableMapOf
 import kotlin.io.path.Path
 import kotlin.io.path.isRegularFile
+import kotlin.reflect.KClass
 
-public open class SpecConfigBuilder {
+public open class SpecsConfigBuilder {
     private val specs = mutableListOf<SpecConfig>()
     internal fun build() = SpecConfigs(specs = specs.toList())
 
     public fun addSpec(
         apiFile: String,
         packageName: String? = null,
-        block: GeneratorConfig.() -> Unit,
-    ): SpecConfigBuilder = apply {
-        specs += GeneratorConfig(
+        block: SpecConfingBuilder.() -> Unit,
+    ): SpecsConfigBuilder = apply {
+        specs += SpecConfingBuilder(
             apiFile = Path(apiFile),
             rootPackageName = packageName,
         ).apply(block).build()
     }
 
-    public class GeneratorConfig(
+    public class SpecConfingBuilder(
         private val apiFile: Path,
         public val rootPackageName: String?,
     ) {
-        private var modelConfig: de.quati.ogen.plugin.intern.model.config.ModelConfig? = null
-        private var sharedConfig: de.quati.ogen.plugin.intern.model.config.SharedConfig? = null
-        private val generatorConfigs = mutableListOf<de.quati.ogen.plugin.intern.model.config.GeneratorConfig>()
+        private val generatorConfigs = mutableMapOf<KClass<out GeneratorConfig>, GeneratorConfig>()
         private var validatorConfig: de.quati.ogen.plugin.intern.model.config.ValidatorConfig? =
             ValidatorConfig().build()
 
-        public fun validator(disable: Boolean = true): GeneratorConfig = apply {
+        private fun addConfig(config: GeneratorConfig) {
+            generatorConfigs[config::class] = config
+        }
+
+        public fun validator(disable: Boolean = true): SpecConfingBuilder = apply {
             if (disable)
                 validatorConfig = null
         }
 
-        public fun validator(block: ValidatorConfig.() -> Unit): GeneratorConfig = apply {
+        public fun validator(block: ValidatorConfig.() -> Unit): SpecConfingBuilder = apply {
             validatorConfig = ValidatorConfig().apply(block).build()
         }
 
         public fun model(
             block: ModelConfig.() -> Unit = {},
-        ): GeneratorConfig = apply {
-            modelConfig = ModelConfig(rootPackageName = rootPackageName).apply(block).build()
+        ): SpecConfingBuilder = apply {
+            val config = ModelConfig(rootPackageName = rootPackageName).apply(block).build()
+            addConfig(config)
         }
 
         public fun shared(
             block: SharedConfig.() -> Unit = {},
-        ): GeneratorConfig = apply {
-            sharedConfig = SharedConfig(rootPackageName = rootPackageName).apply(block).build()
+        ): SpecConfingBuilder = apply {
+            val config = SharedConfig(rootPackageName = rootPackageName).apply(block).build()
+            addConfig(config)
         }
 
         public fun serverSpringV4(
             block: ServerSpringV4Config.() -> Unit = {},
-        ): GeneratorConfig = apply {
-            generatorConfigs.add(
-                ServerSpringV4Config(rootPackageName = rootPackageName).apply(block).build()
-            )
+        ): SpecConfingBuilder = apply {
+            val config = ServerSpringV4Config(rootPackageName = rootPackageName).apply(block).build()
+            addConfig(config)
+        }
+
+        public fun ktorClient(
+            block: KtorClientConfig.() -> Unit = {},
+        ): SpecConfingBuilder = apply {
+
+            val config = KtorClientConfig(rootPackageName = rootPackageName).apply(block).build()
+
+            generatorConfigs[config::class] = config
         }
 
         internal fun build(): SpecConfig {
-            val modelConfig = modelConfig ?: error("model config is required")
+            val sharedConfig = generatorConfigs.computeIfAbsent(GeneratorConfig.Shared::class) {
+                SharedConfig(rootPackageName = rootPackageName).build()
+            } as GeneratorConfig.Shared
+            val modelConfig = generatorConfigs[GeneratorConfig.Model::class] as? GeneratorConfig.Model
+                ?: error("model config is required")
             return SpecConfig(
                 apiFile = apiFile.also {
                     require(it.isRegularFile()) { "apiFile '$it' does not exist" }
                 },
-                modelConfig = modelConfig,
-                sharedConfig = sharedConfig ?: SharedConfig(rootPackageName = rootPackageName).build(),
-                generatorConfigs = generatorConfigs,
+                generatorConfigs = generatorConfigs.values.toList(),
                 validatorConfig = validatorConfig,
+                modelConfig = modelConfig,
+                sharedConfig = sharedConfig
             )
         }
 
         public class ServerSpringV4Config internal constructor(rootPackageName: String?) {
-            public val packageName: String? = rootPackageName?.let { "$it.server" }
+            public var packageName: String? = rootPackageName?.let { "$it.server" }
             public var postfix: String = "Api"
             public var addOperationContext: Boolean = false
             private var contextIfAnySecurity: ClassName? = null
@@ -88,21 +106,47 @@ public open class SpecConfigBuilder {
             public fun contextIfAnySecurity(type: String): ServerSpringV4Config =
                 apply { contextIfAnySecurity = type.toPoetClassName() }
 
-            internal fun build() = de.quati.ogen.plugin.intern.model.config.GeneratorConfig.ServerSpringV4(
+            internal fun build() = GeneratorConfig.ServerSpringV4(
                 packageName = packageName?.let(::PackageName) ?: error("packageName is required for server code"),
                 postfix = postfix,
                 addOperationContext = addOperationContext,
                 contextIfAnySecurity = contextIfAnySecurity,
+                skipGeneration = false,
             )
+        }
+
+        public class KtorClientConfig internal constructor(private val rootPackageName: String?) {
+            public var packageName: String? = rootPackageName?.let { "$it.client" }
+            public var postfix: String = "Api"
+            private var util: GeneratorConfig.KtorClient.Util? = null
+            public fun util(block: Util.() -> Unit): KtorClientConfig = apply {
+                util = Util(rootPackageName = rootPackageName).apply(block).build()
+            }
+
+            internal fun build() = GeneratorConfig.KtorClient(
+                packageName = packageName?.let(::PackageName) ?: error("packageName is required for client code"),
+                postfix = postfix,
+                util = util ?: Util(rootPackageName = rootPackageName).build(),
+                skipGeneration = false,
+            )
+
+            public class Util internal constructor(rootPackageName: String?) {
+                public var packageName: String? = rootPackageName?.let { "$it.client.util" }
+                internal fun build() = GeneratorConfig.KtorClient.Util(
+                    packageName = packageName?.let(::PackageName)
+                        ?: error("packageName is required for client util code"),
+                    skipGeneration = false,
+                )
+            }
         }
 
         public class SharedConfig internal constructor(rootPackageName: String?) {
             public var packageName: String? = rootPackageName?.let { "$it.shared" }
-            public var generate: Boolean = true
+            public var skipGeneration: Boolean = false
 
-            internal fun build() = de.quati.ogen.plugin.intern.model.config.SharedConfig(
+            internal fun build() = GeneratorConfig.Shared(
                 packageName = packageName?.let(::PackageName) ?: error("packageName is required for shared code"),
-                generate = generate,
+                skipGeneration = skipGeneration,
             )
         }
 
@@ -110,7 +154,7 @@ public open class SpecConfigBuilder {
             public var packageName: String? = rootPackageName?.let { "$it.model" }
             private val typeMappings = mutableMapOf<TypeWithFormat, Type.NonPrimitiveType.Custom>()
             private val schemaMappings = mutableMapOf<ComponentName.Schema, Type.NonPrimitiveType.Custom>()
-            public var generate: Boolean = true
+            public var skipGeneration: Boolean = false
             public var postfix: String = "Dto"
 
             public fun typeMapping(
@@ -137,9 +181,9 @@ public open class SpecConfigBuilder {
                 schemaMappings[name] = parseCustomType(clazz = clazz, serializerObject = serializerObject)
             }
 
-            internal fun build() = de.quati.ogen.plugin.intern.model.config.ModelConfig(
+            internal fun build() = GeneratorConfig.Model(
                 packageName = packageName?.let(::PackageName) ?: error("packageName is required for model code"),
-                generate = generate,
+                skipGeneration = skipGeneration,
                 typeMappings = typeMappings,
                 schemaMappings = schemaMappings,
                 postfix = postfix,

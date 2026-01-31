@@ -8,8 +8,8 @@ import java.nio.file.Path
 
 internal data class SpecConfig(
     val apiFile: Path,
-    val modelConfig: ModelConfig,
-    val sharedConfig: SharedConfig,
+    val modelConfig: GeneratorConfig.Model,
+    val sharedConfig: GeneratorConfig.Shared,
     val generatorConfigs: List<GeneratorConfig>,
     val validatorConfig: ValidatorConfig?,
 ) {

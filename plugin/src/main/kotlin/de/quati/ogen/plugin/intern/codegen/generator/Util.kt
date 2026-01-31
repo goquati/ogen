@@ -1,27 +1,23 @@
-package de.quati.ogen.plugin.intern.codegen.endpoint
+package de.quati.ogen.plugin.intern.codegen.generator
 
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.buildCodeBlock
 import de.quati.kotlin.util.poet.dsl.addProperty
 import de.quati.kotlin.util.poet.dsl.buildObject
 import de.quati.kotlin.util.poet.dsl.indent
 import de.quati.kotlin.util.poet.dsl.initializer
 import de.quati.kotlin.util.poet.kotlinKeywords
 import de.quati.kotlin.util.poet.makeDifferent
-import de.quati.ogen.plugin.intern.DirectorySyncService
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.model.Endpoint
-import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
+import de.quati.ogen.plugin.intern.model.Security
+import io.swagger.v3.oas.models.PathItem
+import io.swagger.v3.oas.models.security.SecurityScheme
 import kotlin.collections.plus
 import kotlin.collections.toMutableSet
-
-context(_: DirectorySyncService, _: CodeGenContext)
-internal fun GeneratorConfig.syncEndpoints(): Unit = when (this) {
-    is GeneratorConfig.ServerSpringV4 -> syncEndpoints()
-}
-
 
 internal class NameConflictResolver(forbidden: Iterable<String> = emptySet()) { // TODO move to quati util
     private val forbidden: MutableSet<String> = (kotlinKeywords + forbidden).toMutableSet()
@@ -29,6 +25,19 @@ internal class NameConflictResolver(forbidden: Iterable<String> = emptySet()) { 
     fun resolve(name: String): String = name.makeDifferent(forbidden).also {
         forbidden += it
     }
+}
+
+internal val SecurityScheme.Type.prettyName get() = toString().replaceFirstChar(Char::titlecase)
+
+internal val PathItem.HttpMethod.ktorName get() = when (this) {
+    PathItem.HttpMethod.POST -> "Post"
+    PathItem.HttpMethod.GET -> "Get"
+    PathItem.HttpMethod.PUT -> "Put"
+    PathItem.HttpMethod.DELETE -> "Delete"
+    PathItem.HttpMethod.HEAD -> "Head"
+    PathItem.HttpMethod.OPTIONS -> "Options"
+    PathItem.HttpMethod.TRACE -> "Trace"
+    PathItem.HttpMethod.PATCH -> "Patch"
 }
 
 context(c: CodeGenContext)
@@ -57,24 +66,12 @@ internal fun Endpoint.generateOperationContextTypeSpec(
         addModifiers(KModifier.OVERRIDE)
         initializer("%S", tag)
     }
-
     addProperty(
         name = "security",
-        type = Set::class.asClassName()
-            .parameterizedBy(Set::class.asClassName().parameterizedBy(String::class.asClassName()))
+        type = List::class.asClassName().parameterizedBy(c.specConfig.sharedConfig.securityRequirement)
     ) {
         addModifiers(KModifier.OVERRIDE)
-        initializer {
-            add("setOf(")
-            security.data.forEachIndexed { i0, set ->
-                add("%LsetOf(", if (i0 == 0) "" else ", ")
-                set.forEachIndexed { i1, v ->
-                    add("%L%S", if (i1 == 0) "" else ", ", v)
-                }
-                add(")")
-            }
-            add(")")
-        }
+        initializer(securityRequirementListCodeBlock(security))
     }
     addProperty(name = "defaultSuccessStatus", type = Int::class.asClassName()) {
         addModifiers(KModifier.OVERRIDE)
@@ -126,4 +123,32 @@ internal fun Endpoint.generateOperationContextTypeSpec(
         }
     }
     block()
+}
+
+
+context(c: CodeGenContext)
+internal fun securityRequirementListCodeBlock(security: Security) = buildCodeBlock {
+    if (security.data.isEmpty()){
+        add("emptyList()")
+        return@buildCodeBlock
+    }
+
+    add("listOf(\n")
+    security.data.forEach { set ->
+        add(
+            "%T(listOf(",
+            c.specConfig.sharedConfig.securityRequirement,
+        )
+        set.forEachIndexed { i1, v ->
+            add(
+                "%L%T.%L(name = %S)",
+                if (i1 == 0) "" else ", ",
+                c.specConfig.sharedConfig.securityRequirementObject,
+                v.type.prettyName,
+                v.name,
+            )
+        }
+        add(")),\n")
+    }
+    add(")")
 }

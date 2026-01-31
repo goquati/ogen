@@ -9,17 +9,15 @@ import kotlin.collections.forEach
 import kotlin.collections.minus
 import kotlin.collections.plus
 import kotlin.collections.plusAssign
-import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.absolute
 import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteExisting
 import kotlin.io.path.exists
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.readText
 import kotlin.io.path.relativeToOrNull
-import kotlin.io.path.walk
 import kotlin.io.path.writeText
-import kotlin.sequences.map
-import kotlin.sequences.toSet
 import kotlin.text.padStart
 
 internal class DirectorySyncService(
@@ -58,8 +56,8 @@ internal class DirectorySyncService(
     }
 
     private fun cleanup() {
-        @OptIn(ExperimentalPathApi::class)
-        val actualFiles = outDir.walk().map { it.absolute() }.toSet()
+        val actualFiles = outDir.listDirectoryEntries().map { it.absolute() }
+            .filter { it.isRegularFile() }.toSet()
         val filesToDelete = actualFiles - (filesCreated + filesUpdated + filesUnchanged)
         filesToDelete.forEach { it.deleteExisting() }
         filesDeleted += filesToDelete
