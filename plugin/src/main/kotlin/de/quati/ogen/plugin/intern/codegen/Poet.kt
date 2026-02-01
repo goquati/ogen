@@ -1,6 +1,7 @@
 package de.quati.ogen.plugin.intern.codegen
 
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.TypeName
 import de.quati.kotlin.util.poet.dsl.buildAnnotationSpec
 import de.quati.ogen.plugin.intern.model.Endpoint
@@ -44,15 +45,26 @@ internal object Poet {
             val parameter = ClassName("io.ktor.client.request", "parameter")
             val header = ClassName("io.ktor.client.request", "header")
             val cookie = ClassName("io.ktor.client.request", "cookie")
+            val accept = ClassName("io.ktor.client.request", "accept")
             val url = ClassName("io.ktor.client.request", "url")
             val request = ClassName("io.ktor.client.request", "request")
             val httpRequestBuilder = ClassName("io.ktor.client.request", "HttpRequestBuilder")
             val setBody = ClassName("io.ktor.client.request", "setBody")
         }
 
+        object Call {
+            val body = ClassName("io.ktor.client.call", "body")
+        }
+
         val url = ClassName("io.ktor.http", "Url")
         val httpMethod = ClassName("io.ktor.http", "HttpMethod")
         val contentType = ClassName("io.ktor.http", "ContentType")
+        fun contentTypeCodeBlock(type: String) = when (type) {
+            "application/json" -> CodeBlock.of("%T.Application.Json", contentType)
+            "application/octet-stream" -> CodeBlock.of("%T.Application.OctetStream", contentType)
+            else -> CodeBlock.of("%T.parse(%S)", contentType, type)
+        }
+
         val contentTypeFun = ClassName("io.ktor.http", "contentType")
         val httpResponse = ClassName("io.ktor.client.statement", "HttpResponse")
         val httpStatusCode = ClassName("io.ktor.http", "HttpStatusCode")

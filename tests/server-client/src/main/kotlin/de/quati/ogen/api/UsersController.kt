@@ -20,6 +20,7 @@ class UsersController : UsersApi {
         tenantId: TenantIdDto?,
         isEmailVerified: Boolean?,
         search: String?,
+        locale: LocaleDto?,
         email: String?
     ) = flowOf(
         UserDto(
@@ -45,7 +46,7 @@ class UsersController : UsersApi {
         ),
     ).let {
         op.createResponse(it) {
-            addInputHeader(ctx.name, tenantId, isEmailVerified, search, email)
+            addInputHeader(ctx.name, tenantId, isEmailVerified, search, locale, email)
         }
     }
 

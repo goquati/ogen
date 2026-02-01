@@ -9,7 +9,7 @@
 - **Advanced OpenAPI Support**: Supports OpenAPI 3.0 and 3.1, including `oneOf` (via sealed interfaces), `allOf`, `anyOf`, and complex nested schemas.
 - **Kotlin Multiplatform**: Seamlessly works with KMP projects, generating code into the appropriate source sets.
 - **Spring Boot Support**: Generates server interfaces for Spring Boot (WebFlux).
-- **Ktor Support**: Planned support for both Ktor Server and Ktor Client generators.
+- **Ktor Support**: Supports both Ktor Server (planned) and Ktor Client generators.
 - **OpenAPI Validation**: Built-in validator to ensure your OpenAPI specs follow best practices and naming conventions.
 - **Highly Configurable**: Custom type mappings, schema mappings, and naming convention enforcement.
 
@@ -61,6 +61,9 @@ ogen {
             // Optional: If the operation has any security requirements, add the specified class as a parameter
             contextIfAnySecurity("com.example.api.AuthContext")
         }
+
+        // Optional: Generate Ktor Client
+        ktorClient {}
     }
 }
 ```
@@ -91,11 +94,6 @@ The plugin registers the following tasks:
 
 - JDK 21 or higher
 - Kotlin 2.0 or higher
-
-## Roadmap
-
-- [ ] Ktor Client generator
-- [ ] Ktor Server generator
 
 ## License
 

@@ -4,18 +4,27 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.serialization)
+    alias(libs.plugins.spring)
+    alias(libs.plugins.springBoot)
+    alias(libs.plugins.springDependencyManagement)
     id("de.quati.ogen")
 }
 
 dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
+
+    implementation(libs.bundles.ktor.client)
+
     implementation(libs.goquati.base)
     implementation(libs.bundles.kotlinx.coroutine)
     implementation(libs.bundles.kotlinx.serialization)
 
-    implementation(libs.ktor.client.cio)
-
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(kotlin("test"))
     testImplementation(libs.kotest)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 }
 
 kotlin {
@@ -49,6 +58,10 @@ ogen {
                 serializerObject = "$group.OffsetDateTimeSerializer",
             )
             schemaMapping(schema = "UserId", clazz = "$group.UserId")
+        }
+        serverSpringV4 {
+            addOperationContext = true
+            contextIfAnySecurity("$group.AuthContext")
         }
         ktorClient {
 

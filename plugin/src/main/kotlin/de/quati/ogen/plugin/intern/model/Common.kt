@@ -33,12 +33,14 @@ internal data class TypeWithNullability(
 
 internal sealed interface ContentType {
     val values: Set<String>
+    val preferredType: String
 
     @JvmInline
     value class Json(override val values: Set<String>) : ContentType {
         constructor(value: String) : this(setOf(value))
 
         override fun toString() = values.toString()
+        override val preferredType get() = "application/json".takeIf { it in values } ?: values.first()
     }
 
     @JvmInline
@@ -46,6 +48,7 @@ internal sealed interface ContentType {
         constructor(value: String) : this(setOf(value))
 
         override fun toString() = values.toString()
+        override val preferredType get() = values.first()
     }
 
     operator fun plus(other: ContentType) = when {

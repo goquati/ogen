@@ -1,13 +1,14 @@
 package de.quati.ogen
 
+import de.quati.ogen.gen.client.util.HttpResponseTyped
 import io.kotest.matchers.shouldBe
 import org.springframework.http.HttpMethod
 import org.springframework.test.web.reactive.server.WebTestClient
 
 
-data class BodyData(
+data class BodyData<T>(
     val status: Int,
-    val content: String,
+    val content: T,
     val type: String,
 )
 
@@ -49,7 +50,7 @@ fun WebTestClient.doRequest(
     headers: Map<String, String>? = null,
     body: Any? = null,
     expectedInput: String,
-    expectedBody: BodyData,
+    expectedBody: BodyData<String>,
 ) = doRequest(
     op = op, user = user, query = query, cookies = cookies, body = body, headers = headers,
     expectedStatus = expectedBody.status,
@@ -92,3 +93,28 @@ private fun WebTestClient.doRequest(
     .returnResult().responseBodyContent?.let { if (it.isEmpty()) null else it.decodeToString() }.let { bodyResult ->
         if (expectedBodyData != null) bodyResult shouldBe expectedBodyData
     }
+
+
+fun <T : Any> HttpResponseTyped<T>.check(
+    expectedStatus: Int,
+    expectedContentType: String? = null,
+    expectedInput: String? = null,
+): HttpResponseTyped<T> {
+    status.value shouldBe expectedStatus
+    if (expectedContentType != null)
+        raw.headers["content-type"] shouldBe expectedContentType
+    if (expectedInput != null)
+        raw.headers["input-data"] shouldBe expectedInput
+    return this
+}
+
+suspend fun <T : Any> HttpResponseTyped<T>.check(
+    expectedBody: BodyData<T>,
+    expectedInput: String,
+): HttpResponseTyped<T> {
+    status.value shouldBe expectedBody.status
+    raw.headers["input-data"] shouldBe expectedInput
+    raw.headers["content-type"] shouldBe expectedBody.type
+    body() shouldBe expectedBody.content
+    return this
+}

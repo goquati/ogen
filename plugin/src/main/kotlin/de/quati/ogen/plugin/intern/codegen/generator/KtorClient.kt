@@ -39,11 +39,16 @@ internal fun GeneratorConfig.KtorClient.sync() {
     }
 }
 
-private data class BodyInfo(
+private data class RequestBodyInfo(
     val name: String,
     val typeInfoName: String?,
-    val type: TypeName,
+    val typeName: TypeName,
     val body: Endpoint.RequestBodyResolved,
+)
+
+private data class ResponseBodyInfo(
+    val typeName: TypeName,
+    val contentType: String?,
 )
 
 context(_: CodeGenContext, config: GeneratorConfig.KtorClient)
@@ -76,12 +81,15 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
         val parameters = endpoint.parameters.map { it.toStringableParameter }
         val reservedNames = parameters.map { it.prettyName }.toSet()
         val blockName = "block".makeDifferent(reservedNames)
-        val responseType = endpoint.responseResolved.let { responseBody ->
-            when (responseBody.successMediaType?.contentType) {
-                null -> Unit::class.asClassName()
-                is ContentType.Unknown -> Any::class.asClassName()
-                is ContentType.Json -> responseBody.schemaSuccessTypeName
-            }
+        val responseBodyInfo = endpoint.responseResolved.let { responseBody ->
+            ResponseBodyInfo(
+                typeName = when (responseBody.successMediaType?.contentType) {
+                    null -> Unit::class.asClassName()
+                    is ContentType.Unknown -> Any::class.asClassName()
+                    is ContentType.Json -> responseBody.getSchemaSuccessTypeName(withFlow = false)
+                },
+                contentType = responseBody.successMediaType?.contentType?.preferredType,
+            )
         }
         val requestBodyInfo = endpoint.requestBodyResolved?.let { body ->
             val name = body.prettyBodyName.makeDifferent(reservedNames)
@@ -89,9 +97,9 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
                 null, is ContentType.Unknown -> null
                 is ContentType.Json -> body.typeName
             }
-            BodyInfo(
+            RequestBodyInfo(
                 name = name,
-                type = type ?: Any::class.asClassName(),
+                typeName = type ?: Any::class.asClassName(),
                 body = body,
                 typeInfoName = "bodyType".takeIf { type == null }?.makeDifferent(reservedNames),
             )
@@ -107,7 +115,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
         requestBodyInfo?.also { bodyInfo ->
             addParameter(
                 name = bodyInfo.name,
-                type = bodyInfo.type.copy(nullable = !bodyInfo.body.required)
+                type = bodyInfo.typeName.copy(nullable = !bodyInfo.body.required)
             ) {
                 if (!bodyInfo.body.required) defaultValue("null")
             }
@@ -123,10 +131,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
         ) { defaultValue("{}") }
 
         addModifiers(KModifier.SUSPEND)
-        returns(
-            config.util.httpResponseTyped
-                .parameterizedBy(responseType)
-        )
+        returns(config.util.httpResponseTyped.parameterizedBy(responseBodyInfo.typeName))
         addCode {
             add("return client.httpClient.%T {\n", Poet.Ktor.Request.request)
             indent {
@@ -140,27 +145,15 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
                 parameters.forEach { param ->
                     addParam(param)
                 }
-
-                if (requestBodyInfo != null) {
-                    val contentType = requestBodyInfo.body.contentType?.values?.firstOrNull()
-                    if (contentType != null)
-                        addStatement(
-                            "this.%T(%T.parse(%S))",
-                            Poet.Ktor.contentTypeFun,
-                            Poet.Ktor.contentType,
-                            contentType,
-                        )
-                    addStatement("this.%T(%L)", Poet.Ktor.Request.setBody, buildCodeBlock {
-                        add(requestBodyInfo.name)
-                        if (requestBodyInfo.typeInfoName != null)
-                            add(", %L", requestBodyInfo.typeInfoName)
-                    })
+                responseBodyInfo.contentType?.also { contentType ->
+                    addStatement("this.%T(%L)", Poet.Ktor.Request.accept, Poet.Ktor.contentTypeCodeBlock(contentType))
                 }
-
+                if (requestBodyInfo != null)
+                    addRequestBody(requestBodyInfo)
                 addStatement("client.baseModifier(this)")
                 addStatement("$blockName(this)")
             }
-            add("}.%T<%T>()", config.util.toTyped, responseType)
+            add("}.%T<%T>()", config.util.toTyped, responseBodyInfo.typeName)
         }
     }
 }
@@ -190,4 +183,15 @@ private fun CodeBlock.Builder.addPath(path: String, params: List<Endpoint.String
         add("params = %L,\n", params.filter { it.inType == Endpoint.Parameter.Type.PATH }.toParameterMapCodeBlock())
     }
     add(").also(this::%T)\n", Poet.Ktor.Request.url)
+}
+
+private fun CodeBlock.Builder.addRequestBody(info: RequestBodyInfo) {
+    val contentType = info.body.contentType?.values?.firstOrNull()
+    if (contentType != null)
+        addStatement("this.%T(%L)", Poet.Ktor.contentTypeFun, Poet.Ktor.contentTypeCodeBlock(contentType))
+    addStatement("this.%T(%L)", Poet.Ktor.Request.setBody, buildCodeBlock {
+        add(info.name)
+        if (info.typeInfoName != null)
+            add(", %L", info.typeInfoName)
+    })
 }

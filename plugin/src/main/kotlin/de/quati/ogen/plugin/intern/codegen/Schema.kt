@@ -33,12 +33,12 @@ private fun Component.Schema.getMappingOrNull(): Type.NonPrimitiveType.Custom? {
 
 context(c: CodeGenContext)
 internal fun Component.Schema.getTypeName(
-    isResponse: Boolean,
+    withFlow: Boolean,
 ): Type {
     getMappingOrNull()?.also { return it }
     return when (this) {
-        is Component.Schema.Array -> items.getTypeName(isResponse = false).let { itemTypeData ->
-            when (isResponse) {
+        is Component.Schema.Array -> items.getTypeName(withFlow = false).let { itemTypeData ->
+            when (withFlow) {
                 true -> Type.NonPrimitiveType.Flow(itemTypeData)
                 false -> Type.NonPrimitiveType.List(itemTypeData)
             }
@@ -69,7 +69,7 @@ internal fun Component.Schema.getTypeName(
 
         is Component.Schema.MapS -> Type.NonPrimitiveType.Map(
             keyType = Type.PrimitiveType.String,
-            valueType = valueSchema.getTypeName(isResponse = isResponse),
+            valueType = valueSchema.getTypeName(withFlow = withFlow),
         )
 
         Component.Schema.Null -> Type.PrimitiveType.JsonNull
@@ -183,7 +183,7 @@ internal fun Component.Schema.toInnerTypeSpec(): TypeSpec? {
 
 context(c: CodeGenContext)
 private fun Component.Schema.generateValueClassTypeSpec(): TypeSpec = buildValueClass(name.prettyClassName) {
-    val type = getTypeName(isResponse = false)
+    val type = getTypeName(withFlow = false)
     val valueName = "value"
     val discInfo = c.discriminatorInfoMap[name]
     if (discInfo != null) {
@@ -287,7 +287,7 @@ private fun Component.Schema.EnumString.generateEnumTypeSpec(
 context(c: CodeGenContext)
 private fun Component.Schema.Obj.generateDataClassTypeSpec(
 ): TypeSpec = TypeSpec.classBuilder(name.prettyClassName).apply {
-    val type = this@generateDataClassTypeSpec.getTypeName(isResponse = false)
+    val type = this@generateDataClassTypeSpec.getTypeName(withFlow = false)
     addModifiers(KModifier.DATA)
     addAnnotation(Poet.serializable(type.getSerializerTypeName(register = true)))
     val discInfo = c.discriminatorInfoMap[this@generateDataClassTypeSpec.name]
@@ -301,7 +301,7 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(
             if (fieldName == discInfo?.discriminatorName) return@forEach
             val prettyFieldName = fieldName.toCamelCase(capitalized = false)
             val isRequired = this@generateDataClassTypeSpec.required.contains(fieldName)
-            val propType = prop.getTypeName(isResponse = false)
+            val propType = prop.getTypeName(withFlow = false)
                 .nullable(prop.isNullable)
                 .let {
                     if (isRequired)

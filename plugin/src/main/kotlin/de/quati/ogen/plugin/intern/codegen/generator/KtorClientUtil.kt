@@ -50,8 +50,7 @@ private val httpResponseTypedTypeSpec: TypeSpec
             addModifiers(KModifier.SUSPEND)
             returns(t)
             addCode {
-                addStatement("@Suppress(\"UNCHECKED_CAST\")")
-                addStatement("val result = raw.call.body(bodyTypeInfo) as T")
+                addStatement("val result = raw.%T<T>(bodyTypeInfo)", Poet.Ktor.Call.body)
                 addStatement("return result")
             }
         }
@@ -99,11 +98,10 @@ private val httpClientOgenTypeSpec: TypeSpec
                 $$"""
                 |return %T {
                 |    %T(baseUrl)
-                |    val params = params.mapValues { (k, _) -> "{$k}" }
                 |    val segments = path.trimStart('/').split('/').map { segment ->
                 |        var segment = segment
                 |        for ((k, v) in params)
-                |            segment = segment.replace(k, v)
+                |            segment = segment.replace("{$k}", v)
                 |        segment
                 |    }
                 |    %T(segments, encodeSlash = true)
@@ -122,5 +120,10 @@ private fun FileSpec.Builder.addKtorClientUtils() {
         ),
     ) {
         initializer("AttributeKey(\"ogenAuth\")")
+    }
+    addFunction("getOgenAuthNotes") {
+        receiver(Poet.Ktor.httpRequestBuilder)
+        returns(List::class.asClassName().parameterizedBy(c.specConfig.sharedConfig.securityRequirement))
+        addCode("return attributes.getOrNull(ogenAuthAttr) ?: emptyList()")
     }
 }

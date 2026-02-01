@@ -58,7 +58,7 @@ internal data class Endpoint(
             RequestBodyResolved(
                 data = it,
                 mediaType = mediaType,
-                type = mediaType?.schema?.getTypeName(isResponse = false)
+                type = mediaType?.schema?.getTypeName(withFlow = false)
             )
         }
 
@@ -108,7 +108,7 @@ internal data class Endpoint(
                     nullable = nullable,
                     inType = o.type,
                     type = if (toStringCodeBlock == null) String::class.asClassName()
-                    else o.schema.getTypeName(isResponse = false).poet,
+                    else o.schema.getTypeName(withFlow = false).poet,
                     toStringCodeBlock = toStringCodeBlock ?: CodeBlock.of("toString()")
                 )
             }
@@ -176,9 +176,8 @@ internal data class Endpoint(
         val successContentType get() = successMediaType?.contentType
 
         context(_: CodeGenContext)
-        val schemaSuccessTypeName
-            get() = successMediaType?.schema?.getTypeName(isResponse = true)?.poet
-                ?: Any::class.asClassName()
+        fun getSchemaSuccessTypeName(withFlow: Boolean) =
+            successMediaType?.schema?.getTypeName(withFlow = withFlow)?.poet ?: Any::class.asClassName()
     }
 
     sealed interface Response {

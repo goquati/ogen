@@ -31,25 +31,31 @@ class SpringBootServerTest {
 
         client.doRequest(
             op = op, user = User.USER,
-            expectedInput = "testUser|null|null|null|null",
+            expectedInput = "testUser|null|null|null|null|null",
             expectedBody = expectedBody,
         )
 
         client.doRequest(
             op = op, query = mapOf("isEmailVerified" to "true"), user = User.USER,
-            expectedInput = "testUser|null|true|null|null",
+            expectedInput = "testUser|null|true|null|null|null",
             expectedBody = expectedBody,
         )
 
         client.doRequest(
             op = op, query = mapOf("search" to "foobar"), user = User.USER,
-            expectedInput = "testUser|null|null|foobar|null",
+            expectedInput = "testUser|null|null|foobar|null|null",
+            expectedBody = expectedBody,
+        )
+
+        client.doRequest(
+            op = op, query = mapOf("locale" to "de"), user = User.USER,
+            expectedInput = "testUser|null|null|null|de|null",
             expectedBody = expectedBody,
         )
 
         client.doRequest(
             op = op, query = mapOf("email" to "foo@bar.com"), user = User.USER,
-            expectedInput = "testUser|null|null|null|foo@bar.com",
+            expectedInput = "testUser|null|null|null|null|foo@bar.com",
             expectedBody = expectedBody,
         )
 
@@ -57,7 +63,7 @@ class SpringBootServerTest {
             op = op,
             query = mapOf("tenantId" to "b25f68fb-61c6-4338-b98e-3bdc3afc5c22"),
             user = User.USER,
-            expectedInput = "testUser|b25f68fb-61c6-4338-b98e-3bdc3afc5c22|null|null|null",
+            expectedInput = "testUser|b25f68fb-61c6-4338-b98e-3bdc3afc5c22|null|null|null|null",
             expectedBody = expectedBody,
         )
 
@@ -67,16 +73,17 @@ class SpringBootServerTest {
                 "tenantId" to "b25f68fb-61c6-4338-b98e-3bdc3afc5c22",
                 "isEmailVerified" to "false",
                 "search" to "hello",
+                "locale" to "en",
                 "email" to "foo@bar.de"
             ),
             user = User.USER,
-            expectedInput = "testUser|b25f68fb-61c6-4338-b98e-3bdc3afc5c22|false|hello|foo@bar.de",
+            expectedInput = "testUser|b25f68fb-61c6-4338-b98e-3bdc3afc5c22|false|hello|en|foo@bar.de",
             expectedBody = expectedBody,
         )
 
         client.doRequest(
             op = op, user = User.ADMIN,
-            expectedInput = "testAdmin|null|null|null|null",
+            expectedInput = "testAdmin|null|null|null|null|null",
             expectedBody = expectedBody,
         )
 
@@ -239,7 +246,7 @@ class SpringBootServerTest {
     }
 
     @Test
-    fun `test getTenant`() {
+    fun `test public debug endpoints`() {
         val op = Operation(HttpMethod.GET, "/api/v1/public/debug")
         client.doRequest(op = op, user = null, expectedStatus = 200, expectedInput = "null")
         client.doRequest(op = op, user = User.USER, expectedStatus = 200, expectedInput = "null")

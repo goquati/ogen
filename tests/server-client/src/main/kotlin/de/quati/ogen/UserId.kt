@@ -6,5 +6,6 @@ import kotlin.uuid.Uuid
 @JvmInline
 @Serializable
 value class UserId(val value: Uuid){
+    constructor(value: String) : this(Uuid.parse(value))
     override fun toString() = value.toString()
 }

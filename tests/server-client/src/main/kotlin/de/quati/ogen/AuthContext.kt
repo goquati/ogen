@@ -1,10 +1,8 @@
 package de.quati.ogen
 
 import org.springframework.core.MethodParameter
-import org.springframework.http.HttpStatus
 import org.springframework.web.reactive.BindingContext
 import org.springframework.web.reactive.result.method.HandlerMethodArgumentResolver
-import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono

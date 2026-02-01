@@ -60,7 +60,7 @@ private fun TypeSpec.Builder.createController(
             val responseType = when (responseBody.successMediaType?.contentType) {
                 null -> Unit::class.asClassName()
                 is ContentType.Unknown -> Any::class.asClassName()
-                is ContentType.Json -> responseBody.schemaSuccessTypeName
+                is ContentType.Json -> responseBody.getSchemaSuccessTypeName(withFlow = true)
             }
             val fullResponseType = Poet.Spring.responseEntity.parameterizedBy(responseType)
             returns(fullResponseType)
@@ -89,7 +89,7 @@ private fun TypeSpec.Builder.createController(
             for (parameter in endpoint.parametersContents)
                 addParameter(
                     name = paramNameResolver.resolve(parameter.prettyName),
-                    type = parameter.schema.getTypeName(isResponse = false)
+                    type = parameter.schema.getTypeName(withFlow = false)
                         .poet.copy(nullable = !parameter.required),
                 ) {
                     addAnnotation(Poet.Spring.annotationClassName(parameter.type)) {
@@ -150,7 +150,7 @@ private fun FileSpec.Builder.addWebFluxConversionConfig() = addClass("OgenWebFlu
                 add("reg.addConverter(String::class.java, %T::class.java) { %T.parse(it) }\n", type, type)
             }
             c.enumSchemas.forEach { schema ->
-                val type = schema.getTypeName(isResponse = false).poet
+                val type = schema.getTypeName(withFlow = false).poet
                 add("reg.addConverter(String::class.java, %T::class.java) { %T.fromSerial(it) }\n", type, type)
             }
         }
