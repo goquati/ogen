@@ -22,7 +22,7 @@ import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 
 
 context(d: DirectorySyncService, _: CodeGenContext)
-internal fun GeneratorConfig.KtorClient.Util.sync() {
+internal fun GeneratorConfig.ClientKtor.Util.sync() {
     d.sync(fileName = "HttpResponseTyped.kt") {
         addType(httpResponseTypedTypeSpec)
     }
@@ -34,7 +34,7 @@ internal fun GeneratorConfig.KtorClient.Util.sync() {
     }
 }
 
-context(config: GeneratorConfig.KtorClient.Util)
+context(config: GeneratorConfig.ClientKtor.Util)
 private val httpResponseTypedTypeSpec: TypeSpec
     get() = buildClass("HttpResponseTyped") {
         val t = TypeVariableName("T", bounds = listOf(Any::class))
@@ -73,7 +73,7 @@ private val httpResponseTypedTypeSpec: TypeSpec
         }
     }
 
-context(_: GeneratorConfig.KtorClient.Util)
+context(_: GeneratorConfig.ClientKtor.Util)
 private val httpClientOgenTypeSpec: TypeSpec
     get() = buildClass("HttpClientOgen") {
         primaryConstructor {
@@ -111,7 +111,7 @@ private val httpClientOgenTypeSpec: TypeSpec
         }
     }
 
-context(c: CodeGenContext, _: GeneratorConfig.KtorClient.Util)
+context(c: CodeGenContext, _: GeneratorConfig.ClientKtor.Util)
 private fun FileSpec.Builder.addKtorClientUtils() {
     addProperty(
         "ogenAuthAttr",

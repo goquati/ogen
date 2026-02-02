@@ -63,7 +63,7 @@ ogen {
             addOperationContext = true
             contextIfAnySecurity("$group.AuthContext")
         }
-        ktorClient {
+        clientKtor {
 
         }
     }

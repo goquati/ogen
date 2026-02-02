@@ -30,7 +30,7 @@ import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 
 
 context(d: DirectorySyncService, c: CodeGenContext)
-internal fun GeneratorConfig.KtorClient.sync() {
+internal fun GeneratorConfig.ClientKtor.sync() {
     c.spec.paths.groupedByTag.forEach { (tag, endpoints) ->
         val controllerName = tag.prettyName(postfix = this@sync.postfix)
         d.sync(fileName = "$controllerName.kt") {
@@ -51,7 +51,7 @@ private data class ResponseBodyInfo(
     val contentType: String?,
 )
 
-context(_: CodeGenContext, config: GeneratorConfig.KtorClient)
+context(_: CodeGenContext, config: GeneratorConfig.ClientKtor)
 private fun FileSpec.Builder.addController(
     controllerName: String,
     endpoints: List<Endpoint>,
@@ -75,7 +75,7 @@ private fun FileSpec.Builder.addController(
         addEndpoint(endpoint)
 }
 
-context(_: CodeGenContext, config: GeneratorConfig.KtorClient)
+context(_: CodeGenContext, config: GeneratorConfig.ClientKtor)
 private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
     addFunction(name = endpoint.operationName.name) {
         val parameters = endpoint.parameters.map { it.toStringableParameter }
@@ -175,7 +175,7 @@ private fun CodeBlock.Builder.addParam(param: Endpoint.StringableParameter) {
     )
 }
 
-context(_: CodeGenContext, _: GeneratorConfig.KtorClient)
+context(_: CodeGenContext, _: GeneratorConfig.ClientKtor)
 private fun CodeBlock.Builder.addPath(path: String, params: List<Endpoint.StringableParameter>) {
     add("client.buildUrl(\n")
     indent {

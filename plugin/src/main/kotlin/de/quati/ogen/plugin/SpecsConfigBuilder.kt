@@ -71,11 +71,11 @@ public open class SpecsConfigBuilder {
             addConfig(config)
         }
 
-        public fun ktorClient(
-            block: KtorClientConfig.() -> Unit = {},
+        public fun clientKtor(
+            block: ClientKtorConfig.() -> Unit = {},
         ): SpecConfingBuilder = apply {
 
-            val config = KtorClientConfig(rootPackageName = rootPackageName).apply(block).build()
+            val config = ClientKtorConfig(rootPackageName = rootPackageName).apply(block).build()
 
             generatorConfigs[config::class] = config
         }
@@ -115,15 +115,15 @@ public open class SpecsConfigBuilder {
             )
         }
 
-        public class KtorClientConfig internal constructor(private val rootPackageName: String?) {
+        public class ClientKtorConfig internal constructor(private val rootPackageName: String?) {
             public var packageName: String? = rootPackageName?.let { "$it.client" }
             public var postfix: String = "Api"
-            private var util: GeneratorConfig.KtorClient.Util? = null
-            public fun util(block: Util.() -> Unit): KtorClientConfig = apply {
+            private var util: GeneratorConfig.ClientKtor.Util? = null
+            public fun util(block: Util.() -> Unit): ClientKtorConfig = apply {
                 util = Util(rootPackageName = rootPackageName).apply(block).build()
             }
 
-            internal fun build() = GeneratorConfig.KtorClient(
+            internal fun build() = GeneratorConfig.ClientKtor(
                 packageName = packageName?.let(::PackageName) ?: error("packageName is required for client code"),
                 postfix = postfix,
                 util = util ?: Util(rootPackageName = rootPackageName).build(),
@@ -132,7 +132,7 @@ public open class SpecsConfigBuilder {
 
             public class Util internal constructor(rootPackageName: String?) {
                 public var packageName: String? = rootPackageName?.let { "$it.client.util" }
-                internal fun build() = GeneratorConfig.KtorClient.Util(
+                internal fun build() = GeneratorConfig.ClientKtor.Util(
                     packageName = packageName?.let(::PackageName)
                         ?: error("packageName is required for client util code"),
                     skipGeneration = false,

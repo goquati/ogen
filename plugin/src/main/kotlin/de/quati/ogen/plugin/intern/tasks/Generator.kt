@@ -34,8 +34,8 @@ internal class Generator(
                 is GeneratorConfig.Shared -> config.sync()
                 is GeneratorConfig.Model -> config.sync()
                 is GeneratorConfig.ServerSpringV4 -> config.sync()
-                is GeneratorConfig.KtorClient.Util -> config.sync()
-                is GeneratorConfig.KtorClient -> {
+                is GeneratorConfig.ClientKtor.Util -> config.sync()
+                is GeneratorConfig.ClientKtor -> {
                     config.sync()
                     generate(config.util)
                 }

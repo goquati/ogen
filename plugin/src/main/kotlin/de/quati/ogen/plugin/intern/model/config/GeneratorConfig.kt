@@ -35,7 +35,7 @@ internal sealed interface GeneratorConfig {
         val addOperationContext: Boolean,
     ) : GeneratorConfig
 
-    data class KtorClient(
+    data class ClientKtor(
         override val packageName: PackageName,
         override val skipGeneration: Boolean,
         val postfix: String,
