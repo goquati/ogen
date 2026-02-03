@@ -2,8 +2,10 @@ package de.quati.ogen.plugin.intern.codegen.generator
 
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LambdaTypeName
+import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
@@ -46,6 +48,8 @@ private data class RequestBodyInfo(
     val body: Endpoint.RequestBodyResolved,
 )
 
+private val streamContentTypes = setOf("application/x-ndjson")
+
 private data class ResponseBodyInfo(
     val typeName: TypeName,
     val contentType: String?,
@@ -71,39 +75,61 @@ private fun FileSpec.Builder.addController(
             }
         }
     }
-    for (endpoint in endpoints)
-        addEndpoint(endpoint)
+
+    with(NameConflictResolver()) {
+        for (endpoint in endpoints)
+            addEndpoint(endpoint)
+    }
 }
 
-context(_: CodeGenContext, config: GeneratorConfig.ClientKtor)
+context(_: CodeGenContext, config: GeneratorConfig.ClientKtor, funNameResolver: NameConflictResolver)
 private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
-    addFunction(name = endpoint.operationName.name) {
-        val parameters = endpoint.parameters.map { it.toStringableParameter }
-        val reservedNames = parameters.map { it.prettyName }.toSet()
-        val blockName = "block".makeDifferent(reservedNames)
-        val responseBodyInfo = endpoint.responseResolved.let { responseBody ->
+    val funName = funNameResolver.resolve(endpoint.operationName.name)
+    val funNamePrepare = funNameResolver.resolve("prepare" + funName.replaceFirstChar(Char::titlecaseChar))
+    val parameters = endpoint.parameters.map { it.toStringableParameter }
+    val reservedNames = parameters.map { it.prettyName }.toSet()
+    val blockName = "block".makeDifferent(reservedNames)
+    val (responseBodyInfo, responseStreamBodyInfo) = endpoint.responseResolved.let { responseBody ->
+        val contentType = responseBody.successMediaType?.contentType
+        val typeName = when (contentType) {
+            null -> Unit::class.asClassName()
+            is ContentType.Unknown -> Any::class.asClassName()
+            is ContentType.Json -> responseBody.getSchemaSuccessTypeName(withFlow = false)
+        }
+        val contentTypeStream = contentType?.values
+            ?.firstOrNull { it in streamContentTypes }
+        val innerListTypeName = (typeName as? ParameterizedTypeName)
+            ?.takeIf { it.rawType == List::class.asClassName() }
+            ?.typeArguments?.singleOrNull()
+        val streamInfo = if (innerListTypeName != null && contentTypeStream != null)
             ResponseBodyInfo(
-                typeName = when (responseBody.successMediaType?.contentType) {
-                    null -> Unit::class.asClassName()
-                    is ContentType.Unknown -> Any::class.asClassName()
-                    is ContentType.Json -> responseBody.getSchemaSuccessTypeName(withFlow = false)
-                },
-                contentType = responseBody.successMediaType?.contentType?.preferredType,
-            )
+                typeName = innerListTypeName,
+                contentType = contentTypeStream,
+            ) else null
+        val info = if (contentType?.preferredType !in streamContentTypes)
+            ResponseBodyInfo(
+                typeName = typeName,
+                contentType = contentType?.preferredType,
+            ) else null
+        info to streamInfo
+    }
+    val requestBodyInfo = endpoint.requestBodyResolved?.let { body ->
+        val name = body.prettyBodyName.makeDifferent(reservedNames)
+        val type = when (body.contentType) {
+            null, is ContentType.Unknown -> null
+            is ContentType.Json -> body.typeName
         }
-        val requestBodyInfo = endpoint.requestBodyResolved?.let { body ->
-            val name = body.prettyBodyName.makeDifferent(reservedNames)
-            val type = when (body.contentType) {
-                null, is ContentType.Unknown -> null
-                is ContentType.Json -> body.typeName
-            }
-            RequestBodyInfo(
-                name = name,
-                typeName = type ?: Any::class.asClassName(),
-                body = body,
-                typeInfoName = "bodyType".takeIf { type == null }?.makeDifferent(reservedNames),
-            )
-        }
+        RequestBodyInfo(
+            name = name,
+            typeName = type ?: Any::class.asClassName(),
+            body = body,
+            typeInfoName = "bodyType".takeIf { type == null }?.makeDifferent(reservedNames),
+        )
+    }
+    val paramNames = parameters.map { it.prettyName } + listOfNotNull(requestBodyInfo?.name, blockName)
+    val acceptParamName = "acceptContentType".makeDifferent(paramNames)
+
+    fun FunSpec.Builder.addParams(block: FunSpec.Builder.() -> Unit) {
         parameters.forEach { param ->
             addParameter(
                 name = param.prettyName,
@@ -125,15 +151,55 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
                     type = Poet.Ktor.typeInfo
                 )
         }
+        block()
         addParameter(
             name = blockName,
             type = LambdaTypeName.get(receiver = Poet.Ktor.httpRequestBuilder, returnType = Unit::class.asClassName())
         ) { defaultValue("{}") }
+    }
 
+    responseBodyInfo?.also { info ->
+        addFunction(funName) {
+            addParams {}
+            addModifiers(KModifier.SUSPEND)
+            returns(config.util.httpResponseTyped.parameterizedBy(info.typeName))
+            addCode("val stmt = $funNamePrepare(\n")
+            paramNames.forEach { paramName ->
+                addCode("    $paramName = $paramName,\n")
+            }
+            addCode(
+                "    $acceptParamName = %L,\n",
+                info.contentType?.let { Poet.Ktor.contentTypeCodeBlock(it) } ?: "null",
+            )
+            addCode(")\n")
+            addCode("return stmt.execute().%T<%T>()", config.util.toTyped, info.typeName)
+        }
+    }
+    responseStreamBodyInfo?.also { info ->
+        addFunction(funNameResolver.resolve(funName + "AsFlow")) {
+            addParams {}
+            addModifiers(KModifier.SUSPEND)
+            returns(Poet.flow.parameterizedBy(info.typeName))
+            addCode("val stmt = $funNamePrepare(\n")
+            paramNames.forEach { paramName ->
+                addCode("    $paramName = $paramName,\n")
+            }
+            addCode("    $acceptParamName = %L,\n", Poet.Ktor.contentTypeCodeBlock(info.contentType!!))
+            addCode(")\n")
+            addCode("return client.bodyAsFlow<%T>(stmt)", info.typeName)
+        }
+    }
+
+    addFunction(name = funNamePrepare) {
+        addParams {
+            addParameter(acceptParamName, Poet.Ktor.contentType.copy(nullable = true)) {
+                defaultValue("null")
+            }
+        }
         addModifiers(KModifier.SUSPEND)
-        returns(config.util.httpResponseTyped.parameterizedBy(responseBodyInfo.typeName))
+        returns(Poet.Ktor.httpStatement)
         addCode {
-            add("return client.httpClient.%T {\n", Poet.Ktor.Request.request)
+            add("return client.httpClient.%T {\n", Poet.Ktor.Request.prepareRequest)
             indent {
                 addStatement("this.method = %T.%L", Poet.Ktor.httpMethod, endpoint.method.ktorName)
                 addStatement(
@@ -145,15 +211,13 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
                 parameters.forEach { param ->
                     addParam(param)
                 }
-                responseBodyInfo.contentType?.also { contentType ->
-                    addStatement("this.%T(%L)", Poet.Ktor.Request.accept, Poet.Ktor.contentTypeCodeBlock(contentType))
-                }
+                addStatement("%L?.also { this.%T(it) }", acceptParamName, Poet.Ktor.Request.accept)
                 if (requestBodyInfo != null)
                     addRequestBody(requestBodyInfo)
                 addStatement("client.baseModifier(this)")
                 addStatement("$blockName(this)")
             }
-            add("}.%T<%T>()", config.util.toTyped, responseBodyInfo.typeName)
+            add("}")
         }
     }
 }

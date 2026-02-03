@@ -19,6 +19,7 @@ import io.ktor.client.plugins.auth.providers.basic
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.statement.bodyAsText
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -29,6 +30,31 @@ import kotlin.uuid.Uuid
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class KtorClientTest {
+    companion object {
+        private val getUsersContent = listOf(
+            UserDto(
+                id = UserId(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3")),
+                firstName = "John",
+                lastName = "Doe",
+                email = "foo@bar.de",
+                isEmailVerified = false,
+                locale = LocaleDto.EN,
+                tenants = emptyList(),
+            ),
+            UserDto(
+                id = UserId(Uuid.parse("c449c5c7-3fd1-4a5b-85b3-75a5b957b9cb")),
+                firstName = "Jane",
+                lastName = "Deo",
+                email = "hello@world.de",
+                isEmailVerified = true,
+                locale = LocaleDto.DE,
+                tenants = listOf(
+                    TenantIdDto(Uuid.parse("9df36116-ca51-45eb-9e2e-713d348f855a")),
+                    TenantIdDto(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3")),
+                ),
+            ),
+        )
+    }
 
     @LocalServerPort
     private var port: Int = 0
@@ -59,33 +85,16 @@ class KtorClientTest {
     private val clientPublic by lazy { createClient(user = null) }
 
     @Test
+    fun `test getUsers stream`(): TestResult = runTest {
+        clientUser.usersApi.getUsersAsFlow().toList() shouldBe getUsersContent
+    }
+
+    @Test
     fun `test getUsers`(): TestResult = runTest {
         val expectedBody = BodyData(
             status = 200,
             type = "application/json",
-            content = listOf(
-                UserDto(
-                    id = UserId(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3")),
-                    firstName = "John",
-                    lastName = "Doe",
-                    email = "foo@bar.de",
-                    isEmailVerified = false,
-                    locale = LocaleDto.EN,
-                    tenants = emptyList(),
-                ),
-                UserDto(
-                    id = UserId(Uuid.parse("c449c5c7-3fd1-4a5b-85b3-75a5b957b9cb")),
-                    firstName = "Jane",
-                    lastName = "Deo",
-                    email = "hello@world.de",
-                    isEmailVerified = true,
-                    locale = LocaleDto.DE,
-                    tenants = listOf(
-                        TenantIdDto(Uuid.parse("9df36116-ca51-45eb-9e2e-713d348f855a")),
-                        TenantIdDto(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3")),
-                    ),
-                ),
-            ),
+            content = getUsersContent,
         )
 
         clientUser.usersApi.getUsers().check(

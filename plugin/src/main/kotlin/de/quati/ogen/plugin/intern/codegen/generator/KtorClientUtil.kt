@@ -7,8 +7,10 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.TypeVariableName
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.buildCodeBlock
 import de.quati.kotlin.util.poet.dsl.addCode
 import de.quati.kotlin.util.poet.dsl.addCompanionObject
+import de.quati.kotlin.util.poet.dsl.addControlFlow
 import de.quati.kotlin.util.poet.dsl.addFunction
 import de.quati.kotlin.util.poet.dsl.addProperty
 import de.quati.kotlin.util.poet.dsl.buildClass
@@ -88,6 +90,14 @@ private val httpClientOgenTypeSpec: TypeSpec
             ) { param, _ ->
                 param.defaultValue("{}")
             }
+            addConstructorProperty("json", Poet.json) { param, _ ->
+                param.defaultValue(buildCodeBlock {
+                    add("%T {\n", Poet.json)
+                    add("    encodeDefaults = false\n")
+                    add("    explicitNulls = true\n")
+                    add("}")
+                })
+            }
         }
 
         addFunction("buildUrl") {
@@ -108,6 +118,25 @@ private val httpClientOgenTypeSpec: TypeSpec
                 |}
             """.trimMargin(), Poet.Ktor.buildUrl, Poet.Ktor.takeFrom, Poet.Ktor.appendPathSegments
             )
+        }
+
+        addFunction("bodyAsFlow") {
+            val t = TypeVariableName("T").copy(reified = true)
+            addTypeVariable(t)
+            returns(Poet.flow.parameterizedBy(t))
+            addModifiers(KModifier.INLINE)
+            addParameter("stmt", Poet.Ktor.httpStatement)
+            addCode {
+                addControlFlow("return %T", Poet.flowFun) {
+                    addStatement("val res = stmt.execute()")
+                    addStatement("val channel = res.%T()", Poet.Ktor.bodyAsChannel)
+                    addControlFlow("while (true)") {
+                        addStatement("val line = channel.%T() ?: break", Poet.Ktor.readLine)
+                        addStatement("val lineObject = json.decodeFromString<T>(line)")
+                        addStatement("emit(lineObject)")
+                    }
+                }
+            }
         }
     }
 

@@ -40,7 +40,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/User"
-            application/stream+json:
+            application/x-ndjson:
               schema:
                 type: array
                 items:

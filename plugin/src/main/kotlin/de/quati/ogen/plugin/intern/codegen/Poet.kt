@@ -17,6 +17,9 @@ internal object Poet {
     val serialDescriptor = ClassName("kotlinx.serialization.descriptors", "SerialDescriptor")
     val serializationException = ClassName("kotlinx.serialization", "SerializationException")
     val experimentalSerializationApi = ClassName("kotlinx.serialization", "ExperimentalSerializationApi")
+    val json = ClassName("kotlinx.serialization.json", "Json")
+    val flow = ClassName("kotlinx.coroutines.flow", "Flow")
+    val flowFun = ClassName("kotlinx.coroutines.flow", "flow")
 
     fun serializable(with: TypeName? = null) = buildAnnotationSpec(
         packageName = "kotlinx.serialization",
@@ -47,7 +50,7 @@ internal object Poet {
             val cookie = ClassName("io.ktor.client.request", "cookie")
             val accept = ClassName("io.ktor.client.request", "accept")
             val url = ClassName("io.ktor.client.request", "url")
-            val request = ClassName("io.ktor.client.request", "request")
+            val prepareRequest = ClassName("io.ktor.client.request", "prepareRequest")
             val httpRequestBuilder = ClassName("io.ktor.client.request", "HttpRequestBuilder")
             val setBody = ClassName("io.ktor.client.request", "setBody")
         }
@@ -76,6 +79,9 @@ internal object Poet {
         val buildUrl = ClassName("io.ktor.http", "buildUrl")
         val httpClient = ClassName("io.ktor.client", "HttpClient")
         val attributeKey = ClassName("io.ktor.util", "AttributeKey")
+        val httpStatement = ClassName("io.ktor.client.statement", "HttpStatement")
+        val bodyAsChannel = ClassName("io.ktor.client.statement", "bodyAsChannel")
+        val readLine = ClassName("io.ktor.utils.io", "readLine")
     }
 
     object Spring {

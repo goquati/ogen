@@ -273,7 +273,7 @@ class SpringBootServerTest {
         UsersApi.GetUsersContext.responses shouldBe mapOf(
             "200" to OperationContext.Body(
                 description = "get users",
-                contentTypes = setOf("application/json", "application/stream+json"),
+                contentTypes = setOf("application/json", "application/x-ndjson"),
             ),
         )
 

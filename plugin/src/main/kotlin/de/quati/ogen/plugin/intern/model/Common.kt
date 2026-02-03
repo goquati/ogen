@@ -40,7 +40,10 @@ internal sealed interface ContentType {
         constructor(value: String) : this(setOf(value))
 
         override fun toString() = values.toString()
-        override val preferredType get() = "application/json".takeIf { it in values } ?: values.first()
+        override val preferredType
+            get() = "application/json".takeIf { it in values }
+                ?: values.firstOrNull { it.startsWith("application/") && it.endsWith("+json") }
+                ?: values.first()
     }
 
     @JvmInline
@@ -60,6 +63,8 @@ internal sealed interface ContentType {
         fun parse(value: String): ContentType {
             val value = value.lowercase()
             if (value == "application/json") return Json(value)
+            if (value == "application/ndjson") return Json(value)
+            if (value == "application/x-ndjson") return Json(value)
             if (value.startsWith("application/") && value.endsWith("+json"))
                 return Json(value)
             return Unknown(value)
