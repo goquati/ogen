@@ -1,0 +1,13 @@
+openapi: 3.0.4
+info:
+  title: ogen test
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    TenantId:
+      type: string
+      format: uuid
+    UserId:
+      type: string
+      format: uuid

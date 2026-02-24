@@ -12,4 +12,5 @@ rootProject.name = "tests"
 include("models-kmp")
 include("models-v30")
 include("models-v31")
+include("oas-dir")
 include("server-client")

@@ -41,29 +41,10 @@ kotlin {
 }
 
 ogen {
-    add(packageName = "$group.gen") {
-        specFile("$projectDir/oas.yaml")
-        validator {
-            failOnWarnings = true
-        }
-        model {
-            typeMapping(
-                type = "number+big-decimal", clazz = "java.math.BigDecimal",
-                serializerObject = "$group.BigDecimalSerializer",
-            )
-            typeMapping(
-                type = "string+date-time", clazz = "java.time.OffsetDateTime",
-                serializerObject = "$group.OffsetDateTimeSerializer",
-            )
-            schemaMapping(schema = "UserId", clazz = "$group.UserId")
-        }
-        serverSpringV4 {
-            addOperationContext = true
-            contextIfAnySecurity("$group.AuthContext")
-        }
-        clientKtor {
-
-        }
+    add(packageName = "$group.oas.schemas.gen") {
+        specDirectory(path = "$projectDir/oas")
+        model {}
+        serverSpringV4 {}
     }
 }
 

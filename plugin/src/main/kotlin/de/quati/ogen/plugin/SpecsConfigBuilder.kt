@@ -7,10 +7,11 @@ import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.model.Type
 import de.quati.ogen.plugin.intern.model.TypeWithFormat
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
+import de.quati.ogen.plugin.intern.model.config.InputConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
-import java.nio.file.Path
 import kotlin.collections.mutableMapOf
 import kotlin.io.path.Path
+import kotlin.io.path.isDirectory
 import kotlin.io.path.isRegularFile
 import kotlin.reflect.KClass
 
@@ -18,27 +19,49 @@ public open class SpecsConfigBuilder {
     private val specs = mutableListOf<SpecConfig>()
     internal fun build() = SpecConfigs(specs = specs.toList())
 
-    public fun addSpec(
-        apiFile: String,
+    public fun add(
         packageName: String? = null,
         block: SpecConfingBuilder.() -> Unit,
     ): SpecsConfigBuilder = apply {
         specs += SpecConfingBuilder(
-            apiFile = Path(apiFile),
             rootPackageName = packageName,
         ).apply(block).build()
     }
 
     public class SpecConfingBuilder(
-        private val apiFile: Path,
         public val rootPackageName: String?,
     ) {
+        private var inputConfig: InputConfig? = null
         private val generatorConfigs = mutableMapOf<KClass<out GeneratorConfig>, GeneratorConfig>()
         private var validatorConfig: de.quati.ogen.plugin.intern.model.config.ValidatorConfig? =
             ValidatorConfig().build()
 
         private fun addConfig(config: GeneratorConfig) {
             generatorConfigs[config::class] = config
+        }
+
+        public fun specFile(path: String): SpecConfingBuilder = apply {
+            val path = Path(path).also { check(it.isRegularFile()) { "spec file '$path' does not exist" } }
+            inputConfig = InputConfig.File(path = path)
+        }
+
+        public fun specDirectory(
+            path: String,
+            mergeFileName: String = "merged",
+            mergedFileInfoName: String = "MergedSpec",
+            mergedFileInfoDescription: String = "Merged spec file",
+            mergedFileInfoVersion: String = "1.0.0",
+            mergedFileAuth: String? = null,
+        ): SpecConfingBuilder = apply {
+            val path = Path(path).also { check(it.isDirectory()) { "spec directory '$path' does not exist" } }
+            inputConfig = InputConfig.Directory(
+                path = path,
+                mergeFileName = mergeFileName,
+                mergedFileInfoName = mergedFileInfoName,
+                mergedFileInfoDescription = mergedFileInfoDescription,
+                mergedFileInfoVersion = mergedFileInfoVersion,
+                mergedFileAuth = mergedFileAuth,
+            )
         }
 
         public fun validator(disable: Boolean = true): SpecConfingBuilder = apply {
@@ -87,9 +110,7 @@ public open class SpecsConfigBuilder {
             val modelConfig = generatorConfigs[GeneratorConfig.Model::class] as? GeneratorConfig.Model
                 ?: error("model config is required")
             return SpecConfig(
-                apiFile = apiFile.also {
-                    require(it.isRegularFile()) { "apiFile '$it' does not exist" }
-                },
+                inputConfig = inputConfig ?: error("input spec is required"),
                 generatorConfigs = generatorConfigs.values.toList(),
                 validatorConfig = validatorConfig,
                 modelConfig = modelConfig,

@@ -38,7 +38,7 @@ internal class Validator(
         ) {
             val validatorConfig = config.validatorConfig ?: return
             out.withStyle(StyledTextOutput.Style.Info)
-            out.println("Validating spec ${config.apiFile}")
+            out.println("Validating spec ${config.inputConfig}")
 
             val parseResult = config.parseResult
             val messages = parseResult.messages.toSet()

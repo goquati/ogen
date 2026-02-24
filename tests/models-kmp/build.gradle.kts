@@ -47,10 +47,8 @@ kotlin {
 }
 
 ogen {
-    addSpec(
-        apiFile = "$projectDir/oas.yaml",
-        packageName = "$group.oas.schemas.gen",
-    ) {
+    add(packageName = "$group.oas.schemas.gen") {
+        specFile("$projectDir/oas.yaml")
         model {
             typeMapping(
                 type = "string+date-time", clazz = "kotlin.time.Instant",

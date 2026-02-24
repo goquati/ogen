@@ -1,0 +1,32 @@
+openapi: 3.0.4
+info:
+  title: ogen test
+  version: 1.0.0
+
+paths:
+  /api/tenants:
+    get:
+      tags:
+        - tenants
+      operationId: getTenants
+      responses:
+        '200':
+          description: "ok"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+
+components:
+  schemas:
+    Tenant:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/TenantId'
+        name:
+          type: string
+          nullable: true
