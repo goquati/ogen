@@ -2,6 +2,7 @@ openapi: "3.0.4"
 info:
   title: "MergedSpec"
   version: "1.0.0"
+security: []
 paths:
   /api/public/tenants:
     $ref: "./domain/tenants.yaml#/paths/~1api~1public~1tenants"

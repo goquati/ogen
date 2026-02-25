@@ -32,6 +32,7 @@ internal sealed interface InputConfig {
                 val infoTitle: String,
                 val infoDescription: String?,
                 val infoVersion: String,
+                val additional: Map<String, Any?>,
             ) : BaseConfig
         }
 

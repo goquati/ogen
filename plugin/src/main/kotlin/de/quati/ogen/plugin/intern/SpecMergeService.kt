@@ -98,7 +98,7 @@ private fun InputConfig.Merge.BaseConfig.Data.generateBaseSpec(specData: List<Sp
         infoDescription?.also { put("description", it) }
         put("version", infoVersion)
     }
-)
+) + additional
 
 @Suppress("UNCHECKED_CAST")
 private fun InputConfig.Merge.BaseConfig.File.generateBaseSpec(): Map<String, *> =

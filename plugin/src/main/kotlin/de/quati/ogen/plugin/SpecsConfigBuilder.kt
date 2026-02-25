@@ -63,6 +63,7 @@ public open class SpecsConfigBuilder {
             mergedFileInfoTitle: String = "MergedSpec",
             mergedFileInfoDescription: String? = null,
             mergedFileInfoVersion: String = "1.0.0",
+            mergedFileAdditional: Map<String, Any?> = emptyMap(),
         ): SpecConfingBuilder = apply {
             val path = Path(path).also { check(it.isDirectory()) { "spec directory '$path' does not exist" } }
             inputConfig = InputConfig.Merge(
@@ -72,6 +73,7 @@ public open class SpecsConfigBuilder {
                     infoTitle = mergedFileInfoTitle,
                     infoDescription = mergedFileInfoDescription,
                     infoVersion = mergedFileInfoVersion,
+                    additional = mergedFileAdditional,
                 ),
             )
         }

@@ -43,7 +43,12 @@ kotlin {
 ogen {
     utilPackageName("$group.oas.schemas.util")
     add(packageName = "$group.oas.schemas.gen1") {
-        specMerge(path = "$projectDir/oas1")
+        specMerge(
+            path = "$projectDir/oas1",
+            mergedFileAdditional = mapOf(
+                "security" to emptyList<String>()
+            )
+        )
         model {}
         serverSpringV4 {
             contextIfAnySecurity("$group.AuthContext")
