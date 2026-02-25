@@ -11,14 +11,6 @@ internal sealed interface GeneratorConfig {
     val packageName: PackageName
     val skipGeneration: Boolean
 
-    data class Shared(
-        override val packageName: PackageName,
-        override val skipGeneration: Boolean,
-    ) : GeneratorConfig {
-        val securityRequirementObject get() = packageName.className("SecurityRequirementObject")
-        val securityRequirement get() = packageName.className("SecurityRequirement")
-    }
-
     data class Model(
         override val packageName: PackageName,
         override val skipGeneration: Boolean,
@@ -39,19 +31,5 @@ internal sealed interface GeneratorConfig {
         override val packageName: PackageName,
         override val skipGeneration: Boolean,
         val postfix: String,
-        val util: Util,
-    ) : GeneratorConfig {
-
-        data class Util(
-            override val packageName: PackageName,
-            override val skipGeneration: Boolean,
-        ) : GeneratorConfig {
-            val httpResponseTyped = packageName.className("HttpResponseTyped")
-            val httpClientOgen = packageName.className("HttpClientOgen")
-
-            val toTyped = (packageName + "HttpResponseTyped" + "Companion").className("toTyped")
-            val ogenAuthAttr = packageName.className("ogenAuthAttr")
-        }
-    }
-
+    ) : GeneratorConfig
 }

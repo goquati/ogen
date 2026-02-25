@@ -3,13 +3,13 @@ package de.quati.ogen
 import de.quati.kotlin.util.toOption
 import de.quati.ogen.gen.client.DebugApi.Companion.debugApi
 import de.quati.ogen.gen.client.UsersApi.Companion.usersApi
-import de.quati.ogen.gen.client.util.HttpClientOgen
-import de.quati.ogen.gen.client.util.getOgenAuthNotes
 import de.quati.ogen.gen.model.LocaleDto
 import de.quati.ogen.gen.model.TenantIdDto
 import de.quati.ogen.gen.model.UserCreateDto
 import de.quati.ogen.gen.model.UserDto
 import de.quati.ogen.gen.model.UserUpdateDto
+import de.quati.ogen.gen.util.client.ktor.HttpClientOgen
+import de.quati.ogen.gen.util.client.ktor.getOgenAuthNotes
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO

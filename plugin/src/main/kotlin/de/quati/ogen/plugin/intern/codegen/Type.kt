@@ -31,7 +31,7 @@ internal fun TypeWithNullability.serializerCreateCode(): CodeBlock = when (val t
 
     is Type.NonPrimitiveType.Option -> CodeBlock.of(
         "%T(%L)",
-        c.optionSerializer,
+        c.utilConfig.optionSerializer,
         type.innerType.serializerCreateCode(),
     )
 
@@ -65,7 +65,7 @@ internal fun Type.getSerializerTypeName(register: Boolean): TypeName? = when (th
     is Type.NonPrimitiveType.List -> run {
         val defaultType = null == innerType.getSerializerTypeName(register = false)
         if (defaultType) return@run null
-        c.registerSerializer(
+        c.globalGenContext.registerSerializer(
             register = register,
             type = this,
             delegate = this.nullable(false).serializerCreateCode(),
@@ -76,14 +76,14 @@ internal fun Type.getSerializerTypeName(register: Boolean): TypeName? = when (th
         val defaultKey = null == keyType.getSerializerTypeName(register = false)
         val defaultValue = null == valueType.getSerializerTypeName(register = false)
         if (defaultKey && defaultValue) return@run null
-        c.registerSerializer(
+        c.globalGenContext.registerSerializer(
             register = register,
             type = this,
             delegate = this.nullable(false).serializerCreateCode(),
         )
     }
 
-    is Type.NonPrimitiveType.Option -> c.registerSerializer(
+    is Type.NonPrimitiveType.Option -> c.globalGenContext.registerSerializer(
         register = register,
         type = this,
         delegate = this.nullable(false).serializerCreateCode(),

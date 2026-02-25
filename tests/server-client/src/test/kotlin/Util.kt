@@ -1,6 +1,6 @@
 package de.quati.ogen
 
-import de.quati.ogen.gen.client.util.HttpResponseTyped
+import de.quati.ogen.gen.util.client.ktor.HttpResponseTyped
 import io.kotest.matchers.shouldBe
 import org.springframework.http.HttpMethod
 import org.springframework.test.web.reactive.server.WebTestClient

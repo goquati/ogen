@@ -4,29 +4,29 @@ info:
   version: 1.0.0
 
 paths:
-  /api/tenants:
+  /api/orders:
     get:
       tags:
-        - tenants
-      operationId: getTenants
+        - orders
+      operationId: getOrders
       responses:
         '200':
           description: "ok"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Tenant'
+                $ref: '#/components/schemas/Order'
 
 components:
   schemas:
-    Tenant:
+    Order:
       type: object
       required:
         - id
         - name
       properties:
         id:
-          $ref: './common.yaml#/components/schemas/TenantId'
+          $ref: '../common.yaml#/components/schemas/OrderId'
         name:
           type: string
           nullable: true

@@ -13,8 +13,4 @@ internal fun GeneratorConfig.Model.sync() {
             addType(typeSpec)
         }
     }
-
-    d.sync(fileName = "_utils.kt") {
-        addType(c.buildSerializerTypeSpec())
-    }
 }

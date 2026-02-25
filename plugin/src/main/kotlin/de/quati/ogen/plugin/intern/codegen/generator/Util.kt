@@ -44,11 +44,11 @@ context(c: CodeGenContext)
 internal fun Endpoint.generateOperationContextTypeSpec(
     block: TypeSpec.Builder.() -> Unit = {},
 ) = buildObject(name = operationNameContextName) {
-    addSuperinterface(c.operationContext)
+    addSuperinterface(c.utilConfig.operationContext)
     addModifiers(KModifier.DATA)
     val request = requestBodyResolved
     val response = responseResolved
-    val bodyTypeName = c.operationContext.nestedClass("Body")
+    val bodyTypeName = c.utilConfig.operationContext.nestedClass("Body")
 
     addProperty(name = "name", type = String::class.asClassName()) {
         addModifiers(KModifier.OVERRIDE)
@@ -68,7 +68,7 @@ internal fun Endpoint.generateOperationContextTypeSpec(
     }
     addProperty(
         name = "security",
-        type = List::class.asClassName().parameterizedBy(c.specConfig.sharedConfig.securityRequirement)
+        type = List::class.asClassName().parameterizedBy(c.utilConfig.securityRequirement)
     ) {
         addModifiers(KModifier.OVERRIDE)
         initializer(securityRequirementListCodeBlock(security))
@@ -137,13 +137,13 @@ internal fun securityRequirementListCodeBlock(security: Security) = buildCodeBlo
     security.data.forEach { set ->
         add(
             "%T(listOf(",
-            c.specConfig.sharedConfig.securityRequirement,
+            c.utilConfig.securityRequirement,
         )
         set.forEachIndexed { i1, v ->
             add(
                 "%L%T.%L(name = %S)",
                 if (i1 == 0) "" else ", ",
-                c.specConfig.sharedConfig.securityRequirementObject,
+                c.utilConfig.securityRequirementObject,
                 v.type.prettyName,
                 v.name,
             )

@@ -1,0 +1,9 @@
+openapi: "3.0.4"
+info:
+  title: "MergedSpec"
+  version: "1.0.0"
+paths:
+  /api/public/tenants:
+    $ref: "./domain/tenants.yaml#/paths/~1api~1public~1tenants"
+  /api/public/users:
+    $ref: "./domain/users.yaml#/paths/~1api~1public~1users"

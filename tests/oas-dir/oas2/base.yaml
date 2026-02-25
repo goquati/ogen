@@ -1,0 +1,11 @@
+openapi: "3.0.4"
+info:
+  title: "MergedSpec"
+  version: "1.0.0"
+security:
+  - jwt: [ ]
+components:
+  securitySchemes:
+    jwt:
+      $ref: "./common.yaml#/components/securitySchemes/jwt"
+paths: { }

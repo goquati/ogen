@@ -17,7 +17,13 @@ import kotlin.reflect.KClass
 
 public open class SpecsConfigBuilder {
     private val specs = mutableListOf<SpecConfig>()
-    internal fun build() = SpecConfigs(specs = specs.toList())
+    private var utilPackageName: PackageName? = null
+    internal fun build() = SpecConfigs(
+        specs = specs.toList(),
+        util = SpecConfigs.Util(
+            packageName = utilPackageName ?: error("utilPackageName is required"),
+        ),
+    )
 
     public fun add(
         packageName: String? = null,
@@ -26,6 +32,12 @@ public open class SpecsConfigBuilder {
         specs += SpecConfingBuilder(
             rootPackageName = packageName,
         ).apply(block).build()
+    }
+
+    public fun utilPackageName(
+        packageName: String,
+    ): SpecsConfigBuilder = apply {
+        utilPackageName = PackageName(packageName)
     }
 
     public class SpecConfingBuilder(
@@ -45,22 +57,37 @@ public open class SpecsConfigBuilder {
             inputConfig = InputConfig.File(path = path)
         }
 
-        public fun specDirectory(
+        public fun specMerge(
             path: String,
             mergeFileName: String = "merged",
-            mergedFileInfoName: String = "MergedSpec",
-            mergedFileInfoDescription: String = "Merged spec file",
+            mergedFileInfoTitle: String = "MergedSpec",
+            mergedFileInfoDescription: String? = null,
             mergedFileInfoVersion: String = "1.0.0",
-            mergedFileAuth: String? = null,
         ): SpecConfingBuilder = apply {
             val path = Path(path).also { check(it.isDirectory()) { "spec directory '$path' does not exist" } }
-            inputConfig = InputConfig.Directory(
-                path = path,
+            inputConfig = InputConfig.Merge(
+                directoryPath = path,
                 mergeFileName = mergeFileName,
-                mergedFileInfoName = mergedFileInfoName,
-                mergedFileInfoDescription = mergedFileInfoDescription,
-                mergedFileInfoVersion = mergedFileInfoVersion,
-                mergedFileAuth = mergedFileAuth,
+                baseConfig = InputConfig.Merge.BaseConfig.Data(
+                    infoTitle = mergedFileInfoTitle,
+                    infoDescription = mergedFileInfoDescription,
+                    infoVersion = mergedFileInfoVersion,
+                ),
+            )
+        }
+
+        public fun specMerge(
+            path: String,
+            baseSpec: String,
+            mergeFileName: String = "merged",
+        ): SpecConfingBuilder = apply {
+            val path = Path(path).also { check(it.isDirectory()) { "spec directory '$path' does not exist" } }
+            inputConfig = InputConfig.Merge(
+                directoryPath = path,
+                mergeFileName = mergeFileName,
+                baseConfig = InputConfig.Merge.BaseConfig.File(
+                    path = Path(baseSpec),
+                ),
             )
         }
 
@@ -77,13 +104,6 @@ public open class SpecsConfigBuilder {
             block: ModelConfig.() -> Unit = {},
         ): SpecConfingBuilder = apply {
             val config = ModelConfig(rootPackageName = rootPackageName).apply(block).build()
-            addConfig(config)
-        }
-
-        public fun shared(
-            block: SharedConfig.() -> Unit = {},
-        ): SpecConfingBuilder = apply {
-            val config = SharedConfig(rootPackageName = rootPackageName).apply(block).build()
             addConfig(config)
         }
 
@@ -104,9 +124,6 @@ public open class SpecsConfigBuilder {
         }
 
         internal fun build(): SpecConfig {
-            val sharedConfig = generatorConfigs.computeIfAbsent(GeneratorConfig.Shared::class) {
-                SharedConfig(rootPackageName = rootPackageName).build()
-            } as GeneratorConfig.Shared
             val modelConfig = generatorConfigs[GeneratorConfig.Model::class] as? GeneratorConfig.Model
                 ?: error("model config is required")
             return SpecConfig(
@@ -114,7 +131,6 @@ public open class SpecsConfigBuilder {
                 generatorConfigs = generatorConfigs.values.toList(),
                 validatorConfig = validatorConfig,
                 modelConfig = modelConfig,
-                sharedConfig = sharedConfig
             )
         }
 
@@ -136,38 +152,14 @@ public open class SpecsConfigBuilder {
             )
         }
 
-        public class ClientKtorConfig internal constructor(private val rootPackageName: String?) {
+        public class ClientKtorConfig internal constructor(rootPackageName: String?) {
             public var packageName: String? = rootPackageName?.let { "$it.client" }
             public var postfix: String = "Api"
-            private var util: GeneratorConfig.ClientKtor.Util? = null
-            public fun util(block: Util.() -> Unit): ClientKtorConfig = apply {
-                util = Util(rootPackageName = rootPackageName).apply(block).build()
-            }
 
             internal fun build() = GeneratorConfig.ClientKtor(
                 packageName = packageName?.let(::PackageName) ?: error("packageName is required for client code"),
                 postfix = postfix,
-                util = util ?: Util(rootPackageName = rootPackageName).build(),
                 skipGeneration = false,
-            )
-
-            public class Util internal constructor(rootPackageName: String?) {
-                public var packageName: String? = rootPackageName?.let { "$it.client.util" }
-                internal fun build() = GeneratorConfig.ClientKtor.Util(
-                    packageName = packageName?.let(::PackageName)
-                        ?: error("packageName is required for client util code"),
-                    skipGeneration = false,
-                )
-            }
-        }
-
-        public class SharedConfig internal constructor(rootPackageName: String?) {
-            public var packageName: String? = rootPackageName?.let { "$it.shared" }
-            public var skipGeneration: Boolean = false
-
-            internal fun build() = GeneratorConfig.Shared(
-                packageName = packageName?.let(::PackageName) ?: error("packageName is required for shared code"),
-                skipGeneration = skipGeneration,
             )
         }
 

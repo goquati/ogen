@@ -1,13 +1,11 @@
 package de.quati.ogen.plugin.intern.codegen.generator
 
-import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LambdaTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import de.quati.kotlin.util.poet.dsl.addAnnotation
-import de.quati.kotlin.util.poet.dsl.addClass
 import de.quati.kotlin.util.poet.dsl.addCode
 import de.quati.kotlin.util.poet.dsl.addFunction
 import de.quati.kotlin.util.poet.dsl.addInterface
@@ -20,7 +18,6 @@ import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.codegen.getTypeName
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Endpoint
-import de.quati.ogen.plugin.intern.model.Type
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 
 
@@ -37,11 +34,8 @@ internal fun GeneratorConfig.ServerSpringV4.sync() {
             }
         }
     }
-    d.sync(fileName = "_utils.kt") {
-        addWebFluxConversionConfig()
-    }
+    c.globalGenContext.serverSpringV4EnumConversionTypes += c.enumSchemas.map { it.getTypeName(withFlow = false) }
 }
-
 
 context(c: CodeGenContext, config: GeneratorConfig.ServerSpringV4)
 private fun TypeSpec.Builder.createController(
@@ -135,24 +129,4 @@ private fun TypeSpec.Builder.createController(
     }
 
     operationContexts.forEach { addType(it) }
-}
-
-context(c: CodeGenContext, _: GeneratorConfig.ServerSpringV4)
-private fun FileSpec.Builder.addWebFluxConversionConfig() = addClass("OgenWebFluxConversionConfig") {
-    addAnnotation(Poet.Spring.configuration)
-    addSuperinterface(Poet.Spring.WebFlux.webFluxConfigurer)
-    addFunction("addFormatters") {
-        addModifiers(KModifier.OVERRIDE)
-        addParameter("reg", Poet.Spring.formatterRegistry)
-        addCode {
-            run {
-                val type = Type.PrimitiveType.Uuid.poet
-                add("reg.addConverter(String::class.java, %T::class.java) { %T.parse(it) }\n", type, type)
-            }
-            c.enumSchemas.forEach { schema ->
-                val type = schema.getTypeName(withFlow = false).poet
-                add("reg.addConverter(String::class.java, %T::class.java) { %T.fromSerial(it) }\n", type, type)
-            }
-        }
-    }
 }

@@ -1,0 +1,32 @@
+openapi: 3.0.4
+info:
+  title: ogen test
+  version: 1.0.0
+
+paths:
+  /api/products:
+    get:
+      tags:
+        - products
+      operationId: getProducts
+      responses:
+        '200':
+          description: "ok"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+components:
+  schemas:
+    Product:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          $ref: '../common.yaml#/components/schemas/ProductId'
+        name:
+          type: string
+          nullable: true

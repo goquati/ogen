@@ -31,6 +31,7 @@ Configure the generator using the `ogen` extension:
 
 ```kotlin
 ogen {
+    utilPackageName("com.example.api.gen.util")
     add(packageName = "com.example.api.gen") {
         specFile("$projectDir/specs/api.yaml")
         // Optional: Configure validation

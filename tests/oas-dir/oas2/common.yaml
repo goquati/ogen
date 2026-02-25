@@ -1,0 +1,18 @@
+openapi: 3.0.4
+info:
+  title: ogen test
+  version: 1.0.0
+paths: {}
+components:
+  securitySchemes:
+    jwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ProductId:
+      type: string
+      format: uuid
+    OrderId:
+      type: string
+      format: uuid

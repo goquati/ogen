@@ -2,9 +2,9 @@ package de.quati.ogen
 
 import de.quati.ogen.gen.server.DebugApi
 import de.quati.ogen.gen.server.UsersApi
-import de.quati.ogen.gen.shared.OperationContext
-import de.quati.ogen.gen.shared.SecurityRequirement
-import de.quati.ogen.gen.shared.SecurityRequirementObject
+import de.quati.ogen.gen.util.OperationContext
+import de.quati.ogen.gen.util.SecurityRequirement
+import de.quati.ogen.gen.util.SecurityRequirementObject
 import io.kotest.matchers.shouldBe
 import org.springframework.http.HttpMethod
 import org.springframework.boot.test.context.SpringBootTest
@@ -16,9 +16,7 @@ import kotlin.test.Test
 class SpringBootServerTest {
     @LocalServerPort
     private var port: Int = 0
-    private val client by lazy {
-        WebTestClient.bindToServer().baseUrl("http://localhost:$port").build()!!
-    }
+    private val client by lazy { WebTestClient.bindToServer().baseUrl("http://localhost:$port").build() }
 
     @Test
     fun `test getUsers`() {

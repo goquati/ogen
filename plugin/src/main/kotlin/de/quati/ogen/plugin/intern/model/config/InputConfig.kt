@@ -1,29 +1,48 @@
 package de.quati.ogen.plugin.intern.model.config
 
-import org.openapitools.codegen.config.MergedSpecBuilder
 import java.nio.file.Path
 
 internal sealed interface InputConfig {
+    enum class Format {
+        JSON, YAML;
+
+        companion object {
+            fun parse(fileName: String) = fileName.lowercase().let {
+                if (it.endsWith(".json")) JSON
+                else YAML
+            }
+        }
+    }
+
     data class File(val path: Path) : InputConfig {
         override fun toString(): String = path.toString()
     }
-    data class Directory(
-        val path: Path,
-        val mergeFileName: String,
-        val mergedFileInfoName: String,
-        val mergedFileInfoDescription: String,
-        val mergedFileInfoVersion: String,
-        val mergedFileAuth: String?,
-    ) : InputConfig {
-        override fun toString(): String = path.toString()
 
-        fun toMergedSpecBuilder() = MergedSpecBuilder(
-            path.toString(),
-            mergeFileName,
-            mergedFileInfoName,
-            mergedFileInfoDescription,
-            mergedFileInfoVersion,
-            mergedFileAuth
-        )
+    data class Merge(
+        val directoryPath: Path,
+        val mergeFileName: String,
+        val baseConfig: BaseConfig,
+    ) : InputConfig {
+        sealed interface BaseConfig {
+            data class File(val path: Path) : BaseConfig {
+                val format get() = Format.parse(path.toString())
+            }
+
+            data class Data(
+                val infoTitle: String,
+                val infoDescription: String?,
+                val infoVersion: String,
+            ) : BaseConfig
+        }
+
+        internal fun mergeFilePath(format: Format): Path =
+            directoryPath.resolve(
+                mergeFileName + when (format) {
+                    Format.JSON -> ".json"
+                    Format.YAML -> ".yaml"
+                }
+            )!!
+
+        override fun toString(): String = directoryPath.toString()
     }
 }

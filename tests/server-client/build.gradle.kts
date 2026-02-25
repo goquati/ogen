@@ -41,6 +41,7 @@ kotlin {
 }
 
 ogen {
+    utilPackageName("$group.gen.util")
     add(packageName = "$group.gen") {
         specFile("$projectDir/oas.yaml")
         validator {
@@ -61,9 +62,7 @@ ogen {
             addOperationContext = true
             contextIfAnySecurity("$group.AuthContext")
         }
-        clientKtor {
-
-        }
+        clientKtor {}
     }
 }
 

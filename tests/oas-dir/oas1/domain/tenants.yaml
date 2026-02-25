@@ -4,29 +4,29 @@ info:
   version: 1.0.0
 
 paths:
-  /api/users:
+  /api/public/tenants:
     get:
       tags:
-        - users
-      operationId: getUsers
+        - tenants
+      operationId: getTenants
       responses:
         '200':
           description: "ok"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/Tenant'
 
 components:
   schemas:
-    User:
+    Tenant:
       type: object
       required:
         - id
         - name
       properties:
         id:
-          $ref: './common.yaml#/components/schemas/UserId'
+          $ref: '../common.yaml#/components/schemas/TenantId'
         name:
           type: string
           nullable: true

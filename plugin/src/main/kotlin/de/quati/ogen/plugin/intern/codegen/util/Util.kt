@@ -1,4 +1,4 @@
-package de.quati.ogen.plugin.intern.codegen.generator
+package de.quati.ogen.plugin.intern.codegen.util
 
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.KModifier
@@ -15,33 +15,36 @@ import de.quati.kotlin.util.poet.dsl.addProperty
 import de.quati.kotlin.util.poet.dsl.buildClass
 import de.quati.kotlin.util.poet.dsl.buildInterface
 import de.quati.kotlin.util.poet.dsl.primaryConstructor
-import de.quati.ogen.plugin.intern.DirectorySyncService
+import de.quati.ogen.plugin.intern.codegen.GlobalGenContext
 import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.codegen.addConstructorProperty
-import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
+import de.quati.ogen.plugin.intern.codegen.generator.prettyName
+import de.quati.ogen.plugin.intern.tasks.Generator
 import io.swagger.v3.oas.models.security.SecurityScheme
 
 
-context(d: DirectorySyncService)
-internal fun GeneratorConfig.Shared.sync() {
-    d.sync(fileName = "ValueSerializer.kt") {
-        addType(valueSerializerTypeSpec)
-    }
-    d.sync(fileName = "OptionSerializer.kt") {
-        addType(optionSerializerTypeSpec)
-    }
-    d.sync(fileName = "OperationContext.kt") {
-        addType(operationContextTypeSpec)
-    }
-    d.sync(fileName = "SecurityRequirementObject.kt") {
-        addType(securityRequirementObjectTypeSpec)
-    }
-    d.sync(fileName = "SecurityRequirement.kt") {
-        addType(securityRequirementTypeSpec)
+context(c: GlobalGenContext)
+internal fun Generator.syncUtils() {
+    directorySync(packageName = c.utilConfig.packageName) {
+        sync(fileName = "ValueSerializer.kt") {
+            addType(valueSerializerTypeSpec)
+        }
+        sync(fileName = "OptionSerializer.kt") {
+            addType(optionSerializerTypeSpec)
+        }
+        sync(fileName = "OperationContext.kt") {
+            addType(operationContextTypeSpec)
+        }
+        sync(fileName = "SecurityRequirementObject.kt") {
+            addType(securityRequirementObjectTypeSpec)
+        }
+        sync(fileName = "SecurityRequirement.kt") {
+            addType(securityRequirementTypeSpec)
+        }
     }
 }
 
-context(config: GeneratorConfig.Shared)
+context(c: GlobalGenContext)
 private val securityRequirementObjectTypeSpec
     get() = buildInterface("SecurityRequirementObject") {
         addModifiers(KModifier.SEALED)
@@ -49,7 +52,7 @@ private val securityRequirementObjectTypeSpec
         SecurityScheme.Type.entries.forEach { type ->
             addClass(type.prettyName) {
                 addModifiers(KModifier.DATA)
-                addSuperinterface(config.securityRequirementObject)
+                addSuperinterface(c.utilConfig.securityRequirementObject)
                 primaryConstructor {
                     addConstructorProperty(
                         "name",
@@ -60,7 +63,7 @@ private val securityRequirementObjectTypeSpec
         }
     }
 
-context(config: GeneratorConfig.Shared)
+context(c: GlobalGenContext)
 private val securityRequirementTypeSpec
     get() = buildClass("SecurityRequirement") {
         addModifiers(KModifier.VALUE)
@@ -68,12 +71,12 @@ private val securityRequirementTypeSpec
         primaryConstructor {
             addConstructorProperty(
                 name = "requirements",
-                type = List::class.asClassName().parameterizedBy(config.securityRequirementObject),
+                type = List::class.asClassName().parameterizedBy(c.utilConfig.securityRequirementObject),
             )
         }
     }
 
-context(config: GeneratorConfig.Shared)
+context(c: GlobalGenContext)
 private val operationContextTypeSpec
     get() = buildInterface("OperationContext") {
         addProperty(name = "name", type = String::class)
@@ -82,9 +85,9 @@ private val operationContextTypeSpec
         addProperty(name = "tag", type = String::class.asClassName())
         addProperty(
             name = "security",
-            type = List::class.asClassName().parameterizedBy(config.securityRequirement),
+            type = List::class.asClassName().parameterizedBy(c.utilConfig.securityRequirement),
         )
-        val bodyTypeName = config.packageName.className("OperationContext", "Body")
+        val bodyTypeName = c.utilConfig.packageName.className("OperationContext", "Body")
         addProperty(name = "requestBody", type = bodyTypeName.copy(nullable = true))
         addProperty(
             name = "responses",

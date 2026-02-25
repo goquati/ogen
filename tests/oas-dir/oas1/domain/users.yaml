@@ -1,0 +1,32 @@
+openapi: 3.0.4
+info:
+  title: ogen test
+  version: 1.0.0
+
+paths:
+  /api/public/users:
+    get:
+      tags:
+        - users
+      operationId: getUsers
+      responses:
+        '200':
+          description: "ok"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          $ref: '../common.yaml#/components/schemas/UserId'
+        name:
+          type: string
+          nullable: true

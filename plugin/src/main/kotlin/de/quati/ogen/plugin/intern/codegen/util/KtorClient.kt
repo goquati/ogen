@@ -1,4 +1,4 @@
-package de.quati.ogen.plugin.intern.codegen.generator
+package de.quati.ogen.plugin.intern.codegen.util
 
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.KModifier
@@ -16,27 +16,30 @@ import de.quati.kotlin.util.poet.dsl.addProperty
 import de.quati.kotlin.util.poet.dsl.buildClass
 import de.quati.kotlin.util.poet.dsl.indent
 import de.quati.kotlin.util.poet.dsl.primaryConstructor
-import de.quati.ogen.plugin.intern.DirectorySyncService
-import de.quati.ogen.plugin.intern.codegen.CodeGenContext
+import de.quati.ogen.plugin.intern.codegen.GlobalGenContext
 import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.codegen.addConstructorProperty
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
+import de.quati.ogen.plugin.intern.tasks.Generator
 
 
-context(d: DirectorySyncService, _: CodeGenContext)
-internal fun GeneratorConfig.ClientKtor.Util.sync() {
-    d.sync(fileName = "HttpResponseTyped.kt") {
-        addType(httpResponseTypedTypeSpec)
-    }
-    d.sync(fileName = "HttpClientOgen.kt") {
-        addType(httpClientOgenTypeSpec)
-    }
-    d.sync(fileName = "Utils.kt") {
-        addKtorClientUtils()
+context(c: GlobalGenContext)
+internal fun Generator.syncClientKtorUtils() {
+    if (!c.specConfigs.hasGeneratorConfig<GeneratorConfig.ClientKtor>()) return
+    directorySync(packageName = c.utilConfig.clientKtor.packageName) {
+        sync(fileName = "HttpResponseTyped.kt") {
+            addType(httpResponseTypedTypeSpec)
+        }
+        sync(fileName = "HttpClientOgen.kt") {
+            addType(httpClientOgenTypeSpec)
+        }
+        sync(fileName = "Utils.kt") {
+            addKtorClientUtils()
+        }
     }
 }
 
-context(config: GeneratorConfig.ClientKtor.Util)
+context(c: GlobalGenContext)
 private val httpResponseTypedTypeSpec: TypeSpec
     get() = buildClass("HttpResponseTyped") {
         val t = TypeVariableName("T", bounds = listOf(Any::class))
@@ -62,9 +65,9 @@ private val httpResponseTypedTypeSpec: TypeSpec
                 addModifiers(KModifier.INLINE)
                 addTypeVariable(t.copy(reified = true))
                 receiver(Poet.Ktor.httpResponse)
-                returns(config.httpResponseTyped.parameterizedBy(t))
+                returns(c.utilConfig.clientKtor.httpResponseTyped.parameterizedBy(t))
                 addCode {
-                    add("return %T(\n", config.httpResponseTyped)
+                    add("return %T(\n", c.utilConfig.clientKtor.httpResponseTyped)
                     indent {
                         add("raw = this,\n")
                         add("bodyTypeInfo = %T<T>(),\n", Poet.Ktor.typeInfoFun)
@@ -75,7 +78,6 @@ private val httpResponseTypedTypeSpec: TypeSpec
         }
     }
 
-context(_: GeneratorConfig.ClientKtor.Util)
 private val httpClientOgenTypeSpec: TypeSpec
     get() = buildClass("HttpClientOgen") {
         primaryConstructor {
@@ -140,19 +142,19 @@ private val httpClientOgenTypeSpec: TypeSpec
         }
     }
 
-context(c: CodeGenContext, _: GeneratorConfig.ClientKtor.Util)
+context(c: GlobalGenContext)
 private fun FileSpec.Builder.addKtorClientUtils() {
     addProperty(
         "ogenAuthAttr",
         Poet.Ktor.attributeKey.parameterizedBy(
-            List::class.asClassName().parameterizedBy(c.specConfig.sharedConfig.securityRequirement),
+            List::class.asClassName().parameterizedBy(c.utilConfig.securityRequirement),
         ),
     ) {
         initializer("AttributeKey(\"ogenAuth\")")
     }
     addFunction("getOgenAuthNotes") {
         receiver(Poet.Ktor.httpRequestBuilder)
-        returns(List::class.asClassName().parameterizedBy(c.specConfig.sharedConfig.securityRequirement))
+        returns(List::class.asClassName().parameterizedBy(c.utilConfig.securityRequirement))
         addCode("return attributes.getOrNull(ogenAuthAttr) ?: emptyList()")
     }
 }

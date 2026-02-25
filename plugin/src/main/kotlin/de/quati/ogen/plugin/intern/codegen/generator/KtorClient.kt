@@ -55,21 +55,21 @@ private data class ResponseBodyInfo(
     val contentType: String?,
 )
 
-context(_: CodeGenContext, config: GeneratorConfig.ClientKtor)
+context(c: CodeGenContext, config: GeneratorConfig.ClientKtor)
 private fun FileSpec.Builder.addController(
     controllerName: String,
     endpoints: List<Endpoint>,
 ) = addClass(name = controllerName) {
     val className = config.packageName.className(controllerName)
     primaryConstructor {
-        addConstructorProperty("client", config.util.httpClientOgen)
+        addConstructorProperty("client", c.utilConfig.clientKtor.httpClientOgen)
     }
     addCompanionObject {
         addProperty(
             name = controllerName.replaceFirstChar(Char::lowercaseChar),
             type = className
         ) {
-            receiver(config.util.httpClientOgen)
+            receiver(c.utilConfig.clientKtor.httpClientOgen)
             getter {
                 addCode("return %T(this)", className)
             }
@@ -82,7 +82,7 @@ private fun FileSpec.Builder.addController(
     }
 }
 
-context(_: CodeGenContext, config: GeneratorConfig.ClientKtor, funNameResolver: NameConflictResolver)
+context(c: CodeGenContext, config: GeneratorConfig.ClientKtor, funNameResolver: NameConflictResolver)
 private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
     val funName = funNameResolver.resolve(endpoint.operationName.name)
     val funNamePrepare = funNameResolver.resolve("prepare" + funName.replaceFirstChar(Char::titlecaseChar))
@@ -162,7 +162,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
         addFunction(funName) {
             addParams {}
             addModifiers(KModifier.SUSPEND)
-            returns(config.util.httpResponseTyped.parameterizedBy(info.typeName))
+            returns(c.utilConfig.clientKtor.httpResponseTyped.parameterizedBy(info.typeName))
             addCode("val stmt = $funNamePrepare(\n")
             paramNames.forEach { paramName ->
                 addCode("    $paramName = $paramName,\n")
@@ -172,7 +172,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
                 info.contentType?.let { Poet.Ktor.contentTypeCodeBlock(it) } ?: "null",
             )
             addCode(")\n")
-            addCode("return stmt.execute().%T<%T>()", config.util.toTyped, info.typeName)
+            addCode("return stmt.execute().%T<%T>()", c.utilConfig.clientKtor.toTyped, info.typeName)
         }
     }
     responseStreamBodyInfo?.also { info ->
@@ -204,7 +204,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
                 addStatement("this.method = %T.%L", Poet.Ktor.httpMethod, endpoint.method.ktorName)
                 addStatement(
                     "this.attributes[%T] = %L",
-                    config.util.ogenAuthAttr,
+                    c.utilConfig.clientKtor.ogenAuthAttr,
                     securityRequirementListCodeBlock(endpoint.security)
                 )
                 addPath(path = endpoint.path, params = parameters)

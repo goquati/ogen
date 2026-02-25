@@ -41,10 +41,23 @@ kotlin {
 }
 
 ogen {
-    add(packageName = "$group.oas.schemas.gen") {
-        specDirectory(path = "$projectDir/oas")
+    utilPackageName("$group.oas.schemas.util")
+    add(packageName = "$group.oas.schemas.gen1") {
+        specMerge(path = "$projectDir/oas1")
         model {}
-        serverSpringV4 {}
+        serverSpringV4 {
+            contextIfAnySecurity("$group.AuthContext")
+        }
+    }
+    add(packageName = "$group.oas.schemas.gen2") {
+        specMerge(
+            path = "$projectDir/oas2",
+            baseSpec = "$projectDir/oas2/base.yaml"
+        )
+        model {}
+        serverSpringV4 {
+            contextIfAnySecurity("$group.AuthContext")
+        }
     }
 }
 

@@ -30,6 +30,7 @@ kotlin {
 }
 
 ogen {
+    utilPackageName("$group.oas.schemas.gen.util")
     add(packageName = "$group.oas.schemas.gen") {
         specFile("$projectDir/oas.yaml")
         model {

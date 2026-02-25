@@ -201,7 +201,7 @@ private fun Component.Schema.generateValueClassTypeSpec(): TypeSpec = buildValue
                 Poet.kSerializer.parameterizedBy(name.typename),
                 delegate = CodeBlock.of(
                     "%T(inner = %T, unwrap = %T::$valueName, wrap = ::%T)",
-                    c.valueSerializer,
+                    c.utilConfig.valueSerializer,
                     innerSerializer,
                     name.typename,
                     name.typename,
