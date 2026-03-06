@@ -109,7 +109,7 @@ internal data class Endpoint(
                     inType = o.type,
                     type = if (toStringCodeBlock == null) String::class.asClassName()
                     else o.schema.getTypeName(withFlow = false).poet,
-                    toStringCodeBlock = toStringCodeBlock ?: CodeBlock.of("toString()")
+                    toStringCodeBlock = toStringCodeBlock ?: CodeBlock.of(".toString()")
                 )
             }
 
@@ -120,15 +120,19 @@ internal data class Endpoint(
                 Component.Schema.Null, is Component.Schema.Obj, is Component.Schema.SealedInterface,
                 is Component.Schema.Unknown -> null
 
-                is Component.Schema.EnumString -> CodeBlock.of("value")
-                is Component.Schema.PrimitivType -> CodeBlock.of("toString()")
+                is Component.Schema.EnumString -> CodeBlock.of(".value")
+                is Component.Schema.PrimitivType -> when (getTypeName(withFlow = false)) {
+                    de.quati.ogen.plugin.intern.model.Type.PrimitiveType.String -> CodeBlock.of("")
+                    else -> CodeBlock.of(".toString()")
+                }
+
                 is Component.Schema.Ref -> run {
                     if (!followRef) null
                     else when (val typeSpecData = c.refToSchema[this.ref]?.toTypeSpecData()!!) {
                         is SchemaTypeSpecData.DataClass, is SchemaTypeSpecData.SealedInterface -> null
-                        is SchemaTypeSpecData.Enum -> CodeBlock.of("value")
+                        is SchemaTypeSpecData.Enum -> CodeBlock.of(".value")
                         is SchemaTypeSpecData.ValueClass -> CodeBlock.of(
-                            "value.%L",
+                            ".value%L",
                             typeSpecData.schema.toStringValueCodeBlock(followRef = false) ?: return@run null,
                         )
                     }

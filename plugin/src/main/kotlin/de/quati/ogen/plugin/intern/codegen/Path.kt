@@ -13,7 +13,7 @@ internal fun List<Endpoint.StringableParameter>.toParameterMapCodeBlock(): CodeB
         add("mapOf(\n")
         indent {
             this@toParameterMapCodeBlock.forEach { param ->
-                add("%S to %L.%L,\n", param.name, param.prettyName, param.toStringCodeBlock)
+                add("%S to %L%L,\n", param.name, param.prettyName, param.toStringCodeBlock)
             }
         }
         add(")")

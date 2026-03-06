@@ -233,7 +233,7 @@ private fun CodeBlock.Builder.addParam(param: Endpoint.StringableParameter) {
     if (param.nullable)
         add("if (%L != null) ", param.prettyName)
     add(
-        "this.%T(%S, %L.%L)\n",
+        "this.%T(%S, %L%L)\n",
         setterTypeName, param.name,
         param.prettyName, param.toStringCodeBlock,
     )
