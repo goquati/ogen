@@ -63,12 +63,12 @@ internal class DirectorySyncService(
         filesDeleted += filesToDelete
 
         fun Set<*>.printSize() = size.toString().padStart(3)
-        logger.info("package '$packageName' synced:")
-        logger.info("   #files unchanged = ${filesUnchanged.printSize()}")
-        logger.info("   #files created   = ${filesCreated.printSize()}")
-        logger.info("   #files updated   = ${filesUpdated.printSize()}")
-        logger.info("   #files deleted   = ${filesDeleted.printSize()}")
-        logger.info("")
+        logger.lifecycle("package '$packageName' synced:")
+        logger.lifecycle("   #files unchanged = ${filesUnchanged.printSize()}")
+        logger.lifecycle("   #files created   = ${filesCreated.printSize()}")
+        logger.lifecycle("   #files updated   = ${filesUpdated.printSize()}")
+        logger.lifecycle("   #files deleted   = ${filesDeleted.printSize()}")
+        logger.lifecycle("")
     }
 
     private fun checkFilePath(path: Path) {
