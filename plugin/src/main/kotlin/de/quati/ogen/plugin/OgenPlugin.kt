@@ -4,8 +4,6 @@ import de.quati.ogen.plugin.intern.tasks.Generator
 import de.quati.ogen.plugin.intern.tasks.Validator
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.internal.extensions.core.serviceOf
-import org.gradle.internal.logging.text.StyledTextOutputFactory
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
@@ -25,11 +23,10 @@ public class OgenPlugin : Plugin<Project> {
             task.outputs.upToDateWhen { false }
             task.group = TASK_GROUP
             task.doLast {
-                val out = project.serviceOf<StyledTextOutputFactory>().create("ogen")!!
                 val configs = configBuilder.build()
                 Generator(
                     rootOutputDir = genDir.get(),
-                    out = out,
+                    logger = it.logger,
                 ).generate(configs = configs)
             }
         }
@@ -37,9 +34,8 @@ public class OgenPlugin : Plugin<Project> {
         project.tasks.register("ogenValidate") { task ->
             task.group = TASK_GROUP
             task.doLast {
-                val out = project.serviceOf<StyledTextOutputFactory>().create("ogen")!!
                 val configs = configBuilder.build()
-                Validator(out).validate(configs)
+                Validator(it.logger).validate(configs)
             }
         }
 

@@ -3,7 +3,7 @@ package de.quati.ogen.plugin.intern
 import com.squareup.kotlinpoet.FileSpec
 import de.quati.kotlin.util.poet.PackageName
 import org.gradle.api.file.Directory
-import org.gradle.internal.logging.text.StyledTextOutput
+import org.gradle.api.logging.Logger
 import java.nio.file.Path
 import kotlin.collections.forEach
 import kotlin.collections.minus
@@ -23,7 +23,7 @@ import kotlin.text.padStart
 internal class DirectorySyncService(
     rootDir: Directory,
     private val packageName: PackageName,
-    private val out: StyledTextOutput,
+    private val logger: Logger,
 ) {
     private val outDir = rootDir.dir(packageName.parts.joinToString("/")).asFile.toPath()
     private var filesCreated = mutableSetOf<Path>()
@@ -63,13 +63,12 @@ internal class DirectorySyncService(
         filesDeleted += filesToDelete
 
         fun Set<*>.printSize() = size.toString().padStart(3)
-        out.withStyle(StyledTextOutput.Style.Info)
-        out.println("package '$packageName' synced:")
-        out.println("   #files unchanged = ${filesUnchanged.printSize()}")
-        out.println("   #files created   = ${filesCreated.printSize()}")
-        out.println("   #files updated   = ${filesUpdated.printSize()}")
-        out.println("   #files deleted   = ${filesDeleted.printSize()}")
-        out.println()
+        logger.info("package '$packageName' synced:")
+        logger.info("   #files unchanged = ${filesUnchanged.printSize()}")
+        logger.info("   #files created   = ${filesCreated.printSize()}")
+        logger.info("   #files updated   = ${filesUpdated.printSize()}")
+        logger.info("   #files deleted   = ${filesDeleted.printSize()}")
+        logger.info("")
     }
 
     private fun checkFilePath(path: Path) {

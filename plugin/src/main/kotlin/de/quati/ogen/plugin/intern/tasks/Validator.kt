@@ -11,34 +11,30 @@ import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import org.gradle.api.GradleException
-import org.gradle.api.logging.Logging
-import org.gradle.internal.logging.text.StyledTextOutput
+import org.gradle.api.logging.Logger
 import org.openapitools.codegen.validations.oas.OpenApiEvaluator
 import org.openapitools.codegen.validations.oas.RuleConfiguration
 
 internal class Validator(
-    private val out: StyledTextOutput,
+    private val logger: Logger,
 ) {
 
     fun validate(
         configs: SpecConfigs,
     ) {
         configs.specs.forEach { config ->
-            validate(config = config, out = out)
+            validate(config = config, logger = logger)
         }
     }
 
 
     companion object {
-        private val logger = Logging.getLogger(Validator::class.java)
-
         fun validate(
             config: SpecConfig,
-            out: StyledTextOutput,
+            logger: Logger,
         ) {
             val validatorConfig = config.validatorConfig ?: return
-            out.withStyle(StyledTextOutput.Style.Info)
-            out.println("Validating spec ${config.inputConfig}")
+            logger.info("Validating spec ${config.inputConfig}")
 
             val parseResult = config.parseResult
             val messages = parseResult.messages.toSet()
@@ -50,29 +46,24 @@ internal class Validator(
             val validationResult = evaluator.validate(spec)
 
             if (validationResult.warnings.isNotEmpty()) {
-                out.withStyle(StyledTextOutput.Style.Info)
-                out.println("\nSpec has issues or recommendations.\nIssues:\n")
+                logger.info("\nSpec has issues or recommendations.\nIssues:\n")
 
                 validationResult.warnings.forEach {
-                    out.withStyle(StyledTextOutput.Style.Info)
-                    out.println("\t${it.message}\n")
+                    logger.info("\t${it.message}\n")
                     logger.debug("WARNING: ${it.message}|${it.details}")
                 }
             }
 
             if (messages.isNotEmpty() || validationResult.errors.isNotEmpty()) {
-                out.withStyle(StyledTextOutput.Style.Error)
-                out.println("\nSpec is invalid.\nIssues:\n")
+                logger.error("\nSpec is invalid.\nIssues:\n")
 
                 messages.forEach {
-                    out.withStyle(StyledTextOutput.Style.Error)
-                    out.println("\t$it\n")
+                    logger.error("\t$it\n")
                     logger.debug("ERROR: $it")
                 }
 
                 validationResult.errors.forEach {
-                    out.withStyle(StyledTextOutput.Style.Error)
-                    out.println("\t${it.message}\n")
+                    logger.error("\t${it.message}\n")
                     logger.debug("ERROR: ${it.message}|${it.details}")
                 }
 
@@ -80,23 +71,20 @@ internal class Validator(
             }
 
             if (validatorConfig.failOnWarnings && validationResult.warnings.isNotEmpty()) {
-                out.withStyle(StyledTextOutput.Style.Error)
-                out.println("\nWarnings found in the spec and 'treatWarningsAsErrors' is enabled.\nFailing validation.\n")
+                logger.error("\nWarnings found in the spec and 'treatWarningsAsErrors' is enabled.\nFailing validation.\n")
                 throw GradleException("Validation failed due to warnings (treatWarningsAsErrors = true).")
             }
 
             val namingConventionErrors = getNamingConventionErrors(spec, validatorConfig)
             if (namingConventionErrors.isNotEmpty()) {
                 namingConventionErrors.forEach {
-                    out.withStyle(StyledTextOutput.Style.Error)
-                    out.println("\t${it}")
+                    logger.error("\t${it}")
                 }
                 throw GradleException("Found ${namingConventionErrors.size} naming convention errors.")
             }
 
-            out.withStyle(StyledTextOutput.Style.Success)
             logger.debug("No error validations from swagger-parser or internal validations.")
-            out.println("Spec is valid.\n")
+            logger.info("Spec is valid.\n")
         }
 
         fun getNamingConventionErrors(

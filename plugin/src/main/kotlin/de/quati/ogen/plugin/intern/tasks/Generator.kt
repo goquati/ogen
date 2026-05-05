@@ -12,10 +12,10 @@ import de.quati.ogen.plugin.intern.codegen.util.syncUtils
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import org.gradle.api.file.Directory
-import org.gradle.internal.logging.text.StyledTextOutput
+import org.gradle.api.logging.Logger
 
 internal class Generator(
-    private val out: StyledTextOutput,
+    private val logger: Logger,
     private val rootOutputDir: Directory
 ) {
     fun generate(
@@ -23,7 +23,7 @@ internal class Generator(
     ) {
         with(GlobalGenContext(specConfigs = configs)) {
             configs.specs.forEach { config ->
-                Validator.validate(config = config, out = out)
+                Validator.validate(config = config, logger = logger)
                 with(config.toCodeGenContext()) {
                     config.generatorConfigs.forEach { generatorConfig ->
                         generate(config = generatorConfig)
@@ -56,6 +56,6 @@ internal class Generator(
     ) = DirectorySyncService(
         rootDir = rootOutputDir,
         packageName = packageName,
-        out = out,
+        logger = logger,
     ).use(block)
 }
