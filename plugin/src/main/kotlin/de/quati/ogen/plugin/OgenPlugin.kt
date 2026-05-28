@@ -19,6 +19,7 @@ public class OgenPlugin : Plugin<Project> {
         val genDir = project.layout.buildDirectory.dir("generated/sources/ogen/src/$mainName/kotlin")
 
         val ogenGenerate = project.tasks.register("ogenGenerate") { task ->
+            task.notCompatibleWithConfigurationCache(CONFIGURATION_CACHE_INCOMPATIBILITY_REASON)
             task.outputs.dir(genDir)
             task.outputs.upToDateWhen { false }
             task.group = TASK_GROUP
@@ -32,6 +33,7 @@ public class OgenPlugin : Plugin<Project> {
         }
 
         project.tasks.register("ogenValidate") { task ->
+            task.notCompatibleWithConfigurationCache(CONFIGURATION_CACHE_INCOMPATIBILITY_REASON)
             task.group = TASK_GROUP
             task.doLast {
                 val configs = configBuilder.build()
@@ -46,5 +48,7 @@ public class OgenPlugin : Plugin<Project> {
 
     private companion object {
         private const val TASK_GROUP = "quati tools"
+        private const val CONFIGURATION_CACHE_INCOMPATIBILITY_REASON =
+            "ogen tasks capture Swagger model types incompatible with configuration cache serialization"
     }
 }

@@ -1,6 +1,7 @@
 .gradle
 build/
 .idea
+.junie
 tests/kotlin-js-store
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
