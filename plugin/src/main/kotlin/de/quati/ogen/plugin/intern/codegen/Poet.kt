@@ -92,6 +92,7 @@ internal object Poet {
         val requestMapping = ClassName("org.springframework.web.bind.annotation", "RequestMapping")
         val requestBody = ClassName("org.springframework.web.bind.annotation", "RequestBody")
         val responseEntity = ClassName("org.springframework.http", "ResponseEntity")
+        val httpStatusCode = ClassName("org.springframework.http", "HttpStatus")
         fun annotationClassName(type: Endpoint.Parameter.Type) = when (type) {
             Endpoint.Parameter.Type.PATH -> "PathVariable"
             Endpoint.Parameter.Type.QUERY -> "RequestParam"

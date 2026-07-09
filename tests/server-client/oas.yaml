@@ -72,6 +72,12 @@ paths:
       summary: "Get user by ID"
       operationId: getUser
       responses:
+        '404':
+          description: "user not found"
+        '5XX':
+          description: "server error"
+        'default':
+          description: "default"
         '200':
           description: "get user"
           content:
@@ -90,6 +96,8 @@ paths:
             schema:
               $ref: '#/components/schemas/UserUpdate'
       responses:
+        '404':
+          description: "user not found"
         '200':
           description: "updated user"
     delete:
@@ -98,6 +106,8 @@ paths:
       summary: "Delete user"
       operationId: deleteUser
       responses:
+        '404':
+          description: "user not found"
         '200':
           description: "delete user"
 
@@ -121,6 +131,8 @@ paths:
             type: string
             format: uuid
       responses:
+        '404':
+          description: "file not found"
         '200':
           description: "get file"
           headers:

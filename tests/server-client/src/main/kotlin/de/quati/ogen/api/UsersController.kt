@@ -9,6 +9,7 @@ import de.quati.ogen.gen.model.UserDto
 import de.quati.ogen.gen.model.UserUpdateDto
 import de.quati.ogen.gen.server.UsersApi
 import kotlinx.coroutines.flow.flowOf
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import kotlin.uuid.Uuid
 
@@ -45,7 +46,7 @@ class UsersController : UsersApi {
             ),
         ),
     ).let {
-        op.createResponse(it) {
+        op.createResponse200(it) {
             addInputHeader(ctx.name, tenantId, isEmailVerified, search, locale, email)
         }
     }
@@ -66,7 +67,7 @@ class UsersController : UsersApi {
             TenantIdDto(Uuid.parse("9df36116-ca51-45eb-9e2e-713d348f855a")),
         )
     ).let {
-        op.createResponse(it) {
+        op.createResponse201(it) {
             addInputHeader(
                 ctx.name,
                 userCreateDto.firstName,
@@ -92,8 +93,22 @@ class UsersController : UsersApi {
         locale = LocaleDto.EN,
         tenants = listOf(TenantIdDto(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3"))),
     ).let {
-        op.createResponse(it) {
-            addInputHeader(ctx.name, userId)
+        when (userId.value.toString()) {
+            "65897dbc-8dea-4d14-82c6-dd0ee2243cb2" -> op.createResponse404 {
+                addInputHeader(ctx.name, userId)
+            }
+
+            "25897dbc-8dea-4d14-82c6-dd0ee2243cb1" -> op.createResponse5XX(status = HttpStatus.SERVICE_UNAVAILABLE) {
+                addInputHeader(ctx.name, userId)
+            }
+
+            "15897dbc-8dea-4d14-82c6-dd0ee2243cb0" -> op.createResponseDefault {
+                addInputHeader(ctx.name, userId)
+            }
+
+            else -> op.createResponse200(it) {
+                addInputHeader(ctx.name, userId)
+            }
         }
     }
 
@@ -102,7 +117,7 @@ class UsersController : UsersApi {
         op: UsersApi.UpdateUserContext,
         userId: UserId,
         userUpdateDto: UserUpdateDto
-    ) = op.createResponse {
+    ) = op.createResponse200 {
         addInputHeader(
             ctx.name,
             userId,
@@ -116,7 +131,7 @@ class UsersController : UsersApi {
         ctx: AuthContext,
         op: UsersApi.DeleteUserContext,
         userId: UserId
-    ) = op.createResponse {
+    ) = op.createResponse200 {
         addInputHeader(ctx.name, userId)
     }
 
@@ -126,7 +141,7 @@ class UsersController : UsersApi {
         userId: UserId,
         fileId: String,
         xRequestID: Uuid?
-    ) = op.createResponse("file content".toByteArray()) {
+    ) = op.createResponse200("file content".toByteArray()) {
         addInputHeader(ctx.name, userId, fileId, xRequestID)
     }
 
@@ -134,7 +149,7 @@ class UsersController : UsersApi {
         ctx: AuthContext,
         op: UsersApi.SetPasswordChangeActionContext,
         userId: UserId
-    ) = op.createResponse {
+    ) = op.createResponse201 {
         addInputHeader(ctx.name, userId)
     }
 
@@ -144,7 +159,7 @@ class UsersController : UsersApi {
         userId: UserId,
         email: String,
         locale: LocaleDto?
-    ) = op.createResponse {
+    ) = op.createResponse201 {
         addInputHeader(ctx.name, userId, email, locale)
     }
 }

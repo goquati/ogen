@@ -8,7 +8,7 @@ class DebugController : DebugApi {
     override suspend fun debugInfo(
         op: DebugApi.DebugInfoContext,
         debugSession: String?,
-    ) = op.createResponse {
+    ) = op.createResponse200 {
         addInputHeader(debugSession)
     }
 }

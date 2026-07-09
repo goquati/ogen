@@ -34,10 +34,12 @@ fun WebTestClient.doRequest(
     body: Any? = null,
     expectedStatus: Int,
     expectedInput: String? = null,
+    expectedNoBody: Boolean? = null,
 ) = doRequest(
     op = op, user = user, query = query, cookies = cookies, body = body, headers = headers,
     expectedStatus = expectedStatus,
     expectedInput = expectedInput,
+    expectedNoBody = expectedNoBody,
     expectedBodyData = null,
     expectedBodyType = null,
 )
@@ -55,6 +57,7 @@ fun WebTestClient.doRequest(
     op = op, user = user, query = query, cookies = cookies, body = body, headers = headers,
     expectedStatus = expectedBody.status,
     expectedInput = expectedInput,
+    expectedNoBody = null,
     expectedBodyType = expectedBody.type,
     expectedBodyData = expectedBody.content
 )
@@ -68,6 +71,7 @@ private fun WebTestClient.doRequest(
     body: Any?,
     expectedStatus: Int,
     expectedInput: String?,
+    expectedNoBody: Boolean?,
     expectedBodyType: String?,
     expectedBodyData: String?,
 ): Unit = method(op.method).uri { builder ->
@@ -89,8 +93,14 @@ private fun WebTestClient.doRequest(
     .apply {
         if (expectedInput != null) expectHeader().valueEquals("input-data", expectedInput)
         if (expectedBodyType != null) expectHeader().valueEquals("content-type", expectedBodyType)
+        if (expectedNoBody == true) expectHeader().valueEquals("content-type") // no type
     }
-    .returnResult().responseBodyContent?.let { if (it.isEmpty()) null else it.decodeToString() }.let { bodyResult ->
+    .returnResult().responseBodyContent
+    .also {
+        if (expectedNoBody == true)
+            (it?.size ?: 0) shouldBe 0
+    }
+    ?.let { if (it.isEmpty()) null else it.decodeToString() }.let { bodyResult ->
         if (expectedBodyData != null) bodyResult shouldBe expectedBodyData
     }
 

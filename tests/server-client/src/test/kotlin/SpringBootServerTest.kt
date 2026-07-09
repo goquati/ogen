@@ -157,6 +157,45 @@ class SpringBootServerTest {
     }
 
     @Test
+    fun `test getUser404`() {
+        val userId = "65897dbc-8dea-4d14-82c6-dd0ee2243cb2"
+        val op = Operation(HttpMethod.GET, "/api/v1/users/$userId")
+        client.doRequest(
+            op = op,
+            user = User.USER,
+            expectedInput = "testUser|$userId",
+            expectedStatus = 404,
+            expectedNoBody = true,
+        )
+    }
+
+    @Test
+    fun `test getUser5XX`() {
+        val userId = "25897dbc-8dea-4d14-82c6-dd0ee2243cb1"
+        val op = Operation(HttpMethod.GET, "/api/v1/users/$userId")
+        client.doRequest(
+            op = op,
+            user = User.USER,
+            expectedInput = "testUser|$userId",
+            expectedStatus = 503,
+            expectedNoBody = true,
+        )
+    }
+
+    @Test
+    fun `test getUserDefault`() {
+        val userId = "15897dbc-8dea-4d14-82c6-dd0ee2243cb0"
+        val op = Operation(HttpMethod.GET, "/api/v1/users/$userId")
+        client.doRequest(
+            op = op,
+            user = User.USER,
+            expectedInput = "testUser|$userId",
+            expectedStatus = 200,
+            expectedNoBody = true,
+        )
+    }
+
+    @Test
     fun `test updateUser`() {
         val userId = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3"
         val op = Operation(HttpMethod.PUT, "/api/v1/users/$userId")

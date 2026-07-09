@@ -3,6 +3,7 @@ package de.quati.ogen.plugin.intern.codegen.generator
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LambdaTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import de.quati.kotlin.util.poet.dsl.addAnnotation
@@ -16,8 +17,10 @@ import de.quati.ogen.plugin.intern.DirectorySyncService
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.codegen.getTypeName
+import de.quati.ogen.plugin.intern.codegen.oGenCapitalize
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Endpoint
+import de.quati.ogen.plugin.intern.model.HttpCode
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 
 
@@ -37,6 +40,18 @@ internal fun GeneratorConfig.ServerSpringV4.sync() {
     c.globalGenContext.serverSpringV4EnumConversionTypes += c.enumSchemas.map { it.getTypeName(withFlow = false) }
 }
 
+private fun getResponseTypeName(
+    typeName: TypeName,
+    contentType: ContentType?
+) = when (contentType) {
+    null -> Unit::class.asClassName()
+    is ContentType.Unknown -> Any::class.asClassName()
+    is ContentType.Json -> typeName
+}
+
+private fun TypeName?.toSpringResponseEntity() =
+    Poet.Spring.responseEntity.parameterizedBy(this ?: Unit::class.asClassName())
+
 context(c: CodeGenContext, config: GeneratorConfig.ServerSpringV4)
 private fun TypeSpec.Builder.createController(
     controllerName: String,
@@ -51,13 +66,11 @@ private fun TypeSpec.Builder.createController(
         val responseBody = endpoint.responseResolved
         addFunction(name = endpoint.operationName.name) {
             addModifiers(KModifier.ABSTRACT, KModifier.SUSPEND)
-            val responseType = when (responseBody.successMediaType?.contentType) {
-                null -> Unit::class.asClassName()
-                is ContentType.Unknown -> Any::class.asClassName()
-                is ContentType.Json -> responseBody.getSchemaSuccessTypeName(withFlow = true)
-            }
-            val fullResponseType = Poet.Spring.responseEntity.parameterizedBy(responseType)
-            returns(fullResponseType)
+            val responseType = getResponseTypeName(
+                typeName = responseBody.getSchemaSuccessTypeName(withFlow = true),
+                contentType = responseBody.successMediaType?.contentType,
+            )
+            returns(responseType.toSpringResponseEntity())
             addAnnotation(Poet.Spring.requestMapping) {
                 addMember("method = [%T.%L]", Poet.Spring.requestMethod, endpoint.method.name.uppercase())
                 addMember("value = [%S]", endpoint.path)
@@ -105,28 +118,64 @@ private fun TypeSpec.Builder.createController(
 
             if (config.addOperationContext)
                 operationContexts += endpoint.generateOperationContextTypeSpec {
-                    addFunction("createResponse") {
-                        val responseType = responseType.takeIf { it != Unit::class.asClassName() }
-                        if (responseType != null)
-                            addParameter("body", responseType)
-                        addParameter(
-                            "block", LambdaTypeName.get(
-                                receiver = Poet.Spring.responseEntity.nestedClass("BodyBuilder"),
-                                returnType = Unit::class.asClassName(),
-                            )
-                        ) { defaultValue("{}") }
-                        returns(fullResponseType)
-                        addCode {
-                            add("return %T.status(defaultSuccessStatus).apply(block)", Poet.Spring.responseEntity)
-                            if (responseType == null)
-                                add(".build()")
-                            else
-                                add(".body(body)")
-                        }
-                    }
+                    addCreateResponseFunctions(endpoint = endpoint, controllerResponseTypeName = responseType)
                 }
         }
     }
 
     operationContexts.forEach { addType(it) }
+}
+
+context(_: CodeGenContext)
+private fun TypeSpec.Builder.addCreateResponseFunctions(
+    endpoint: Endpoint,
+    controllerResponseTypeName: TypeName,
+) {
+    endpoint.responses.entries
+        .distinctBy { (code, _) -> code.value }
+        .forEach { (code, response) ->
+            val responseType = response.objOrNull?.content
+                ?.firstOrNull() // TODO support multiple content types
+                ?.let { content ->
+                    getResponseTypeName(
+                        typeName = content.schema?.getTypeName(withFlow = true)?.poet ?: Any::class.asClassName(),
+                        contentType = content.contentType,
+                    )
+                }
+
+            addFunction("createResponse${code.value.oGenCapitalize()}") {
+                val castRequired = controllerResponseTypeName != responseType
+                val statusCodeInt = when (code) {
+                    is HttpCode.Explicit -> code.code
+                    is HttpCode.Default -> code.defaultCode
+                    else -> null
+                }
+                if (castRequired)
+                    addAnnotation(Suppress::class.asClassName()) { addMember("%S", "UNCHECKED_CAST") }
+                if (statusCodeInt == null)
+                    addParameter("status", Poet.Spring.httpStatusCode)
+                if (responseType != null)
+                    addParameter("body", responseType)
+                addParameter(
+                    "block", LambdaTypeName.get(
+                        receiver = Poet.Spring.responseEntity.nestedClass("BodyBuilder"),
+                        returnType = Unit::class.asClassName(),
+                    )
+                ) { defaultValue("{}") }
+                returns(controllerResponseTypeName.toSpringResponseEntity())
+                addCode {
+                    add(
+                        "return %T.status(%L).apply(block)",
+                        Poet.Spring.responseEntity,
+                        statusCodeInt ?: "status",
+                    )
+                    if (responseType == null)
+                        add(".build<Unit>()")
+                    else
+                        add(".body<%T>(body)", responseType)
+                    if (castRequired)
+                        add(" as %T", controllerResponseTypeName.toSpringResponseEntity())
+                }
+            }
+        }
 }

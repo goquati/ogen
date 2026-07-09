@@ -8,7 +8,10 @@ import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import de.quati.kotlin.util.poet.dsl.addParameter
 import de.quati.kotlin.util.poet.dsl.addProperty
+import java.util.Locale.getDefault
 
+internal fun String.oGenCapitalize(): String =
+    replaceFirstChar { if (it.isLowerCase()) it.titlecase(getDefault()) else it.toString() }
 
 context(t: TypeSpec.Builder)// TODO move to quati util
 internal fun FunSpec.Builder.addConstructorProperty(
