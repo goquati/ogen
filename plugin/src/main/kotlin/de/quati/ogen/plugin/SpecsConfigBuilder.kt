@@ -45,8 +45,7 @@ public open class SpecsConfigBuilder {
     ) {
         private var inputConfig: InputConfig? = null
         private val generatorConfigs = mutableMapOf<KClass<out GeneratorConfig>, GeneratorConfig>()
-        private var validatorConfig: de.quati.ogen.plugin.intern.model.config.ValidatorConfig? =
-            ValidatorConfig().build()
+        private var validatorConfig: de.quati.ogen.plugin.intern.model.config.ValidatorConfig? = null
 
         private fun addConfig(config: GeneratorConfig) {
             generatorConfigs[config::class] = config
