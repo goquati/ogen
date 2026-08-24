@@ -2,8 +2,7 @@ package de.quati.ogen.plugin.intern
 
 import com.squareup.kotlinpoet.FileSpec
 import de.quati.kotlin.util.poet.PackageName
-import org.gradle.api.file.Directory
-import org.gradle.api.logging.Logger
+import org.slf4j.Logger
 import java.nio.file.Path
 import kotlin.collections.forEach
 import kotlin.collections.minus
@@ -20,12 +19,19 @@ import kotlin.io.path.relativeToOrNull
 import kotlin.io.path.writeText
 import kotlin.text.padStart
 
+private fun Logger.lifecycle(message: String) {
+    if (this is org.gradle.api.logging.Logger)
+        this.lifecycle(message)
+    else
+        info(message)
+}
+
 internal class DirectorySyncService(
-    rootDir: Directory,
+    rootDir: Path,
     private val packageName: PackageName,
     private val logger: Logger,
 ) {
-    private val outDir = rootDir.dir(packageName.parts.joinToString("/")).asFile.toPath()
+    private val outDir = rootDir.resolve(packageName.parts.joinToString("/"))
     private var filesCreated = mutableSetOf<Path>()
     private var filesUpdated = mutableSetOf<Path>()
     private var filesUnchanged = mutableSetOf<Path>()

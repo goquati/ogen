@@ -34,7 +34,6 @@ internal sealed interface Type : ToPoet {
             override val packageName = PackageName("kotlin.collections")
             override val simpleNames = listOf("List")
             override val parametrizedTypes = listOf(innerType)
-
         }
 
         data class Flow(

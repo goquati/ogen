@@ -1,0 +1,6393 @@
+openapi: 3.1.0
+info:
+  title: OpenStack Compute API
+  description: |-
+    This is a reference for the OpenStack Compute API which is provided by the Nova
+    project. To learn more about the OpenStack Compute API concepts, please refer to
+    the [API guide](https://docs.openstack.org/api-guide/compute/index.html).
+
+    All request and response schemas in this document describe the API at
+    microversion 2.96 exactly: every request is assumed to carry the header
+    `X-OpenStack-Nova-API-Version: 2.96` (or `OpenStack-API-Version: compute 2.96`).
+    The header is intentionally not declared as a per-operation parameter; inject it
+    as a constant in the HTTP client layer.
+
+    Endpoints that are removed or rejected at microversion 2.96 are not described.
+    This includes the network/image/volume proxy APIs removed at 2.36 (`/images`,
+    `/os-networks`, `/os-tenant-networks`, `/os-fixed-ips`, floating-ip and
+    security-group proxies, `/os-volumes`, `/os-snapshots`, `/os-baremetal-nodes`,
+    `/os-fping`), `/os-hosts` (2.43), hypervisor `statistics`/`uptime`/`search`/
+    `servers` sub-resources (2.53/2.88), legacy `/os-services/*` PUT actions (2.53),
+    `/servers/{id}/os-virtual-interfaces` (2.44), groups removed from Nova entirely
+    (cells, certificates, cloudpipe, consoles, agents), the frozen `/extensions`
+    API, and `/servers/{id}/shares` (requires 2.97). Server actions rejected at
+    2.96 (addFixedIp, addFloatingIp, os-getVNCConsole family, resetNetwork, …) are
+    likewise omitted.
+  version: '2.96'
+servers:
+  - url: 'https://{host}/v2.1'
+    description: Nova endpoint. Project-scoped operations carry the project id as a path parameter on each request.
+    variables:
+      host:
+        default: compute.example.com
+tags:
+  - name: versions
+    description: API version discovery (served at the endpoint root, outside the versioned base URL).
+  - name: servers
+    description: Servers (instances) — list, create, show, update, delete.
+  - name: server-actions
+    description: Server actions posted to /servers/{server_id}/action (reboot, resize, rebuild, …).
+  - name: remote-consoles
+    description: Remote console access to servers (noVNC, SPICE, serial).
+  - name: server-metadata
+    description: Server metadata key/value pairs.
+  - name: server-ips
+    description: IP addresses assigned to a server, grouped by network.
+  - name: server-tags
+    description: Simple string tags on servers.
+  - name: server-interfaces
+    description: Network port interface attachments on servers (os-interface).
+  - name: volume-attachments
+    description: Volume attachments on servers (os-volume_attachments).
+  - name: server-security-groups
+    description: Security groups associated with a server (read-only at 2.96).
+  - name: server-passwords
+    description: Encrypted admin password set through the metadata service (os-server-password).
+  - name: server-diagnostics
+    description: Standardized server usage diagnostics from the hypervisor.
+  - name: server-topology
+    description: NUMA topology of a server.
+  - name: instance-actions
+    description: Audit log of actions performed on a server (os-instance-actions).
+  - name: server-migrations
+    description: In-progress live migrations of a server.
+  - name: flavors
+    description: Flavors — hardware configurations for servers.
+  - name: flavor-extra-specs
+    description: Flavor extra-spec key/value pairs.
+  - name: flavor-access
+    description: Per-tenant access to private flavors.
+  - name: keypairs
+    description: SSH and x509 keypairs (import only at 2.96 — generation was removed in 2.92).
+  - name: limits
+    description: Absolute limits (quota ceilings and current usage) for the project.
+  - name: quota-sets
+    description: Per-project (and per-user) compute quotas.
+  - name: quota-class-sets
+    description: Quota class defaults.
+  - name: availability-zones
+    description: Availability zone information.
+  - name: aggregates
+    description: Host aggregates (admin).
+  - name: hypervisors
+    description: Hypervisors (admin).
+  - name: services
+    description: Compute services and their state (admin).
+  - name: server-groups
+    description: Server groups with scheduler policies.
+  - name: migrations
+    description: Migration records across all servers (admin, os-migrations).
+  - name: usage
+    description: Simple tenant usage statistics (os-simple-tenant-usage).
+  - name: audit-log
+    description: Instance usage audit log (admin).
+  - name: external-events
+    description: External server events injected by other services (os-server-external-events).
+  - name: assisted-volume-snapshots
+    description: Hypervisor-assisted volume snapshots (Cinder-internal).
+  - name: console-auth-tokens
+    description: Console connection information for a console auth token (admin).
+security:
+  - novaAuth: []
+paths:
+  /nova/{project_id}/limits:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: getLimits
+      tags:
+        - limits
+      summary: Show absolute limits
+      description: >-
+        Shows rate and absolute limits for the project. At microversion 2.96 the
+        rate limits array is always empty; absolute limits carry quota ceilings
+        (max*) and current usage (total*Used). Network-related limits were removed
+        at 2.36 and injected-file/personality limits at 2.57.
+      parameters:
+        - name: tenant_id
+          in: query
+          required: false
+          description: Project id to show limits for (admin only; defaults to the scoped project).
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rate and absolute limits.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LimitsResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listServers
+      tags:
+        - servers
+      summary: List servers
+      description: >-
+        Lists server ids, names, and links for servers visible to the caller.
+        At 2.75+ unknown query parameters are rejected with 400.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/ChangesSinceParam'
+        - $ref: '#/components/parameters/ChangesBeforeParam'
+        - $ref: '#/components/parameters/AllTenantsParam'
+        - $ref: '#/components/parameters/ServerSortKey'
+        - $ref: '#/components/parameters/ServerSortDir'
+        - $ref: '#/components/parameters/ServerFilterName'
+        - $ref: '#/components/parameters/ServerFilterStatus'
+        - $ref: '#/components/parameters/ServerFilterImage'
+        - $ref: '#/components/parameters/ServerFilterFlavor'
+        - $ref: '#/components/parameters/ServerFilterHost'
+        - $ref: '#/components/parameters/ServerFilterIp'
+        - $ref: '#/components/parameters/ServerFilterIp6'
+        - $ref: '#/components/parameters/ServerFilterAvailabilityZone'
+        - $ref: '#/components/parameters/ServerFilterConfigDrive'
+        - $ref: '#/components/parameters/ServerFilterKeyName'
+        - $ref: '#/components/parameters/ServerFilterCreatedAt'
+        - $ref: '#/components/parameters/ServerFilterLaunchedAt'
+        - $ref: '#/components/parameters/ServerFilterTerminatedAt'
+        - $ref: '#/components/parameters/ServerFilterLocked'
+        - $ref: '#/components/parameters/ServerFilterPowerState'
+        - $ref: '#/components/parameters/ServerFilterProjectId'
+        - $ref: '#/components/parameters/ServerFilterUserId'
+        - $ref: '#/components/parameters/ServerFilterUuid'
+        - $ref: '#/components/parameters/ServerFilterVmState'
+        - $ref: '#/components/parameters/ServerFilterTaskState'
+        - $ref: '#/components/parameters/ServerFilterHostname'
+        - $ref: '#/components/parameters/ServerFilterReservationId'
+        - $ref: '#/components/parameters/ServerFilterDeleted'
+        - $ref: '#/components/parameters/ServerFilterTags'
+        - $ref: '#/components/parameters/ServerFilterTagsAny'
+        - $ref: '#/components/parameters/ServerFilterNotTags'
+        - $ref: '#/components/parameters/ServerFilterNotTagsAny'
+      responses:
+        '200':
+          description: Brief server list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServersListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createServer
+      tags:
+        - servers
+      summary: Create server
+      description: >-
+        Creates one or more servers. `networks` is required at 2.96 and may be the
+        literal string `auto` or `none` instead of a list. `personality` was removed
+        at 2.57; pass configuration through `user_data` instead. Scheduler hints are
+        a sibling of the `server` object, not nested inside it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServerRequest'
+      responses:
+        '202':
+          description: >-
+            Server creation accepted. Contains the new server's id and admin password
+            unless `return_reservation_id` was requested, in which case only the
+            reservation id is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateServerResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/detail:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listServersDetail
+      tags:
+        - servers
+      summary: List servers detailed
+      description: >-
+        Lists full server representations. Accepts the same filters as the brief
+        list. At 2.96 responses include `pinned_availability_zone`.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/ChangesSinceParam'
+        - $ref: '#/components/parameters/ChangesBeforeParam'
+        - $ref: '#/components/parameters/AllTenantsParam'
+        - $ref: '#/components/parameters/ServerSortKey'
+        - $ref: '#/components/parameters/ServerSortDir'
+        - $ref: '#/components/parameters/ServerFilterName'
+        - $ref: '#/components/parameters/ServerFilterStatus'
+        - $ref: '#/components/parameters/ServerFilterImage'
+        - $ref: '#/components/parameters/ServerFilterFlavor'
+        - $ref: '#/components/parameters/ServerFilterHost'
+        - $ref: '#/components/parameters/ServerFilterIp'
+        - $ref: '#/components/parameters/ServerFilterIp6'
+        - $ref: '#/components/parameters/ServerFilterAvailabilityZone'
+        - $ref: '#/components/parameters/ServerFilterConfigDrive'
+        - $ref: '#/components/parameters/ServerFilterKeyName'
+        - $ref: '#/components/parameters/ServerFilterCreatedAt'
+        - $ref: '#/components/parameters/ServerFilterLaunchedAt'
+        - $ref: '#/components/parameters/ServerFilterTerminatedAt'
+        - $ref: '#/components/parameters/ServerFilterLocked'
+        - $ref: '#/components/parameters/ServerFilterPowerState'
+        - $ref: '#/components/parameters/ServerFilterProjectId'
+        - $ref: '#/components/parameters/ServerFilterUserId'
+        - $ref: '#/components/parameters/ServerFilterUuid'
+        - $ref: '#/components/parameters/ServerFilterVmState'
+        - $ref: '#/components/parameters/ServerFilterTaskState'
+        - $ref: '#/components/parameters/ServerFilterHostname'
+        - $ref: '#/components/parameters/ServerFilterReservationId'
+        - $ref: '#/components/parameters/ServerFilterDeleted'
+        - $ref: '#/components/parameters/ServerFilterTags'
+        - $ref: '#/components/parameters/ServerFilterTagsAny'
+        - $ref: '#/components/parameters/ServerFilterNotTags'
+        - $ref: '#/components/parameters/ServerFilterNotTagsAny'
+      responses:
+        '200':
+          description: Detailed server list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServersDetailListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: getServer
+      tags:
+        - servers
+      summary: Show server details
+      description: Shows details for a server. At 2.96 the response includes `pinned_availability_zone`.
+      responses:
+        '200':
+          description: The server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateServer
+      tags:
+        - servers
+      summary: Update server
+      description: >-
+        Updates the server's name, description (2.19+), hostname (2.90+), access IPs,
+        or disk config. Since 2.75 the response carries the same field set as show.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateServerRequest'
+      responses:
+        '200':
+          description: The updated server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteServer
+      tags:
+        - servers
+      summary: Delete server
+      description: >-
+        Deletes a server. With deferred delete enabled the server enters
+        SOFT_DELETED and can be restored with the `restore` action.
+      responses:
+        '204':
+          description: Server deletion accepted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/action:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    post:
+      operationId: performServerAction
+      tags:
+        - server-actions
+      summary: Run a server action
+      description: >-
+        Runs one of the 32 server actions valid at microversion 2.96. The request
+        body has exactly one top-level key naming the action. Most actions return
+        202 with an empty body; `os-getConsoleOutput` and `rescue` return 200 with a
+        body, `evacuate` returns 200 with an empty body, `createImage`/`createBackup`
+        return 202 with the new image id (2.45+), `rebuild` returns 202 with the
+        rebuilt server, and `confirmResize` returns 204.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerActionRequest'
+      responses:
+        '200':
+          description: >-
+            Synchronous action result: console output for `os-getConsoleOutput`, the
+            admin password for `rescue`. `evacuate` also answers 200 but with an
+            empty body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerActionSyncResponse'
+        '202':
+          description: >-
+            Action accepted. The body is empty except for `createImage`/`createBackup`
+            (image id, 2.45+) and `rebuild` (the rebuilt server).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerActionAcceptedResponse'
+        '204':
+          description: Resize confirmed (`confirmResize` only).
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/remote-consoles:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    post:
+      operationId: createRemoteConsole
+      tags:
+        - remote-consoles
+      summary: Create remote console
+      description: >-
+        Creates a console access URL for the server (2.6+). Valid protocol/type
+        pairs at 2.96 are vnc/novnc, spice/spice-html5, serial/serial, and
+        mks/webmks.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRemoteConsoleRequest'
+      responses:
+        '200':
+          description: The console URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoteConsoleResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/metadata:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: getServerMetadata
+      tags:
+        - server-metadata
+      summary: List server metadata
+      description: Lists all metadata for the server.
+      responses:
+        '200':
+          description: The metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerMetadataResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: replaceServerMetadata
+      tags:
+        - server-metadata
+      summary: Replace server metadata
+      description: Replaces all metadata; keys not in the request are deleted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerMetadataResponse'
+      responses:
+        '200':
+          description: The resulting metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerMetadataResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: mergeServerMetadata
+      tags:
+        - server-metadata
+      summary: Merge server metadata
+      description: Creates or replaces the given keys; other keys are untouched.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerMetadataResponse'
+      responses:
+        '200':
+          description: The resulting metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerMetadataResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/metadata/{key}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+      - $ref: '#/components/parameters/MetadataKeyParam'
+    get:
+      operationId: getServerMetadataItem
+      tags:
+        - server-metadata
+      summary: Show a metadata item
+      description: Shows one metadata key/value pair.
+      responses:
+        '200':
+          description: The metadata item.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerMetadataItemResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: setServerMetadataItem
+      tags:
+        - server-metadata
+      summary: Create or replace a metadata item
+      description: Creates or replaces one metadata key; the body key must match the path key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerMetadataItemResponse'
+      responses:
+        '200':
+          description: The metadata item.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerMetadataItemResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteServerMetadataItem
+      tags:
+        - server-metadata
+      summary: Delete a metadata item
+      description: Deletes one metadata key.
+      responses:
+        '204':
+          description: Metadata item deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/ips:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: listServerIps
+      tags:
+        - server-ips
+      summary: List server IP addresses
+      description: Lists the server's IP addresses grouped by network. Does not include extension attributes.
+      responses:
+        '200':
+          description: Addresses keyed by network name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerAddressesResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/ips/{network_label}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+      - $ref: '#/components/parameters/NetworkLabelParam'
+    get:
+      operationId: getServerIpsByNetwork
+      tags:
+        - server-ips
+      summary: Show server IP addresses for a network
+      description: Lists the server's IP addresses on one network. The response is keyed by the network label.
+      responses:
+        '200':
+          description: Addresses on the named network, keyed by its label.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkAddressesMap'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/tags:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: listServerTags
+      tags:
+        - server-tags
+      summary: List server tags
+      description: Lists the server's tags (2.26+).
+      responses:
+        '200':
+          description: The tags.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerTags'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: replaceServerTags
+      tags:
+        - server-tags
+      summary: Replace server tags
+      description: Replaces the full tag set (max 50 tags, 2.26+).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerTags'
+      responses:
+        '200':
+          description: The resulting tags.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerTags'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteServerTags
+      tags:
+        - server-tags
+      summary: Delete all server tags
+      description: Removes every tag from the server (2.26+).
+      responses:
+        '204':
+          description: Tags deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/tags/{tag}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+      - $ref: '#/components/parameters/ServerTagParam'
+    get:
+      operationId: checkServerTag
+      tags:
+        - server-tags
+      summary: Check tag existence
+      description: Answers 204 when the server has the tag and 404 when it does not (2.26+).
+      responses:
+        '204':
+          description: The server has the tag.
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: addServerTag
+      tags:
+        - server-tags
+      summary: Add a tag
+      description: Adds a single tag to the server (2.26+). The request has no body.
+      responses:
+        '201':
+          description: Tag added; the Location header points at the tag.
+        '204':
+          description: The server already had the tag.
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteServerTag
+      tags:
+        - server-tags
+      summary: Delete a tag
+      description: Removes a single tag from the server (2.26+).
+      responses:
+        '204':
+          description: Tag deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/os-interface:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: listServerInterfaces
+      tags:
+        - server-interfaces
+      summary: List port interfaces
+      description: Lists the server's attached port interfaces.
+      responses:
+        '200':
+          description: The interface attachments.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterfaceAttachmentsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createServerInterface
+      tags:
+        - server-interfaces
+      summary: Attach a port interface
+      description: >-
+        Attaches an existing port or creates and attaches a port on the given
+        network. Device tags are accepted since 2.49.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInterfaceAttachmentRequest'
+      responses:
+        '200':
+          description: The new interface attachment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterfaceAttachmentResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/os-interface/{port_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+      - $ref: '#/components/parameters/PortIdParam'
+    get:
+      operationId: getServerInterface
+      tags:
+        - server-interfaces
+      summary: Show a port interface
+      description: Shows one attached port interface. The response includes the device tag since 2.70.
+      responses:
+        '200':
+          description: The interface attachment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterfaceAttachmentResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteServerInterface
+      tags:
+        - server-interfaces
+      summary: Detach a port interface
+      description: Detaches the port from the server.
+      responses:
+        '202':
+          description: Detachment accepted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/os-volume_attachments:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: listVolumeAttachments
+      tags:
+        - volume-attachments
+      summary: List volume attachments
+      description: >-
+        Lists the server's volume attachments. Since 2.89 items carry
+        `attachment_id` and `bdm_uuid` instead of `id`.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - name: offset
+          in: query
+          required: false
+          description: Number of items to skip.
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: The volume attachments.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeAttachmentsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createVolumeAttachment
+      tags:
+        - volume-attachments
+      summary: Attach a volume
+      description: >-
+        Attaches a volume to the server. Device tags since 2.49, multiattach
+        volumes since 2.60, `delete_on_termination` since 2.79.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVolumeAttachmentRequest'
+      responses:
+        '200':
+          description: The new volume attachment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedVolumeAttachmentResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/os-volume_attachments/{volume_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+      - $ref: '#/components/parameters/AttachedVolumeIdParam'
+    get:
+      operationId: getVolumeAttachment
+      tags:
+        - volume-attachments
+      summary: Show a volume attachment
+      description: Shows one volume attachment. Since 2.89 the shape has `attachment_id`/`bdm_uuid` and no `id`.
+      responses:
+        '200':
+          description: The volume attachment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeAttachmentResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateVolumeAttachment
+      tags:
+        - volume-attachments
+      summary: Update a volume attachment
+      description: >-
+        Swaps the attachment to a new volume, or — since 2.85 — updates
+        `delete_on_termination` in place when `volumeId` names the already-attached
+        volume.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVolumeAttachmentRequest'
+      responses:
+        '202':
+          description: Update accepted.
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteVolumeAttachment
+      tags:
+        - volume-attachments
+      summary: Detach a volume
+      description: Detaches the volume from the server.
+      responses:
+        '202':
+          description: Detachment accepted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/os-instance-actions:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: listInstanceActions
+      tags:
+        - instance-actions
+      summary: List server actions log
+      description: >-
+        Lists the audit log of actions performed on the server. Paginated with
+        `changes-since`/`changes-before` filters since 2.58/2.66.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/ChangesSinceParam'
+        - $ref: '#/components/parameters/ChangesBeforeParam'
+      responses:
+        '200':
+          description: The action records.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceActionsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/os-instance-actions/{request_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+      - $ref: '#/components/parameters/RequestIdParam'
+    get:
+      operationId: getInstanceAction
+      tags:
+        - instance-actions
+      summary: Show a server action
+      description: >-
+        Shows one action record with its events. Event `details` for failed events
+        appear since 2.84; `hostId`/`host` since 2.62; tracebacks are policy-gated.
+      responses:
+        '200':
+          description: The action record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceActionResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/migrations:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: listServerMigrations
+      tags:
+        - server-migrations
+      summary: List in-progress live migrations
+      description: Lists the server's in-progress live migrations (2.22+, admin).
+      responses:
+        '200':
+          description: The migrations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerMigrationsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/migrations/{migration_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+      - $ref: '#/components/parameters/ServerMigrationIdParam'
+    get:
+      operationId: getServerMigration
+      tags:
+        - server-migrations
+      summary: Show a live migration
+      description: Shows one in-progress live migration (2.22+, admin).
+      responses:
+        '200':
+          description: The migration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerMigrationResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: abortServerMigration
+      tags:
+        - server-migrations
+      summary: Abort a live migration
+      description: >-
+        Aborts an in-progress live migration (2.24+, admin). Since 2.65 migrations
+        in queued or preparing status can also be aborted.
+      responses:
+        '202':
+          description: Abort accepted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/migrations/{migration_id}/action:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+      - $ref: '#/components/parameters/ServerMigrationIdParam'
+    post:
+      operationId: forceCompleteServerMigration
+      tags:
+        - server-migrations
+      summary: Force-complete a live migration
+      description: Forces an in-progress live migration to complete (2.22+, admin).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForceCompleteMigrationRequest'
+      responses:
+        '202':
+          description: Force-complete accepted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/diagnostics:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: getServerDiagnostics
+      tags:
+        - server-diagnostics
+      summary: Show server diagnostics
+      description: Shows standardized usage diagnostics from the hypervisor (admin; standardized shape since 2.48).
+      responses:
+        '200':
+          description: The diagnostics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDiagnostics'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/topology:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: getServerTopology
+      tags:
+        - server-topology
+      summary: Show server NUMA topology
+      description: Shows the server's NUMA topology (2.78+). CPU pinning details are policy-gated.
+      responses:
+        '200':
+          description: The topology.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerTopology'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/os-server-password:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: getServerPassword
+      tags:
+        - server-passwords
+      summary: Show server password
+      description: >-
+        Shows the encrypted admin password posted by the guest through the metadata
+        service; empty when none was posted.
+      responses:
+        '200':
+          description: The encrypted password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerPasswordResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: clearServerPassword
+      tags:
+        - server-passwords
+      summary: Clear server password
+      description: Clears the stored encrypted password.
+      responses:
+        '204':
+          description: Password cleared.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/servers/{server_id}/os-security-groups:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerIdParam'
+    get:
+      operationId: listServerSecurityGroups
+      tags:
+        - server-security-groups
+      summary: List server security groups
+      description: >-
+        Lists the security groups on the server. This server-scoped read survives
+        the 2.36 proxy-API removal; manage groups themselves through Neutron.
+      responses:
+        '200':
+          description: The security groups.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerSecurityGroupsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/flavors:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listFlavors
+      tags:
+        - flavors
+      summary: List flavors
+      description: Lists flavor ids, names, descriptions (2.55+), and links.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/FlavorSortKey'
+        - $ref: '#/components/parameters/FlavorSortDir'
+        - $ref: '#/components/parameters/FlavorMinDisk'
+        - $ref: '#/components/parameters/FlavorMinRam'
+        - $ref: '#/components/parameters/FlavorIsPublic'
+      responses:
+        '200':
+          description: Brief flavor list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createFlavor
+      tags:
+        - flavors
+      summary: Create flavor
+      description: Creates a flavor (admin). Omit `id` (or pass null) to auto-generate a UUID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFlavorRequest'
+      responses:
+        '200':
+          description: The created flavor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/flavors/detail:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listFlavorsDetail
+      tags:
+        - flavors
+      summary: List flavors detailed
+      description: >-
+        Lists full flavor representations. Since 2.61 each flavor embeds its
+        `extra_specs`; since 2.75 `swap` is reported as 0 instead of an empty string.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/FlavorSortKey'
+        - $ref: '#/components/parameters/FlavorSortDir'
+        - $ref: '#/components/parameters/FlavorMinDisk'
+        - $ref: '#/components/parameters/FlavorMinRam'
+        - $ref: '#/components/parameters/FlavorIsPublic'
+      responses:
+        '200':
+          description: Detailed flavor list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorsDetailListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/flavors/{flavor_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/FlavorIdParam'
+    get:
+      operationId: getFlavor
+      tags:
+        - flavors
+      summary: Show flavor details
+      description: Shows details for a flavor, including embedded `extra_specs` (2.61+).
+      responses:
+        '200':
+          description: The flavor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateFlavor
+      tags:
+        - flavors
+      summary: Update flavor description
+      description: Updates a flavor's description (admin, 2.55+). No other field can be updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFlavorRequest'
+      responses:
+        '200':
+          description: The updated flavor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteFlavor
+      tags:
+        - flavors
+      summary: Delete flavor
+      description: Deletes a flavor (admin).
+      responses:
+        '202':
+          description: Flavor deletion accepted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/flavors/{flavor_id}/os-extra_specs:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/FlavorIdParam'
+    get:
+      operationId: listFlavorExtraSpecs
+      tags:
+        - flavor-extra-specs
+      summary: List flavor extra specs
+      description: Lists all extra specs of the flavor.
+      responses:
+        '200':
+          description: The extra specs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorExtraSpecs'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createFlavorExtraSpecs
+      tags:
+        - flavor-extra-specs
+      summary: Create flavor extra specs
+      description: >-
+        Adds the given extra specs to the flavor (admin). Since 2.86 keys in known
+        namespaces are validated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlavorExtraSpecs'
+      responses:
+        '200':
+          description: The created extra specs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorExtraSpecs'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/flavors/{flavor_id}/os-extra_specs/{key}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/FlavorIdParam'
+      - $ref: '#/components/parameters/FlavorExtraSpecKeyParam'
+    get:
+      operationId: getFlavorExtraSpec
+      tags:
+        - flavor-extra-specs
+      summary: Show a flavor extra spec
+      description: Shows one extra spec; the response is keyed by the spec name.
+      responses:
+        '200':
+          description: The extra spec key/value pair.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorExtraSpecItem'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateFlavorExtraSpec
+      tags:
+        - flavor-extra-specs
+      summary: Update a flavor extra spec
+      description: >-
+        Updates one extra spec (admin); the body key must match the path key. Since
+        2.86 keys in known namespaces are validated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlavorExtraSpecItem'
+      responses:
+        '200':
+          description: The updated key/value pair.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorExtraSpecItem'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteFlavorExtraSpec
+      tags:
+        - flavor-extra-specs
+      summary: Delete a flavor extra spec
+      description: Deletes one extra spec (admin).
+      responses:
+        '200':
+          description: Extra spec deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/flavors/{flavor_id}/os-flavor-access:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/FlavorIdParam'
+    get:
+      operationId: listFlavorAccess
+      tags:
+        - flavor-access
+      summary: List flavor access
+      description: Lists the projects granted access to a private flavor (admin). Public flavors answer 404.
+      responses:
+        '200':
+          description: The access list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorAccessesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/flavors/{flavor_id}/action:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/FlavorIdParam'
+    post:
+      operationId: performFlavorAction
+      tags:
+        - flavor-access
+      summary: Grant or revoke flavor access
+      description: >-
+        Adds (`addTenantAccess`) or removes (`removeTenantAccess`) a project's
+        access to a private flavor (admin).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlavorAccessActionRequest'
+      responses:
+        '200':
+          description: The resulting access list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlavorAccessesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-aggregates:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listAggregates
+      tags:
+        - aggregates
+      summary: List aggregates
+      description: Lists all host aggregates (admin).
+      responses:
+        '200':
+          description: The aggregates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregatesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createAggregate
+      tags:
+        - aggregates
+      summary: Create aggregate
+      description: Creates a host aggregate, optionally bound to an availability zone (admin).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAggregateRequest'
+      responses:
+        '200':
+          description: The created aggregate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregateResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-aggregates/{aggregate_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/AggregateIdParam'
+    get:
+      operationId: getAggregate
+      tags:
+        - aggregates
+      summary: Show aggregate details
+      description: Shows one host aggregate (admin).
+      responses:
+        '200':
+          description: The aggregate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregateResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateAggregate
+      tags:
+        - aggregates
+      summary: Update aggregate
+      description: Updates the aggregate's name and/or availability zone (admin).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAggregateRequest'
+      responses:
+        '200':
+          description: The updated aggregate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregateResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteAggregate
+      tags:
+        - aggregates
+      summary: Delete aggregate
+      description: Deletes an empty host aggregate (admin).
+      responses:
+        '200':
+          description: Aggregate deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-aggregates/{aggregate_id}/action:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/AggregateIdParam'
+    post:
+      operationId: performAggregateAction
+      tags:
+        - aggregates
+      summary: Run an aggregate action
+      description: Adds a host, removes a host, or replaces metadata on the aggregate (admin).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AggregateActionRequest'
+      responses:
+        '200':
+          description: The updated aggregate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregateResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-aggregates/{aggregate_id}/images:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/AggregateIdParam'
+    post:
+      operationId: cacheAggregateImages
+      tags:
+        - aggregates
+      summary: Pre-cache images on an aggregate
+      description: Requests that the given images be pre-cached on all hosts of the aggregate (admin, 2.81+).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CacheImagesRequest'
+      responses:
+        '202':
+          description: Caching request accepted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-hypervisors:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listHypervisors
+      tags:
+        - hypervisors
+      summary: List hypervisors
+      description: Lists hypervisor ids, hostnames, and states (admin). Ids are UUIDs since 2.53.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/HypervisorHostnamePattern'
+        - $ref: '#/components/parameters/HypervisorWithServers'
+      responses:
+        '200':
+          description: Brief hypervisor list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HypervisorsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-hypervisors/detail:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listHypervisorsDetail
+      tags:
+        - hypervisors
+      summary: List hypervisors detailed
+      description: >-
+        Lists full hypervisor representations (admin). Since 2.88 the metric fields
+        (vcpus, memory, disk, running_vms, cpu_info, …) are gone; use Placement for
+        inventory and usage.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/HypervisorHostnamePattern'
+        - $ref: '#/components/parameters/HypervisorWithServers'
+      responses:
+        '200':
+          description: Detailed hypervisor list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HypervisorsDetailListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-hypervisors/{hypervisor_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/HypervisorIdParam'
+    get:
+      operationId: getHypervisor
+      tags:
+        - hypervisors
+      summary: Show hypervisor details
+      description: Shows one hypervisor (admin). Includes `uptime` since 2.88.
+      parameters:
+        - $ref: '#/components/parameters/HypervisorWithServers'
+      responses:
+        '200':
+          description: The hypervisor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HypervisorResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-services:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listServices
+      tags:
+        - services
+      summary: List compute services
+      description: Lists compute services and their state (admin). Ids are UUIDs since 2.53.
+      parameters:
+        - name: binary
+          in: query
+          required: false
+          description: Filter by service binary, e.g. nova-compute.
+          schema:
+            type: string
+        - name: host
+          in: query
+          required: false
+          description: Filter by host name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The services.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServicesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-services/{service_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServiceIdParam'
+    put:
+      operationId: updateService
+      tags:
+        - services
+      summary: Update a compute service
+      description: >-
+        Enables/disables the service or sets/unsets forced_down (admin, unified
+        body since 2.53).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateService'
+      responses:
+        '200':
+          description: The updated service.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteService
+      tags:
+        - services
+      summary: Delete a compute service
+      description: >-
+        Deletes the service record (admin). A nova-compute service must have no
+        instances and be load-balancer-drained first.
+      responses:
+        '204':
+          description: Service deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-migrations:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listMigrations
+      tags:
+        - migrations
+      summary: List migrations
+      description: >-
+        Lists migration records across all servers (admin). Paginated since 2.59;
+        user/project filters since 2.80.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/ChangesSinceParam'
+        - $ref: '#/components/parameters/ChangesBeforeParam'
+        - name: instance_uuid
+          in: query
+          required: false
+          description: Filter by server UUID.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Filter by migration status.
+          schema:
+            type: string
+        - name: migration_type
+          in: query
+          required: false
+          description: Filter by type.
+          schema:
+            type: string
+            enum:
+              - evacuation
+              - live-migration
+              - migration
+              - resize
+        - name: source_compute
+          in: query
+          required: false
+          description: Filter by source compute host.
+          schema:
+            type: string
+        - name: host
+          in: query
+          required: false
+          description: Filter by source or destination host.
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          required: false
+          description: Filter by user id (2.80+).
+          schema:
+            type: string
+        - name: project_id
+          in: query
+          required: false
+          description: Filter by project id (2.80+).
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The migration records.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-availability-zone:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listAvailabilityZones
+      tags:
+        - availability-zones
+      summary: List availability zones
+      description: Lists availability zone names and states; host details are always null here.
+      responses:
+        '200':
+          description: The availability zones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityZonesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-availability-zone/detail:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listAvailabilityZonesDetail
+      tags:
+        - availability-zones
+      summary: List availability zones detailed
+      description: Lists availability zones with per-host, per-service liveness details (admin).
+      responses:
+        '200':
+          description: The availability zones with host details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityZonesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-quota-sets/{tenant_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/QuotaTenantIdParam'
+    get:
+      operationId: getQuotaSet
+      tags:
+        - quota-sets
+      summary: Show quotas
+      description: Shows the project's (or, with `user_id`, the user's) quotas.
+      parameters:
+        - $ref: '#/components/parameters/QuotaUserIdParam'
+      responses:
+        '200':
+          description: The quotas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaSetResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateQuotaSet
+      tags:
+        - quota-sets
+      summary: Update quotas
+      description: Updates quotas for the project or user (admin). `force` skips usage validation.
+      parameters:
+        - $ref: '#/components/parameters/QuotaUserIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateQuotaSetRequest'
+      responses:
+        '200':
+          description: The updated quotas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaSetResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteQuotaSet
+      tags:
+        - quota-sets
+      summary: Revert quotas to defaults
+      description: Reverts the project's (or user's) quotas to their defaults (admin).
+      parameters:
+        - $ref: '#/components/parameters/QuotaUserIdParam'
+      responses:
+        '202':
+          description: Quotas reverted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-quota-sets/{tenant_id}/defaults:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/QuotaTenantIdParam'
+    get:
+      operationId: getQuotaSetDefaults
+      tags:
+        - quota-sets
+      summary: Show default quotas
+      description: Shows the default quotas for the project.
+      responses:
+        '200':
+          description: The default quotas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaSetResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-quota-sets/{tenant_id}/detail:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/QuotaTenantIdParam'
+    get:
+      operationId: getQuotaSetDetail
+      tags:
+        - quota-sets
+      summary: Show quotas with usage
+      description: Shows the project's quotas with in_use and reserved counts.
+      parameters:
+        - $ref: '#/components/parameters/QuotaUserIdParam'
+      responses:
+        '200':
+          description: The detailed quotas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaSetDetailResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-quota-class-sets/{class_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/QuotaClassIdParam'
+    get:
+      operationId: getQuotaClassSet
+      tags:
+        - quota-class-sets
+      summary: Show quota class
+      description: Shows the quotas of a quota class (admin). server_groups fields appear since 2.50.
+      responses:
+        '200':
+          description: The quota class.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaClassSetResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateQuotaClassSet
+      tags:
+        - quota-class-sets
+      summary: Update quota class
+      description: Creates or updates quotas of a quota class (admin).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateQuotaClassSetRequest'
+      responses:
+        '200':
+          description: The updated quota class.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaClassSetResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-server-groups:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listServerGroups
+      tags:
+        - server-groups
+      summary: List server groups
+      description: Lists the caller's server groups. Uses limit/offset paging, not marker.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - name: offset
+          in: query
+          required: false
+          description: Number of groups to skip.
+          schema:
+            type: integer
+            minimum: 0
+        - name: all_projects
+          in: query
+          required: false
+          description: List groups of all projects (admin).
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: The server groups.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerGroupsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createServerGroup
+      tags:
+        - server-groups
+      summary: Create server group
+      description: >-
+        Creates a server group. Since 2.64 the request carries a single `policy`
+        plus optional `rules` instead of the legacy `policies` array.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServerGroupRequest'
+      responses:
+        '200':
+          description: The created server group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerGroupResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-server-groups/{server_group_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ServerGroupIdParam'
+    get:
+      operationId: getServerGroup
+      tags:
+        - server-groups
+      summary: Show server group details
+      description: Shows one server group.
+      responses:
+        '200':
+          description: The server group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerGroupResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteServerGroup
+      tags:
+        - server-groups
+      summary: Delete server group
+      description: Deletes a server group; member servers are not affected.
+      responses:
+        '204':
+          description: Server group deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-simple-tenant-usage:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listTenantUsages
+      tags:
+        - usage
+      summary: List usage for all projects
+      description: >-
+        Reports simple usage (vcpu/ram/disk hours) for all projects in the given
+        time window (admin). Paginated since 2.40; pagination pages by server, so
+        a project's usage may be split across pages — aggregate client-side.
+      parameters:
+        - $ref: '#/components/parameters/UsageStartParam'
+        - $ref: '#/components/parameters/UsageEndParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - name: detailed
+          in: query
+          required: false
+          description: Pass 1 to include per-server usages.
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+      responses:
+        '200':
+          description: Usage per project.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantUsagesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-simple-tenant-usage/{tenant_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/QuotaTenantIdParam'
+    get:
+      operationId: getTenantUsage
+      tags:
+        - usage
+      summary: Show usage for a project
+      description: Reports simple usage for one project, including per-server usages. Paginated since 2.40.
+      parameters:
+        - $ref: '#/components/parameters/UsageStartParam'
+        - $ref: '#/components/parameters/UsageEndParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+      responses:
+        '200':
+          description: The project's usage.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantUsageResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-instance_usage_audit_log:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listInstanceUsageAuditLogs
+      tags:
+        - audit-log
+      summary: Show the latest usage audit log
+      description: Shows instance usage audit results for the most recent audit period (admin).
+      responses:
+        '200':
+          description: The audit log.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceUsageAuditLogsResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-instance_usage_audit_log/{before_timestamp}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/BeforeTimestampParam'
+    get:
+      operationId: getInstanceUsageAuditLog
+      tags:
+        - audit-log
+      summary: Show the usage audit log before a time
+      description: Shows instance usage audit results for the audit period containing the given time (admin).
+      responses:
+        '200':
+          description: The audit log.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceUsageAuditLogResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-server-external-events:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    post:
+      operationId: createExternalEvents
+      tags:
+        - external-events
+      summary: Inject external server events
+      description: >-
+        Informs Nova of events that happened outside it (service-to-service; used
+        by Neutron and Cinder). Event names valid at 2.96 include volume-extended
+        (2.51+), power-update (2.76+), accelerator-request-bound (2.82+), and
+        volume-reimaged (2.93+). Answers 207 when only some events were accepted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExternalEventsRequest'
+      responses:
+        '200':
+          description: All events accepted; each echoed with a per-event code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalEventsResponse'
+        '207':
+          description: Some events failed; inspect each event's code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalEventsResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-assisted-volume-snapshots:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    post:
+      operationId: createAssistedVolumeSnapshot
+      tags:
+        - assisted-volume-snapshots
+      summary: Create assisted volume snapshot
+      description: >-
+        Creates a hypervisor-assisted snapshot of a volume (service-to-service;
+        called by Cinder for remote file-system backed volumes).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssistedVolumeSnapshotRequest'
+      responses:
+        '200':
+          description: The snapshot reference.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistedVolumeSnapshotResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-assisted-volume-snapshots/{snapshot_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/AssistedSnapshotIdParam'
+    delete:
+      operationId: deleteAssistedVolumeSnapshot
+      tags:
+        - assisted-volume-snapshots
+      summary: Delete assisted volume snapshot
+      description: Deletes a hypervisor-assisted volume snapshot (service-to-service).
+      parameters:
+        - name: delete_info
+          in: query
+          required: true
+          description: JSON-encoded deletion details, including the volume_id.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deletion accepted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-console-auth-tokens/{console_token}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ConsoleTokenParam'
+    get:
+      operationId: getConsoleConnectInfo
+      tags:
+        - console-auth-tokens
+      summary: Show console connection information
+      description: Resolves a console auth token to its host/port connect information (admin, 2.31+).
+      responses:
+        '200':
+          description: The connection information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsoleConnectInfoResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /:
+    servers:
+      - url: 'https://{host}'
+        description: Endpoint root, outside the versioned base URL.
+        variables:
+          host:
+            default: compute.example.com
+    get:
+      operationId: listVersions
+      tags:
+        - versions
+      summary: List API versions
+      description: Lists the major API versions the endpoint serves. Needs no authentication.
+      security: []
+      responses:
+        '200':
+          description: The available versions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /v2.1:
+    servers:
+      - url: 'https://{host}'
+        description: Endpoint root, outside the versioned base URL.
+        variables:
+          host:
+            default: compute.example.com
+    get:
+      operationId: getV21VersionDetails
+      tags:
+        - versions
+      summary: Show v2.1 version details
+      description: Shows the v2.1 API version document, including the supported microversion range.
+      security: []
+      responses:
+        '200':
+          description: The version document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-keypairs:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listKeypairs
+      tags:
+        - keypairs
+      summary: List keypairs
+      description: >-
+        Lists keypairs for the caller (or for `user_id` with admin policy, 2.10+).
+        Paginated since 2.35.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/KeypairUserIdParam'
+      responses:
+        '200':
+          description: Keypair list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeypairsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createKeypair
+      tags:
+        - keypairs
+      summary: Import keypair
+      description: >-
+        Imports an existing public key. Since 2.92 `public_key` is mandatory (Nova no
+        longer generates keypairs, so `private_key` is never returned) and names may
+        contain `@` and `.` characters.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateKeypairRequest'
+      responses:
+        '201':
+          description: The imported keypair.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedKeypairResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /nova/{project_id}/os-keypairs/{keypair_name}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/KeypairNameParam'
+    get:
+      operationId: getKeypair
+      tags:
+        - keypairs
+      summary: Show keypair details
+      description: Shows details for a keypair, including database bookkeeping fields.
+      parameters:
+        - $ref: '#/components/parameters/KeypairUserIdParam'
+      responses:
+        '200':
+          description: The keypair.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeypairResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteKeypair
+      tags:
+        - keypairs
+      summary: Delete keypair
+      description: Deletes a keypair owned by the caller (or by `user_id` with admin policy, 2.10+).
+      parameters:
+        - $ref: '#/components/parameters/KeypairUserIdParam'
+      responses:
+        '204':
+          description: Keypair deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+components:
+  securitySchemes:
+    novaAuth:
+      type: apiKey
+      in: header
+      name: X-Auth-Token
+      description: A valid Keystone authentication token.
+  parameters:
+    ProjectIdParam:
+      name: project_id
+      in: path
+      required: true
+      description: Keystone project (tenant) id that scopes this request.
+      schema:
+        type: string
+    ServerIdParam:
+      name: server_id
+      in: path
+      required: true
+      description: The UUID of the server.
+      schema:
+        type: string
+    FlavorIdParam:
+      name: flavor_id
+      in: path
+      required: true
+      description: The id of the flavor.
+      schema:
+        type: string
+    KeypairNameParam:
+      name: keypair_name
+      in: path
+      required: true
+      description: The name of the keypair.
+      schema:
+        type: string
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return. Capped by the deployment's max_limit.
+      schema:
+        type: integer
+        minimum: 1
+    MarkerParam:
+      name: marker
+      in: query
+      required: false
+      description: The id of the last item on the previous page; the listing starts after it.
+      schema:
+        type: string
+    ChangesSinceParam:
+      name: changes-since
+      in: query
+      required: false
+      description: >-
+        Only return items last updated at or after this ISO 8601 timestamp.
+        Includes deleted items when the resource supports it.
+      schema:
+        type: string
+        format: date-time
+    ChangesBeforeParam:
+      name: changes-before
+      in: query
+      required: false
+      description: Only return items last updated at or before this ISO 8601 timestamp (2.66+).
+      schema:
+        type: string
+        format: date-time
+    AllTenantsParam:
+      name: all_tenants
+      in: query
+      required: false
+      description: List items across all projects (admin).
+      schema:
+        type: boolean
+    ServerSortKey:
+      name: sort_key
+      in: query
+      required: false
+      description: >-
+        Server attribute to sort by (e.g. created_at, display_name, uuid). May be
+        given multiple times. Defaults to created_at.
+      schema:
+        type: string
+    ServerSortDir:
+      name: sort_dir
+      in: query
+      required: false
+      description: Sort direction; defaults to desc.
+      schema:
+        type: string
+        enum:
+          - asc
+          - desc
+    ServerFilterName:
+      name: name
+      in: query
+      required: false
+      description: Filter by server name (regular expression match).
+      schema:
+        type: string
+    ServerFilterStatus:
+      name: status
+      in: query
+      required: false
+      description: Filter by server status (e.g. ACTIVE, SHUTOFF, ERROR).
+      schema:
+        type: string
+    ServerFilterImage:
+      name: image
+      in: query
+      required: false
+      description: Filter by image id.
+      schema:
+        type: string
+    ServerFilterFlavor:
+      name: flavor
+      in: query
+      required: false
+      description: Filter by flavor id.
+      schema:
+        type: string
+    ServerFilterHost:
+      name: host
+      in: query
+      required: false
+      description: Filter by compute host name (admin).
+      schema:
+        type: string
+    ServerFilterIp:
+      name: ip
+      in: query
+      required: false
+      description: Filter by IPv4 address (regular expression match).
+      schema:
+        type: string
+    ServerFilterIp6:
+      name: ip6
+      in: query
+      required: false
+      description: Filter by IPv6 address (regular expression match).
+      schema:
+        type: string
+    ServerFilterAvailabilityZone:
+      name: availability_zone
+      in: query
+      required: false
+      description: Filter by availability zone (non-admin since 2.83).
+      schema:
+        type: string
+    ServerFilterConfigDrive:
+      name: config_drive
+      in: query
+      required: false
+      description: Filter by config-drive presence (non-admin since 2.83).
+      schema:
+        type: string
+    ServerFilterKeyName:
+      name: key_name
+      in: query
+      required: false
+      description: Filter by keypair name (non-admin since 2.83).
+      schema:
+        type: string
+    ServerFilterCreatedAt:
+      name: created_at
+      in: query
+      required: false
+      description: Filter by creation time, ISO 8601 (non-admin since 2.83).
+      schema:
+        type: string
+    ServerFilterLaunchedAt:
+      name: launched_at
+      in: query
+      required: false
+      description: Filter by launch time, ISO 8601 (non-admin since 2.83).
+      schema:
+        type: string
+    ServerFilterTerminatedAt:
+      name: terminated_at
+      in: query
+      required: false
+      description: Filter by termination time, ISO 8601 (non-admin since 2.83).
+      schema:
+        type: string
+    ServerFilterLocked:
+      name: locked
+      in: query
+      required: false
+      description: Filter by lock state (2.73+).
+      schema:
+        type: boolean
+    ServerFilterPowerState:
+      name: power_state
+      in: query
+      required: false
+      description: 'Filter by power state (admin): 0 NOSTATE, 1 RUNNING, 3 PAUSED, 4 SHUTDOWN, 6 CRASHED, 7 SUSPENDED.'
+      schema:
+        type: integer
+        enum:
+          - 0
+          - 1
+          - 3
+          - 4
+          - 6
+          - 7
+    ServerFilterProjectId:
+      name: project_id
+      in: query
+      required: false
+      description: Filter by project id; only meaningful together with all_tenants (admin).
+      schema:
+        type: string
+    ServerFilterUserId:
+      name: user_id
+      in: query
+      required: false
+      description: Filter by user id (non-admin since 2.83).
+      schema:
+        type: string
+    ServerFilterUuid:
+      name: uuid
+      in: query
+      required: false
+      description: Filter by server UUID.
+      schema:
+        type: string
+    ServerFilterVmState:
+      name: vm_state
+      in: query
+      required: false
+      description: Filter by vm_state (admin; e.g. active, stopped, error).
+      schema:
+        type: string
+    ServerFilterTaskState:
+      name: task_state
+      in: query
+      required: false
+      description: Filter by task_state (admin).
+      schema:
+        type: string
+    ServerFilterHostname:
+      name: hostname
+      in: query
+      required: false
+      description: Filter by hostname (non-admin since 2.90).
+      schema:
+        type: string
+    ServerFilterReservationId:
+      name: reservation_id
+      in: query
+      required: false
+      description: Filter by the reservation id returned by a multi-server create.
+      schema:
+        type: string
+    ServerFilterDeleted:
+      name: deleted
+      in: query
+      required: false
+      description: Include only deleted servers (admin).
+      schema:
+        type: boolean
+    ServerFilterTags:
+      name: tags
+      in: query
+      required: false
+      description: Servers that have all of the given tags, comma-separated (2.26+).
+      schema:
+        type: string
+    ServerFilterTagsAny:
+      name: tags-any
+      in: query
+      required: false
+      description: Servers that have at least one of the given tags, comma-separated (2.26+).
+      schema:
+        type: string
+    ServerFilterNotTags:
+      name: not-tags
+      in: query
+      required: false
+      description: Servers that do not have all of the given tags, comma-separated (2.26+).
+      schema:
+        type: string
+    ServerFilterNotTagsAny:
+      name: not-tags-any
+      in: query
+      required: false
+      description: Servers that have none of the given tags, comma-separated (2.26+).
+      schema:
+        type: string
+    FlavorSortKey:
+      name: sort_key
+      in: query
+      required: false
+      description: Flavor attribute to sort by (e.g. flavorid, name, memory_mb). Defaults to flavorid.
+      schema:
+        type: string
+    FlavorSortDir:
+      name: sort_dir
+      in: query
+      required: false
+      description: Sort direction; defaults to asc.
+      schema:
+        type: string
+        enum:
+          - asc
+          - desc
+    FlavorMinDisk:
+      name: minDisk
+      in: query
+      required: false
+      description: Only flavors with at least this much root disk, in GiB.
+      schema:
+        type: integer
+    FlavorMinRam:
+      name: minRam
+      in: query
+      required: false
+      description: Only flavors with at least this much RAM, in MiB.
+      schema:
+        type: integer
+    FlavorIsPublic:
+      name: is_public
+      in: query
+      required: false
+      description: 'Filter by visibility: true, false, or none for all flavors (admin for non-public).'
+      schema:
+        type: string
+        enum:
+          - 'true'
+          - 'false'
+          - 'none'
+    KeypairUserIdParam:
+      name: user_id
+      in: query
+      required: false
+      description: Act on keypairs of this user instead of the caller (admin policy, 2.10+).
+      schema:
+        type: string
+    MetadataKeyParam:
+      name: key
+      in: path
+      required: true
+      description: The metadata key.
+      schema:
+        type: string
+    NetworkLabelParam:
+      name: network_label
+      in: path
+      required: true
+      description: The network label (name).
+      schema:
+        type: string
+    ServerTagParam:
+      name: tag
+      in: path
+      required: true
+      description: The tag value.
+      schema:
+        type: string
+    PortIdParam:
+      name: port_id
+      in: path
+      required: true
+      description: The UUID of the attached port.
+      schema:
+        type: string
+    AttachedVolumeIdParam:
+      name: volume_id
+      in: path
+      required: true
+      description: The UUID of the attached volume.
+      schema:
+        type: string
+    RequestIdParam:
+      name: request_id
+      in: path
+      required: true
+      description: The request id of the action.
+      schema:
+        type: string
+    ServerMigrationIdParam:
+      name: migration_id
+      in: path
+      required: true
+      description: The id of the migration.
+      schema:
+        type: integer
+    FlavorExtraSpecKeyParam:
+      name: key
+      in: path
+      required: true
+      description: The extra spec key, e.g. hw:cpu_policy.
+      schema:
+        type: string
+    AggregateIdParam:
+      name: aggregate_id
+      in: path
+      required: true
+      description: The integer id of the aggregate.
+      schema:
+        type: integer
+    HypervisorIdParam:
+      name: hypervisor_id
+      in: path
+      required: true
+      description: The UUID of the hypervisor (2.53+).
+      schema:
+        type: string
+    HypervisorHostnamePattern:
+      name: hypervisor_hostname_pattern
+      in: query
+      required: false
+      description: Substring filter on the hypervisor hostname (2.53+); incompatible with paging.
+      schema:
+        type: string
+    HypervisorWithServers:
+      name: with_servers
+      in: query
+      required: false
+      description: Include the servers hosted on each hypervisor (2.53+).
+      schema:
+        type: boolean
+    ServiceIdParam:
+      name: service_id
+      in: path
+      required: true
+      description: The UUID of the service (2.53+).
+      schema:
+        type: string
+    QuotaTenantIdParam:
+      name: tenant_id
+      in: path
+      required: true
+      description: The project id.
+      schema:
+        type: string
+    QuotaUserIdParam:
+      name: user_id
+      in: query
+      required: false
+      description: Act on the per-user quota of this user within the project.
+      schema:
+        type: string
+    QuotaClassIdParam:
+      name: class_id
+      in: path
+      required: true
+      description: The quota class id; the class "default" applies to all projects without specific quotas.
+      schema:
+        type: string
+    ServerGroupIdParam:
+      name: server_group_id
+      in: path
+      required: true
+      description: The UUID of the server group.
+      schema:
+        type: string
+    UsageStartParam:
+      name: start
+      in: query
+      required: false
+      description: Start of the usage window, ISO 8601; defaults to 4 weeks ago.
+      schema:
+        type: string
+    UsageEndParam:
+      name: end
+      in: query
+      required: false
+      description: End of the usage window, ISO 8601; defaults to now.
+      schema:
+        type: string
+    BeforeTimestampParam:
+      name: before_timestamp
+      in: path
+      required: true
+      description: Show the audit period that contains this time (ISO 8601).
+      schema:
+        type: string
+    AssistedSnapshotIdParam:
+      name: snapshot_id
+      in: path
+      required: true
+      description: The UUID of the assisted snapshot.
+      schema:
+        type: string
+    ConsoleTokenParam:
+      name: console_token
+      in: path
+      required: true
+      description: The console auth token.
+      schema:
+        type: string
+  schemas:
+    FaultBody:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code of the error.
+        message:
+          type: string
+        details:
+          type: string
+          description: Stack trace or extra detail; only present for some 5xx errors.
+      required:
+        - code
+        - message
+    Fault:
+      type: object
+      description: >-
+        Nova error envelope. The single top-level key names the fault kind
+        (badRequest, unauthorized, forbidden, itemNotFound, conflictingRequest,
+        computeFault, …) and varies with the HTTP status.
+      additionalProperties:
+        $ref: '#/components/schemas/FaultBody'
+      example:
+        itemNotFound:
+          code: 404
+          message: Instance could not be found.
+    AbsoluteLimits:
+      type: object
+      properties:
+        maxServerGroupMembers:
+          type: integer
+        maxServerGroups:
+          type: integer
+        maxServerMeta:
+          type: integer
+        maxTotalCores:
+          type: integer
+        maxTotalInstances:
+          type: integer
+        maxTotalKeypairs:
+          type: integer
+        maxTotalRAMSize:
+          type: integer
+          description: RAM ceiling in MiB.
+        totalCoresUsed:
+          type: integer
+        totalInstancesUsed:
+          type: integer
+        totalRAMUsed:
+          type: integer
+          description: RAM currently used in MiB.
+        totalServerGroupsUsed:
+          type: integer
+      required:
+        - maxServerGroupMembers
+        - maxServerGroups
+        - maxServerMeta
+        - maxTotalCores
+        - maxTotalInstances
+        - maxTotalKeypairs
+        - maxTotalRAMSize
+        - totalCoresUsed
+        - totalInstancesUsed
+        - totalRAMUsed
+        - totalServerGroupsUsed
+      example:
+        maxServerGroupMembers: 10
+        maxServerGroups: 10
+        maxServerMeta: 128
+        maxTotalCores: 20
+        maxTotalInstances: 10
+        maxTotalKeypairs: 100
+        maxTotalRAMSize: 51200
+        totalCoresUsed: 2
+        totalInstancesUsed: 1
+        totalRAMUsed: 2048
+        totalServerGroupsUsed: 0
+    Limits:
+      type: object
+      properties:
+        absolute:
+          $ref: '#/components/schemas/AbsoluteLimits'
+        rate:
+          type: array
+          description: Rate limits; always empty since rate limiting was removed from Nova.
+          items:
+            type: object
+      required:
+        - absolute
+        - rate
+    LimitsResponse:
+      type: object
+      properties:
+        limits:
+          $ref: '#/components/schemas/Limits'
+      required:
+        - limits
+    Link:
+      type: object
+      properties:
+        href:
+          type: string
+        rel:
+          type: string
+      required:
+        - href
+        - rel
+      example:
+        href: https://compute.example.com/v2.1/servers/6e0f6d0e-3f4a-4a54-8f3a-9a2f6d2b7f11
+        rel: self
+    NetworkAddress:
+      type: object
+      properties:
+        addr:
+          type: string
+          description: The IP address.
+        version:
+          type: integer
+          enum:
+            - 4
+            - 6
+        'OS-EXT-IPS:type':
+          type: string
+          description: fixed or floating.
+        'OS-EXT-IPS-MAC:mac_addr':
+          type: string
+      required:
+        - addr
+        - version
+      example:
+        addr: 10.0.0.4
+        version: 4
+        'OS-EXT-IPS:type': fixed
+        'OS-EXT-IPS-MAC:mac_addr': 'fa:16:3e:8c:8b:1e'
+    SecurityGroupRef:
+      type: object
+      description: A security group referenced by name.
+      properties:
+        name:
+          type: string
+      required:
+        - name
+    ImageRef:
+      type: object
+      properties:
+        id:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - id
+    ServerImage:
+      description: The server's boot image, or the empty string for boot-from-volume servers.
+      oneOf:
+        - $ref: '#/components/schemas/ImageRef'
+        - type: string
+          enum:
+            - ''
+    EmbeddedFlavor:
+      type: object
+      description: >-
+        Flavor details embedded in server responses since 2.47 (there is no flavor
+        id here; use original_name to correlate with /flavors).
+      properties:
+        vcpus:
+          type: integer
+        ram:
+          type: integer
+          description: RAM in MiB.
+        disk:
+          type: integer
+          description: Root disk in GiB.
+        ephemeral:
+          type: integer
+          description: Ephemeral disk in GiB.
+        swap:
+          type: integer
+          description: Swap in MiB.
+        original_name:
+          type: string
+          description: Name of the flavor the server was booted with.
+        extra_specs:
+          type: object
+          additionalProperties:
+            type: string
+          description: Included subject to policy.
+      required:
+        - vcpus
+        - ram
+        - disk
+        - ephemeral
+        - swap
+        - original_name
+      example:
+        vcpus: 2
+        ram: 2048
+        disk: 20
+        ephemeral: 0
+        swap: 0
+        original_name: m1.small
+    AttachedVolumeRef:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Volume id.
+        delete_on_termination:
+          type: boolean
+      required:
+        - id
+    ServerFault:
+      type: object
+      description: Populated only for servers in ERROR or DELETED status, subject to policy for details.
+      properties:
+        code:
+          type: integer
+        created:
+          type: string
+          format: date-time
+        message:
+          type: string
+        details:
+          type: string
+      required:
+        - code
+        - created
+        - message
+    Server:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - BUILD
+            - DELETED
+            - ERROR
+            - HARD_REBOOT
+            - MIGRATING
+            - PASSWORD
+            - PAUSED
+            - REBOOT
+            - REBUILD
+            - RESCUE
+            - RESIZE
+            - REVERT_RESIZE
+            - SHELVED
+            - SHELVED_OFFLOADED
+            - SHUTOFF
+            - SOFT_DELETED
+            - SUSPENDED
+            - UNKNOWN
+            - VERIFY_RESIZE
+        tenant_id:
+          type: string
+        user_id:
+          type: string
+        created:
+          type: string
+          format: date-time
+        updated:
+          type:
+            - string
+            - 'null'
+        hostId:
+          type: string
+          description: Obfuscated per-project id of the compute host; empty until scheduled.
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+        flavor:
+          $ref: '#/components/schemas/EmbeddedFlavor'
+        image:
+          $ref: '#/components/schemas/ServerImage'
+        addresses:
+          type: object
+          description: IP addresses keyed by network name.
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/NetworkAddress'
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        accessIPv4:
+          type: string
+        accessIPv6:
+          type: string
+        key_name:
+          type:
+            - string
+            - 'null'
+        config_drive:
+          type: string
+          description: Empty string or "True".
+        progress:
+          type: integer
+          description: Build/migration progress percentage; present during those operations.
+        security_groups:
+          type: array
+          description: Absent when the server has no security groups.
+          items:
+            $ref: '#/components/schemas/SecurityGroupRef'
+        fault:
+          $ref: '#/components/schemas/ServerFault'
+        host_status:
+          type: string
+          description: 'UP, DOWN, MAINTENANCE, UNKNOWN, or empty (policy-gated, 2.16+).'
+        server_groups:
+          type: array
+          description: UUIDs of server groups the server belongs to (show/update responses, 2.71+).
+          items:
+            type: string
+        trusted_image_certificates:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
+        'OS-DCF:diskConfig':
+          type: string
+          enum:
+            - AUTO
+            - MANUAL
+        'OS-EXT-AZ:availability_zone':
+          type: string
+        'OS-EXT-STS:power_state':
+          type: integer
+          description: '0 NOSTATE, 1 RUNNING, 3 PAUSED, 4 SHUTDOWN, 6 CRASHED, 7 SUSPENDED.'
+        'OS-EXT-STS:task_state':
+          type:
+            - string
+            - 'null'
+        'OS-EXT-STS:vm_state':
+          type: string
+        'OS-SRV-USG:launched_at':
+          type:
+            - string
+            - 'null'
+        'OS-SRV-USG:terminated_at':
+          type:
+            - string
+            - 'null'
+        'os-extended-volumes:volumes_attached':
+          type: array
+          items:
+            $ref: '#/components/schemas/AttachedVolumeRef'
+        'OS-EXT-SRV-ATTR:hostname':
+          type: string
+          description: Visible to non-admins since 2.90.
+        'OS-EXT-SRV-ATTR:host':
+          type:
+            - string
+            - 'null'
+          description: Admin/policy only.
+        'OS-EXT-SRV-ATTR:hypervisor_hostname':
+          type:
+            - string
+            - 'null'
+          description: Admin/policy only.
+        'OS-EXT-SRV-ATTR:instance_name':
+          type: string
+          description: Admin/policy only.
+        'OS-EXT-SRV-ATTR:reservation_id':
+          type: string
+          description: Admin/policy only (2.3+).
+        'OS-EXT-SRV-ATTR:launch_index':
+          type: integer
+          description: Admin/policy only (2.3+).
+        'OS-EXT-SRV-ATTR:kernel_id':
+          type:
+            - string
+            - 'null'
+          description: Admin/policy only (2.3+).
+        'OS-EXT-SRV-ATTR:ramdisk_id':
+          type:
+            - string
+            - 'null'
+          description: Admin/policy only (2.3+).
+        'OS-EXT-SRV-ATTR:root_device_name':
+          type:
+            - string
+            - 'null'
+          description: Admin/policy only (2.3+).
+        'OS-EXT-SRV-ATTR:user_data':
+          type:
+            - string
+            - 'null'
+          description: Admin/policy only (2.3+), base64.
+        locked:
+          type: boolean
+        locked_reason:
+          type:
+            - string
+            - 'null'
+        description:
+          type:
+            - string
+            - 'null'
+        tags:
+          type: array
+          items:
+            type: string
+        pinned_availability_zone:
+          type:
+            - string
+            - 'null'
+          description: Availability zone the server is pinned to, if any (2.96+).
+      required:
+        - id
+        - name
+        - status
+        - tenant_id
+        - user_id
+        - created
+        - updated
+        - hostId
+        - links
+        - flavor
+        - image
+        - addresses
+        - metadata
+        - accessIPv4
+        - accessIPv6
+        - key_name
+        - config_drive
+        - 'OS-EXT-AZ:availability_zone'
+        - 'OS-EXT-STS:power_state'
+        - 'OS-EXT-STS:task_state'
+        - 'OS-EXT-STS:vm_state'
+        - 'OS-SRV-USG:launched_at'
+        - 'OS-SRV-USG:terminated_at'
+        - 'os-extended-volumes:volumes_attached'
+        - locked
+        - description
+        - tags
+        - locked_reason
+        - pinned_availability_zone
+      example:
+        id: 6e0f6d0e-3f4a-4a54-8f3a-9a2f6d2b7f11
+        name: web-1
+        status: ACTIVE
+        tenant_id: 5d45e7ca01d1455d99f64aff15894faf
+        user_id: 32dd0b9998f5472f8ba190dc4d09a49f
+        created: '2026-01-01T10:00:00Z'
+        updated: '2026-01-02T10:00:00Z'
+        hostId: 2091634baaccdc4c5a1d57069c833e402921df696b7f970791b12ec6
+        links:
+          - href: https://compute.example.com/v2.1/servers/6e0f6d0e-3f4a-4a54-8f3a-9a2f6d2b7f11
+            rel: self
+        flavor:
+          vcpus: 2
+          ram: 2048
+          disk: 20
+          ephemeral: 0
+          swap: 0
+          original_name: m1.small
+        image:
+          id: 70a599e0-31e7-49b7-b260-868f441e862b
+        addresses:
+          private:
+            - addr: 10.0.0.4
+              version: 4
+              'OS-EXT-IPS:type': fixed
+        metadata: {}
+        accessIPv4: ''
+        accessIPv6: ''
+        key_name: default-key
+        config_drive: ''
+        'OS-DCF:diskConfig': AUTO
+        'OS-EXT-AZ:availability_zone': nova
+        'OS-EXT-STS:power_state': 1
+        'OS-EXT-STS:task_state': null
+        'OS-EXT-STS:vm_state': active
+        'OS-SRV-USG:launched_at': '2026-01-01T10:01:00.000000'
+        'OS-SRV-USG:terminated_at': null
+        'os-extended-volumes:volumes_attached': []
+        locked: false
+        description: null
+        tags: []
+        locked_reason: null
+        pinned_availability_zone: null
+    ServerListItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - id
+        - name
+        - links
+    ServersListResponse:
+      type: object
+      properties:
+        servers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServerListItem'
+        servers_links:
+          type: array
+          description: Present when there is a next page; the href carries the next marker.
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - servers
+    ServersDetailListResponse:
+      type: object
+      properties:
+        servers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Server'
+        servers_links:
+          type: array
+          description: Present when there is a next page; the href carries the next marker.
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - servers
+    ServerResponse:
+      type: object
+      properties:
+        server:
+          $ref: '#/components/schemas/Server'
+      required:
+        - server
+    NetworkRef:
+      type: object
+      description: One of uuid or port must be given.
+      properties:
+        uuid:
+          type: string
+          description: Network to attach to.
+        port:
+          type: string
+          description: Existing Neutron port to attach.
+        fixed_ip:
+          type: string
+          description: Fixed IPv4/IPv6 address to assign on the network.
+        tag:
+          type: string
+          description: Device tag for the attached interface (2.42+).
+    BlockDeviceMappingV2:
+      type: object
+      properties:
+        source_type:
+          type: string
+          enum:
+            - image
+            - volume
+            - snapshot
+            - blank
+        destination_type:
+          type: string
+          enum:
+            - local
+            - volume
+        uuid:
+          type: string
+          description: Id of the image, volume, or snapshot named by source_type.
+        boot_index:
+          type:
+            - integer
+            - 'null'
+          description: 0 for the boot device; -1 or null for non-boot devices.
+        volume_size:
+          type: integer
+          description: Size in GiB when creating a new volume.
+        volume_type:
+          type: string
+          description: Cinder volume type for a newly created volume (2.67+).
+        delete_on_termination:
+          type: boolean
+        device_name:
+          type: string
+        disk_bus:
+          type: string
+        device_type:
+          type: string
+        guest_format:
+          type: string
+        no_device:
+          type: boolean
+        tag:
+          type: string
+          description: Device tag (2.32+).
+      required:
+        - source_type
+    SchedulerHints:
+      type: object
+      description: Placement hints for the scheduler; a sibling of `server` in the create request.
+      properties:
+        group:
+          type: string
+          description: Server group UUID for affinity/anti-affinity placement.
+        different_host:
+          type: array
+          items:
+            type: string
+        same_host:
+          type: array
+          items:
+            type: string
+        query:
+          type: string
+        build_near_host_ip:
+          type: string
+        cidr:
+          type: string
+      additionalProperties: true
+    CreateServer:
+      type: object
+      properties:
+        name:
+          type: string
+        flavorRef:
+          type: string
+        imageRef:
+          type: string
+          description: Required unless booting from a volume via block_device_mapping_v2.
+        networks:
+          description: >-
+            Networks to attach, or the literal string "auto"/"none" to delegate to
+            or bypass automatic allocation (2.37+).
+          oneOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/NetworkRef'
+            - type: string
+              enum:
+                - auto
+                - none
+        block_device_mapping_v2:
+          type: array
+          items:
+            $ref: '#/components/schemas/BlockDeviceMappingV2'
+        key_name:
+          type: string
+        security_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityGroupRef'
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        user_data:
+          type: string
+          description: Base64-encoded configuration data for cloud-init.
+        availability_zone:
+          type: string
+        adminPass:
+          type: string
+        config_drive:
+          type: boolean
+        min_count:
+          type: integer
+          minimum: 1
+        max_count:
+          type: integer
+          minimum: 1
+        return_reservation_id:
+          type: boolean
+          description: Return only a reservation id instead of the created server.
+        description:
+          type:
+            - string
+            - 'null'
+          description: Server description (2.19+).
+        tags:
+          type: array
+          description: Tags to set at boot (2.52+).
+          items:
+            type: string
+        trusted_image_certificates:
+          type: array
+          description: Trusted certificate ids for image signature validation (2.63+).
+          items:
+            type: string
+        hostname:
+          type: string
+          description: Hostname to set in the metadata service; FQDNs allowed since 2.94 (2.90+).
+        host:
+          type: string
+          description: Requested compute host (admin, 2.74+).
+        hypervisor_hostname:
+          type: string
+          description: Requested hypervisor (admin, 2.74+).
+        'OS-DCF:diskConfig':
+          type: string
+          enum:
+            - AUTO
+            - MANUAL
+      required:
+        - name
+        - flavorRef
+        - networks
+      example:
+        name: web-1
+        flavorRef: '1'
+        imageRef: 70a599e0-31e7-49b7-b260-868f441e862b
+        networks:
+          - uuid: 27aa8c1c-d6b8-4474-b46f-b16aeb2054f2
+        key_name: default-key
+    CreateServerRequest:
+      type: object
+      properties:
+        server:
+          $ref: '#/components/schemas/CreateServer'
+        'os:scheduler_hints':
+          $ref: '#/components/schemas/SchedulerHints'
+      required:
+        - server
+    CreatedServer:
+      type: object
+      properties:
+        id:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+        adminPass:
+          type: string
+          description: Absent when a password was not generated (e.g. adminPass given).
+        security_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityGroupRef'
+        'OS-DCF:diskConfig':
+          type: string
+          enum:
+            - AUTO
+            - MANUAL
+      required:
+        - id
+        - links
+    CreatedServerResponse:
+      type: object
+      properties:
+        server:
+          $ref: '#/components/schemas/CreatedServer'
+      required:
+        - server
+    ReservationIdResponse:
+      type: object
+      properties:
+        reservation_id:
+          type: string
+      required:
+        - reservation_id
+    CreateServerResponse:
+      oneOf:
+        - $ref: '#/components/schemas/CreatedServerResponse'
+        - $ref: '#/components/schemas/ReservationIdResponse'
+    UpdateServer:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - 'null'
+          description: 2.19+.
+        hostname:
+          type: string
+          description: 2.90+.
+        accessIPv4:
+          type: string
+        accessIPv6:
+          type: string
+        'OS-DCF:diskConfig':
+          type: string
+          enum:
+            - AUTO
+            - MANUAL
+    UpdateServerRequest:
+      type: object
+      properties:
+        server:
+          $ref: '#/components/schemas/UpdateServer'
+      required:
+        - server
+    Flavor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - 'null'
+          description: 2.55+.
+        ram:
+          type: integer
+          description: RAM in MiB.
+        vcpus:
+          type: integer
+        disk:
+          type: integer
+          description: Root disk in GiB.
+        'OS-FLV-EXT-DATA:ephemeral':
+          type: integer
+          description: Ephemeral disk in GiB.
+        swap:
+          type: integer
+          description: Swap in MiB; 0 when none (2.75+).
+        rxtx_factor:
+          type: number
+        'os-flavor-access:is_public':
+          type: boolean
+        'OS-FLV-DISABLED:disabled':
+          type: boolean
+        extra_specs:
+          type: object
+          additionalProperties:
+            type: string
+          description: Embedded since 2.61, subject to policy.
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - id
+        - name
+        - description
+        - ram
+        - vcpus
+        - disk
+        - 'OS-FLV-EXT-DATA:ephemeral'
+        - swap
+        - rxtx_factor
+        - 'os-flavor-access:is_public'
+        - links
+      example:
+        id: '1'
+        name: m1.small
+        description: null
+        ram: 2048
+        vcpus: 2
+        disk: 20
+        'OS-FLV-EXT-DATA:ephemeral': 0
+        swap: 0
+        rxtx_factor: 1.0
+        'os-flavor-access:is_public': true
+        links:
+          - href: https://compute.example.com/v2.1/flavors/1
+            rel: self
+    FlavorListItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - 'null'
+          description: 2.55+.
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - id
+        - name
+        - description
+        - links
+    FlavorsListResponse:
+      type: object
+      properties:
+        flavors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FlavorListItem'
+        flavors_links:
+          type: array
+          description: Present when there is a next page; the href carries the next marker.
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - flavors
+    FlavorsDetailListResponse:
+      type: object
+      properties:
+        flavors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flavor'
+        flavors_links:
+          type: array
+          description: Present when there is a next page; the href carries the next marker.
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - flavors
+    FlavorResponse:
+      type: object
+      properties:
+        flavor:
+          $ref: '#/components/schemas/Flavor'
+      required:
+        - flavor
+    CreateFlavor:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type:
+            - string
+            - 'null'
+          description: Omit or pass null to auto-generate a UUID.
+        ram:
+          type: integer
+          minimum: 1
+        vcpus:
+          type: integer
+          minimum: 1
+        disk:
+          type: integer
+          minimum: 0
+        'OS-FLV-EXT-DATA:ephemeral':
+          type: integer
+          minimum: 0
+        swap:
+          type: integer
+          minimum: 0
+        rxtx_factor:
+          type: number
+        'os-flavor-access:is_public':
+          type: boolean
+        description:
+          type:
+            - string
+            - 'null'
+          description: 2.55+.
+      required:
+        - name
+        - ram
+        - vcpus
+        - disk
+    CreateFlavorRequest:
+      type: object
+      properties:
+        flavor:
+          $ref: '#/components/schemas/CreateFlavor'
+      required:
+        - flavor
+    UpdateFlavor:
+      type: object
+      properties:
+        description:
+          type:
+            - string
+            - 'null'
+      required:
+        - description
+    UpdateFlavorRequest:
+      type: object
+      properties:
+        flavor:
+          $ref: '#/components/schemas/UpdateFlavor'
+      required:
+        - flavor
+    Keypair:
+      type: object
+      properties:
+        name:
+          type: string
+        public_key:
+          type: string
+        fingerprint:
+          type: string
+        type:
+          type: string
+          description: ssh or x509 (2.2+).
+      required:
+        - name
+        - public_key
+        - fingerprint
+        - type
+      example:
+        name: default-key
+        public_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB5Qq3Y8kD1v generated-by-nova
+        fingerprint: '7e:eb:ab:24:ba:d1:e1:88:ae:9a:fb:66:53:df:d3:bd'
+        type: ssh
+    KeypairListItem:
+      type: object
+      properties:
+        keypair:
+          $ref: '#/components/schemas/Keypair'
+      required:
+        - keypair
+    KeypairsListResponse:
+      type: object
+      properties:
+        keypairs:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeypairListItem'
+        keypairs_links:
+          type: array
+          description: Present when there is a next page (2.35+); the href carries the next marker.
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - keypairs
+    KeypairDetail:
+      allOf:
+        - $ref: '#/components/schemas/Keypair'
+        - type: object
+          properties:
+            id:
+              type: integer
+            user_id:
+              type: string
+            created_at:
+              type: string
+              format: date-time
+            deleted:
+              type: boolean
+            deleted_at:
+              type:
+                - string
+                - 'null'
+            updated_at:
+              type:
+                - string
+                - 'null'
+          required:
+            - id
+            - user_id
+            - created_at
+            - deleted
+            - deleted_at
+            - updated_at
+    KeypairResponse:
+      type: object
+      properties:
+        keypair:
+          $ref: '#/components/schemas/KeypairDetail'
+      required:
+        - keypair
+    CreateKeypair:
+      type: object
+      properties:
+        name:
+          type: string
+          description: May contain letters, digits, spaces, and _ - @ . characters (2.92+).
+        public_key:
+          type: string
+          description: Required since 2.92 — Nova no longer generates keypairs.
+        type:
+          type: string
+          enum:
+            - ssh
+            - x509
+        user_id:
+          type: string
+          description: Import on behalf of this user (admin policy, 2.10+).
+      required:
+        - name
+        - public_key
+    CreateKeypairRequest:
+      type: object
+      properties:
+        keypair:
+          $ref: '#/components/schemas/CreateKeypair'
+      required:
+        - keypair
+    CreatedKeypair:
+      type: object
+      properties:
+        name:
+          type: string
+        public_key:
+          type: string
+        fingerprint:
+          type: string
+        type:
+          type: string
+        user_id:
+          type: string
+      required:
+        - name
+        - public_key
+        - fingerprint
+        - type
+        - user_id
+    CreatedKeypairResponse:
+      type: object
+      properties:
+        keypair:
+          $ref: '#/components/schemas/CreatedKeypair'
+      required:
+        - keypair
+    AddSecurityGroupAction:
+      type: object
+      properties:
+        addSecurityGroup:
+          $ref: '#/components/schemas/SecurityGroupRef'
+      required:
+        - addSecurityGroup
+    RemoveSecurityGroupAction:
+      type: object
+      properties:
+        removeSecurityGroup:
+          $ref: '#/components/schemas/SecurityGroupRef'
+      required:
+        - removeSecurityGroup
+    ChangePasswordAction:
+      type: object
+      properties:
+        changePassword:
+          type: object
+          properties:
+            adminPass:
+              type: string
+          required:
+            - adminPass
+      required:
+        - changePassword
+    ConfirmResizeAction:
+      type: object
+      description: Confirms a pending resize; the only action answering 204.
+      properties:
+        confirmResize:
+          type: 'null'
+      required:
+        - confirmResize
+    RevertResizeAction:
+      type: object
+      properties:
+        revertResize:
+          type: 'null'
+      required:
+        - revertResize
+    ResizeAction:
+      type: object
+      properties:
+        resize:
+          type: object
+          properties:
+            flavorRef:
+              type: string
+            'OS-DCF:diskConfig':
+              type: string
+              enum:
+                - AUTO
+                - MANUAL
+          required:
+            - flavorRef
+      required:
+        - resize
+    RebootAction:
+      type: object
+      properties:
+        reboot:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - HARD
+                - SOFT
+          required:
+            - type
+      required:
+        - reboot
+    RebuildAction:
+      type: object
+      properties:
+        rebuild:
+          type: object
+          properties:
+            imageRef:
+              type: string
+              description: Since 2.93 volume-backed servers may rebuild to a different image.
+            name:
+              type: string
+            adminPass:
+              type: string
+            metadata:
+              type: object
+              additionalProperties:
+                type: string
+            description:
+              type:
+                - string
+                - 'null'
+              description: 2.19+.
+            key_name:
+              type:
+                - string
+                - 'null'
+              description: Keypair to set on rebuild; null unsets it (2.54+).
+            user_data:
+              type:
+                - string
+                - 'null'
+              description: Base64; null unsets it (2.57+).
+            trusted_image_certificates:
+              type:
+                - array
+                - 'null'
+              items:
+                type: string
+              description: 2.63+.
+            hostname:
+              type: string
+              description: 2.90+; FQDNs allowed since 2.94.
+            accessIPv4:
+              type: string
+            accessIPv6:
+              type: string
+            preserve_ephemeral:
+              type: boolean
+            'OS-DCF:diskConfig':
+              type: string
+              enum:
+                - AUTO
+                - MANUAL
+          required:
+            - imageRef
+      required:
+        - rebuild
+    CreateImageAction:
+      type: object
+      properties:
+        createImage:
+          type: object
+          properties:
+            name:
+              type: string
+            metadata:
+              type: object
+              additionalProperties:
+                type: string
+          required:
+            - name
+      required:
+        - createImage
+    CreateBackupAction:
+      type: object
+      properties:
+        createBackup:
+          type: object
+          properties:
+            name:
+              type: string
+            backup_type:
+              type: string
+              description: daily or weekly.
+            rotation:
+              type: integer
+              minimum: 0
+              description: Number of backups to keep; 0 deletes all backups after this one completes.
+          required:
+            - name
+            - backup_type
+            - rotation
+      required:
+        - createBackup
+    RescueAction:
+      type: object
+      properties:
+        rescue:
+          oneOf:
+            - type: object
+              properties:
+                adminPass:
+                  type: string
+                rescue_image_ref:
+                  type: string
+                  description: Image to rescue with; boot-from-volume rescue requires it (2.87+).
+            - type: 'null'
+      required:
+        - rescue
+    UnrescueAction:
+      type: object
+      properties:
+        unrescue:
+          type: 'null'
+      required:
+        - unrescue
+    StartAction:
+      type: object
+      properties:
+        os-start:
+          type: 'null'
+      required:
+        - os-start
+    StopAction:
+      type: object
+      properties:
+        os-stop:
+          type: 'null'
+      required:
+        - os-stop
+    PauseAction:
+      type: object
+      properties:
+        pause:
+          type: 'null'
+      required:
+        - pause
+    UnpauseAction:
+      type: object
+      properties:
+        unpause:
+          type: 'null'
+      required:
+        - unpause
+    SuspendAction:
+      type: object
+      properties:
+        suspend:
+          type: 'null'
+      required:
+        - suspend
+    ResumeAction:
+      type: object
+      properties:
+        resume:
+          type: 'null'
+      required:
+        - resume
+    LockAction:
+      type: object
+      properties:
+        lock:
+          oneOf:
+            - type: object
+              properties:
+                locked_reason:
+                  type: string
+                  description: 2.73+.
+            - type: 'null'
+      required:
+        - lock
+    UnlockAction:
+      type: object
+      properties:
+        unlock:
+          type: 'null'
+      required:
+        - unlock
+    ShelveAction:
+      type: object
+      properties:
+        shelve:
+          type: 'null'
+      required:
+        - shelve
+    ShelveOffloadAction:
+      type: object
+      properties:
+        shelveOffload:
+          type: 'null'
+      required:
+        - shelveOffload
+    UnshelveAction:
+      type: object
+      properties:
+        unshelve:
+          oneOf:
+            - type: object
+              properties:
+                availability_zone:
+                  type:
+                    - string
+                    - 'null'
+                  description: Target availability zone (2.77+); null unpins the server (2.91+).
+                host:
+                  type: string
+                  description: Target compute host (admin, 2.91+).
+            - type: 'null'
+      required:
+        - unshelve
+    ForceDeleteAction:
+      type: object
+      properties:
+        forceDelete:
+          type: 'null'
+      required:
+        - forceDelete
+    RestoreAction:
+      type: object
+      properties:
+        restore:
+          type: 'null'
+      required:
+        - restore
+    TriggerCrashDumpAction:
+      type: object
+      properties:
+        trigger_crash_dump:
+          type: 'null'
+      required:
+        - trigger_crash_dump
+    ConsoleOutputAction:
+      type: object
+      properties:
+        os-getConsoleOutput:
+          type: object
+          properties:
+            length:
+              type:
+                - integer
+                - 'null'
+              description: Number of trailing lines; null or absent for the full log.
+      required:
+        - os-getConsoleOutput
+    EvacuateAction:
+      type: object
+      properties:
+        evacuate:
+          type: object
+          properties:
+            host:
+              type: string
+              description: Target host; must not be forced since 2.68.
+            adminPass:
+              type: string
+      required:
+        - evacuate
+    InjectNetworkInfoAction:
+      type: object
+      properties:
+        injectNetworkInfo:
+          type: 'null'
+      required:
+        - injectNetworkInfo
+    MigrateAction:
+      type: object
+      properties:
+        migrate:
+          oneOf:
+            - type: object
+              properties:
+                host:
+                  type:
+                    - string
+                    - 'null'
+                  description: Target host (admin, 2.56+).
+            - type: 'null'
+      required:
+        - migrate
+    LiveMigrateAction:
+      type: object
+      properties:
+        os-migrateLive:
+          type: object
+          properties:
+            host:
+              type:
+                - string
+                - 'null'
+              description: Target host, or null to let the scheduler choose; must not be forced since 2.68.
+            block_migration:
+              oneOf:
+                - type: string
+                  enum:
+                    - auto
+                - type: boolean
+              description: Since 2.25 "auto" is preferred over an explicit boolean.
+          required:
+            - host
+            - block_migration
+      required:
+        - os-migrateLive
+    ResetStateAction:
+      type: object
+      properties:
+        os-resetState:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - active
+                - error
+          required:
+            - state
+      required:
+        - os-resetState
+    ServerActionRequest:
+      description: Exactly one top-level key naming the action to run.
+      oneOf:
+        - $ref: '#/components/schemas/AddSecurityGroupAction'
+        - $ref: '#/components/schemas/RemoveSecurityGroupAction'
+        - $ref: '#/components/schemas/ChangePasswordAction'
+        - $ref: '#/components/schemas/ConfirmResizeAction'
+        - $ref: '#/components/schemas/RevertResizeAction'
+        - $ref: '#/components/schemas/ResizeAction'
+        - $ref: '#/components/schemas/RebootAction'
+        - $ref: '#/components/schemas/RebuildAction'
+        - $ref: '#/components/schemas/CreateImageAction'
+        - $ref: '#/components/schemas/CreateBackupAction'
+        - $ref: '#/components/schemas/RescueAction'
+        - $ref: '#/components/schemas/UnrescueAction'
+        - $ref: '#/components/schemas/StartAction'
+        - $ref: '#/components/schemas/StopAction'
+        - $ref: '#/components/schemas/PauseAction'
+        - $ref: '#/components/schemas/UnpauseAction'
+        - $ref: '#/components/schemas/SuspendAction'
+        - $ref: '#/components/schemas/ResumeAction'
+        - $ref: '#/components/schemas/LockAction'
+        - $ref: '#/components/schemas/UnlockAction'
+        - $ref: '#/components/schemas/ShelveAction'
+        - $ref: '#/components/schemas/ShelveOffloadAction'
+        - $ref: '#/components/schemas/UnshelveAction'
+        - $ref: '#/components/schemas/ForceDeleteAction'
+        - $ref: '#/components/schemas/RestoreAction'
+        - $ref: '#/components/schemas/TriggerCrashDumpAction'
+        - $ref: '#/components/schemas/ConsoleOutputAction'
+        - $ref: '#/components/schemas/EvacuateAction'
+        - $ref: '#/components/schemas/InjectNetworkInfoAction'
+        - $ref: '#/components/schemas/MigrateAction'
+        - $ref: '#/components/schemas/LiveMigrateAction'
+        - $ref: '#/components/schemas/ResetStateAction'
+      example:
+        reboot:
+          type: HARD
+    ConsoleOutputResponse:
+      type: object
+      properties:
+        output:
+          type: string
+      required:
+        - output
+    RescueResponse:
+      type: object
+      properties:
+        adminPass:
+          type: string
+      required:
+        - adminPass
+    ActionImageResponse:
+      type: object
+      properties:
+        image_id:
+          type: string
+          description: Id of the snapshot or backup image (2.45+).
+      required:
+        - image_id
+    ServerActionSyncResponse:
+      description: >-
+        Body of a 200 action response — console output (os-getConsoleOutput) or
+        admin password (rescue). evacuate answers 200 with an empty body.
+      oneOf:
+        - $ref: '#/components/schemas/ConsoleOutputResponse'
+        - $ref: '#/components/schemas/RescueResponse'
+    ServerActionAcceptedResponse:
+      description: >-
+        Body of a 202 action response — the new image id (createImage/createBackup)
+        or the rebuilt server (rebuild). All other actions answer 202 with an
+        empty body.
+      oneOf:
+        - $ref: '#/components/schemas/ActionImageResponse'
+        - $ref: '#/components/schemas/ServerResponse'
+    CreateRemoteConsole:
+      type: object
+      properties:
+        protocol:
+          type: string
+          enum:
+            - vnc
+            - spice
+            - serial
+            - mks
+        type:
+          type: string
+          enum:
+            - novnc
+            - spice-html5
+            - serial
+            - webmks
+      required:
+        - protocol
+        - type
+      example:
+        protocol: vnc
+        type: novnc
+    CreateRemoteConsoleRequest:
+      type: object
+      properties:
+        remote_console:
+          $ref: '#/components/schemas/CreateRemoteConsole'
+      required:
+        - remote_console
+    RemoteConsole:
+      type: object
+      properties:
+        protocol:
+          type: string
+        type:
+          type: string
+        url:
+          type: string
+      required:
+        - protocol
+        - type
+        - url
+      example:
+        protocol: vnc
+        type: novnc
+        url: https://compute.example.com:6080/vnc_auto.html?path=%3Ftoken%3Db60bcfc3-5fd4-4d21-986c-e83379107819
+    RemoteConsoleResponse:
+      type: object
+      properties:
+        remote_console:
+          $ref: '#/components/schemas/RemoteConsole'
+      required:
+        - remote_console
+    ServerMetadataResponse:
+      type: object
+      properties:
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - metadata
+      example:
+        metadata:
+          department: web
+    ServerMetadataItemResponse:
+      type: object
+      properties:
+        meta:
+          type: object
+          description: A single key/value pair.
+          additionalProperties:
+            type: string
+      required:
+        - meta
+      example:
+        meta:
+          department: web
+    ServerAddressesResponse:
+      type: object
+      properties:
+        addresses:
+          $ref: '#/components/schemas/NetworkAddressesMap'
+      required:
+        - addresses
+    NetworkAddressesMap:
+      type: object
+      description: IP addresses keyed by network label.
+      additionalProperties:
+        type: array
+        items:
+          $ref: '#/components/schemas/NetworkAddress'
+      example:
+        private:
+          - addr: 10.0.0.4
+            version: 4
+    ServerTags:
+      type: object
+      properties:
+        tags:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+      required:
+        - tags
+      example:
+        tags:
+          - production
+          - web
+    FixedIp:
+      type: object
+      properties:
+        ip_address:
+          type: string
+        subnet_id:
+          type: string
+      required:
+        - ip_address
+        - subnet_id
+    InterfaceAttachment:
+      type: object
+      properties:
+        port_state:
+          type: string
+          description: Neutron port status, e.g. ACTIVE, DOWN.
+        port_id:
+          type: string
+        net_id:
+          type: string
+        mac_addr:
+          type: string
+        fixed_ips:
+          type: array
+          items:
+            $ref: '#/components/schemas/FixedIp'
+        tag:
+          type:
+            - string
+            - 'null'
+          description: Device tag (in responses since 2.70).
+      required:
+        - port_state
+        - port_id
+        - net_id
+        - mac_addr
+        - fixed_ips
+      example:
+        port_state: ACTIVE
+        port_id: ce531f90-199f-48c0-816c-13e38010b442
+        net_id: 3cb9bc59-5699-4588-a4b1-b87f96708bc6
+        mac_addr: 'fa:16:3e:4c:2c:30'
+        fixed_ips:
+          - ip_address: 192.168.1.3
+            subnet_id: f8a6e8f8-c2ec-497c-9f23-da9616de54ef
+    InterfaceAttachmentsListResponse:
+      type: object
+      properties:
+        interfaceAttachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterfaceAttachment'
+      required:
+        - interfaceAttachments
+    InterfaceAttachmentResponse:
+      type: object
+      properties:
+        interfaceAttachment:
+          $ref: '#/components/schemas/InterfaceAttachment'
+      required:
+        - interfaceAttachment
+    CreateInterfaceAttachment:
+      type: object
+      description: Give either port_id or net_id, not both; omit both to use the server's only network.
+      properties:
+        port_id:
+          type: string
+          description: Existing port to attach.
+        net_id:
+          type: string
+          description: Network to create a port on.
+        fixed_ips:
+          type: array
+          description: Fixed IPs to assign to the new port; only with net_id.
+          items:
+            type: object
+            properties:
+              ip_address:
+                type: string
+            required:
+              - ip_address
+        tag:
+          type: string
+          description: Device tag (2.49+).
+    CreateInterfaceAttachmentRequest:
+      type: object
+      properties:
+        interfaceAttachment:
+          $ref: '#/components/schemas/CreateInterfaceAttachment'
+      required:
+        - interfaceAttachment
+    VolumeAttachment:
+      type: object
+      description: List/show shape at 2.89+ — `id` is gone; `attachment_id` and `bdm_uuid` identify the attachment.
+      properties:
+        serverId:
+          type: string
+        volumeId:
+          type: string
+        device:
+          type:
+            - string
+            - 'null'
+          description: Device path, e.g. /dev/vdb.
+        tag:
+          type:
+            - string
+            - 'null'
+          description: Device tag (since 2.70).
+        delete_on_termination:
+          type: boolean
+          description: Since 2.79.
+        attachment_id:
+          type: string
+          description: Cinder attachment UUID (2.89+).
+        bdm_uuid:
+          type: string
+          description: Nova block-device-mapping UUID (2.89+).
+      required:
+        - serverId
+        - volumeId
+        - device
+        - tag
+        - delete_on_termination
+        - attachment_id
+        - bdm_uuid
+      example:
+        serverId: 6e0f6d0e-3f4a-4a54-8f3a-9a2f6d2b7f11
+        volumeId: a26887c6-c47b-4654-abb5-dfadf7d3f803
+        device: /dev/vdb
+        tag: null
+        delete_on_termination: false
+        attachment_id: 979ce4f8-033a-409d-85e6-6b5c0f6a6302
+        bdm_uuid: c088db45-92b8-49e8-81e2-a1b77a144b3b
+    VolumeAttachmentsListResponse:
+      type: object
+      properties:
+        volumeAttachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/VolumeAttachment'
+      required:
+        - volumeAttachments
+    VolumeAttachmentResponse:
+      type: object
+      properties:
+        volumeAttachment:
+          $ref: '#/components/schemas/VolumeAttachment'
+      required:
+        - volumeAttachment
+    CreateVolumeAttachment:
+      type: object
+      properties:
+        volumeId:
+          type: string
+        device:
+          type:
+            - string
+            - 'null'
+          description: Requested device path; omit or null to auto-assign.
+        tag:
+          type: string
+          description: Device tag (2.49+).
+        delete_on_termination:
+          type: boolean
+          description: Delete the volume when the server is destroyed (2.79+).
+      required:
+        - volumeId
+    CreateVolumeAttachmentRequest:
+      type: object
+      properties:
+        volumeAttachment:
+          $ref: '#/components/schemas/CreateVolumeAttachment'
+      required:
+        - volumeAttachment
+    CreatedVolumeAttachment:
+      type: object
+      description: Create responses keep the legacy `id` field (equal to the volume id).
+      properties:
+        id:
+          type: string
+        serverId:
+          type: string
+        volumeId:
+          type: string
+        device:
+          type:
+            - string
+            - 'null'
+        tag:
+          type:
+            - string
+            - 'null'
+          description: Since 2.70.
+        delete_on_termination:
+          type: boolean
+          description: Since 2.79.
+      required:
+        - id
+        - serverId
+        - volumeId
+        - device
+    CreatedVolumeAttachmentResponse:
+      type: object
+      properties:
+        volumeAttachment:
+          $ref: '#/components/schemas/CreatedVolumeAttachment'
+      required:
+        - volumeAttachment
+    UpdateVolumeAttachment:
+      type: object
+      properties:
+        volumeId:
+          type: string
+          description: New volume for a swap, or the current volume id when only updating flags (2.85+).
+        delete_on_termination:
+          type: boolean
+          description: 2.85+.
+      required:
+        - volumeId
+    UpdateVolumeAttachmentRequest:
+      type: object
+      properties:
+        volumeAttachment:
+          $ref: '#/components/schemas/UpdateVolumeAttachment'
+      required:
+        - volumeAttachment
+    InstanceAction:
+      type: object
+      properties:
+        action:
+          type: string
+          description: Action name, e.g. create, reboot, live-migration.
+        instance_uuid:
+          type: string
+        request_id:
+          type: string
+        user_id:
+          type:
+            - string
+            - 'null'
+        project_id:
+          type:
+            - string
+            - 'null'
+        start_time:
+          type: string
+        message:
+          type:
+            - string
+            - 'null'
+        updated_at:
+          type:
+            - string
+            - 'null'
+          description: 2.58+.
+      required:
+        - action
+        - instance_uuid
+        - request_id
+        - user_id
+        - project_id
+        - start_time
+        - message
+      example:
+        action: reboot
+        instance_uuid: 6e0f6d0e-3f4a-4a54-8f3a-9a2f6d2b7f11
+        request_id: req-25517360-b757-47d3-be45-0e8d2a01b36a
+        user_id: 32dd0b9998f5472f8ba190dc4d09a49f
+        project_id: 5d45e7ca01d1455d99f64aff15894faf
+        start_time: '2026-01-02T10:00:00.000000'
+        message: null
+    InstanceActionsListResponse:
+      type: object
+      properties:
+        instanceActions:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstanceAction'
+        links:
+          type: array
+          description: Pagination links (2.58+).
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - instanceActions
+    InstanceActionEvent:
+      type: object
+      properties:
+        event:
+          type: string
+          description: Event name, e.g. compute_reboot_instance.
+        start_time:
+          type: string
+        finish_time:
+          type:
+            - string
+            - 'null'
+        result:
+          type:
+            - string
+            - 'null'
+          description: Success or Error; null while running.
+        traceback:
+          type:
+            - string
+            - 'null'
+          description: Policy-gated.
+        host:
+          type: string
+          description: Policy-gated (2.62+).
+        hostId:
+          type: string
+          description: Obfuscated host id (2.62+).
+        details:
+          type:
+            - string
+            - 'null'
+          description: Failure details for errored events (2.84+).
+      required:
+        - event
+        - start_time
+        - finish_time
+        - result
+    InstanceActionDetail:
+      allOf:
+        - $ref: '#/components/schemas/InstanceAction'
+        - type: object
+          properties:
+            events:
+              type: array
+              items:
+                $ref: '#/components/schemas/InstanceActionEvent'
+          required:
+            - events
+    InstanceActionResponse:
+      type: object
+      properties:
+        instanceAction:
+          $ref: '#/components/schemas/InstanceActionDetail'
+      required:
+        - instanceAction
+    ServerMigration:
+      type: object
+      description: An in-progress live migration as reported by /servers/{id}/migrations (2.22+).
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          description: 2.59+.
+        server_uuid:
+          type: string
+        status:
+          type: string
+        source_compute:
+          type: string
+        source_node:
+          type: string
+        dest_compute:
+          type:
+            - string
+            - 'null'
+        dest_host:
+          type:
+            - string
+            - 'null'
+        dest_node:
+          type:
+            - string
+            - 'null'
+        memory_total_bytes:
+          type:
+            - integer
+            - 'null'
+        memory_processed_bytes:
+          type:
+            - integer
+            - 'null'
+        memory_remaining_bytes:
+          type:
+            - integer
+            - 'null'
+        disk_total_bytes:
+          type:
+            - integer
+            - 'null'
+        disk_processed_bytes:
+          type:
+            - integer
+            - 'null'
+        disk_remaining_bytes:
+          type:
+            - integer
+            - 'null'
+        user_id:
+          type:
+            - string
+            - 'null'
+          description: 2.80+.
+        project_id:
+          type:
+            - string
+            - 'null'
+          description: 2.80+.
+        created_at:
+          type: string
+        updated_at:
+          type:
+            - string
+            - 'null'
+      required:
+        - id
+        - server_uuid
+        - status
+        - source_compute
+        - source_node
+        - created_at
+        - updated_at
+    ServerMigrationsListResponse:
+      type: object
+      properties:
+        migrations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServerMigration'
+      required:
+        - migrations
+    ServerMigrationResponse:
+      type: object
+      properties:
+        migration:
+          $ref: '#/components/schemas/ServerMigration'
+      required:
+        - migration
+    ForceCompleteMigrationRequest:
+      type: object
+      properties:
+        force_complete:
+          type: 'null'
+      required:
+        - force_complete
+    CpuDiagnostics:
+      type: object
+      properties:
+        id:
+          type:
+            - integer
+            - 'null'
+        time:
+          type:
+            - integer
+            - 'null'
+          description: CPU time in nanoseconds.
+        utilisation:
+          type:
+            - integer
+            - 'null'
+          description: Utilisation percentage.
+    DiskDiagnostics:
+      type: object
+      properties:
+        read_bytes:
+          type:
+            - integer
+            - 'null'
+        read_requests:
+          type:
+            - integer
+            - 'null'
+        write_bytes:
+          type:
+            - integer
+            - 'null'
+        write_requests:
+          type:
+            - integer
+            - 'null'
+        errors_count:
+          type:
+            - integer
+            - 'null'
+    NicDiagnostics:
+      type: object
+      properties:
+        mac_address:
+          type:
+            - string
+            - 'null'
+        rx_octets:
+          type:
+            - integer
+            - 'null'
+        rx_errors:
+          type:
+            - integer
+            - 'null'
+        rx_drop:
+          type:
+            - integer
+            - 'null'
+        rx_packets:
+          type:
+            - integer
+            - 'null'
+        rx_rate:
+          type:
+            - integer
+            - 'null'
+        tx_octets:
+          type:
+            - integer
+            - 'null'
+        tx_errors:
+          type:
+            - integer
+            - 'null'
+        tx_drop:
+          type:
+            - integer
+            - 'null'
+        tx_packets:
+          type:
+            - integer
+            - 'null'
+        tx_rate:
+          type:
+            - integer
+            - 'null'
+    MemoryDiagnostics:
+      type: object
+      properties:
+        maximum:
+          type:
+            - integer
+            - 'null'
+          description: Maximum memory in MiB.
+        used:
+          type:
+            - integer
+            - 'null'
+          description: Used memory in MiB.
+    ServerDiagnostics:
+      type: object
+      description: Standardized diagnostics shape introduced by 2.48.
+      properties:
+        state:
+          type: string
+          description: 'pending, running, paused, shutdown, crashed, or suspended.'
+        driver:
+          type: string
+          description: 'libvirt, xenapi, vmwareapi, ironic, or hyperv.'
+        hypervisor:
+          type:
+            - string
+            - 'null'
+        hypervisor_os:
+          type:
+            - string
+            - 'null'
+        uptime:
+          type:
+            - integer
+            - 'null'
+          description: Seconds since boot.
+        config_drive:
+          type: boolean
+        num_cpus:
+          type: integer
+        num_nics:
+          type: integer
+        num_disks:
+          type: integer
+        cpu_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/CpuDiagnostics'
+        disk_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiskDiagnostics'
+        nic_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/NicDiagnostics'
+        memory_details:
+          $ref: '#/components/schemas/MemoryDiagnostics'
+      required:
+        - state
+        - driver
+        - config_drive
+        - num_cpus
+        - num_nics
+        - num_disks
+        - cpu_details
+        - disk_details
+        - nic_details
+        - memory_details
+    NumaNode:
+      type: object
+      properties:
+        memory_mb:
+          type: integer
+        siblings:
+          type: array
+          items:
+            type: array
+            items:
+              type: integer
+        vcpu_set:
+          type: array
+          items:
+            type: integer
+        host_node:
+          type: integer
+          description: Policy-gated.
+        cpu_pinning:
+          type: object
+          description: Guest-to-host CPU pin map; policy-gated.
+          additionalProperties:
+            type: integer
+      required:
+        - memory_mb
+        - siblings
+        - vcpu_set
+    ServerTopology:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/NumaNode'
+        pagesize_kb:
+          type:
+            - integer
+            - 'null'
+          description: Memory page size in KiB; null when unset.
+      required:
+        - nodes
+        - pagesize_kb
+    ServerPasswordResponse:
+      type: object
+      properties:
+        password:
+          type: string
+          description: RSA-encrypted, base64-encoded password; empty when none is stored.
+      required:
+        - password
+    ServerSecurityGroup:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - 'null'
+        tenant_id:
+          type: string
+        rules:
+          type: array
+          description: Legacy nova-network rule representations; manage rules through Neutron.
+          items:
+            type: object
+      required:
+        - id
+        - name
+        - description
+        - tenant_id
+        - rules
+    ServerSecurityGroupsListResponse:
+      type: object
+      properties:
+        security_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServerSecurityGroup'
+      required:
+        - security_groups
+    FlavorExtraSpecs:
+      type: object
+      properties:
+        extra_specs:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - extra_specs
+      example:
+        extra_specs:
+          'hw:cpu_policy': shared
+    FlavorExtraSpecItem:
+      type: object
+      description: A single extra spec, keyed by its name.
+      additionalProperties:
+        type: string
+      example:
+        'hw:cpu_policy': shared
+    FlavorAccess:
+      type: object
+      properties:
+        flavor_id:
+          type: string
+        tenant_id:
+          type: string
+      required:
+        - flavor_id
+        - tenant_id
+    FlavorAccessesListResponse:
+      type: object
+      properties:
+        flavor_access:
+          type: array
+          items:
+            $ref: '#/components/schemas/FlavorAccess'
+      required:
+        - flavor_access
+    AddTenantAccessAction:
+      type: object
+      properties:
+        addTenantAccess:
+          type: object
+          properties:
+            tenant:
+              type: string
+              description: The project id to grant access to.
+          required:
+            - tenant
+      required:
+        - addTenantAccess
+    RemoveTenantAccessAction:
+      type: object
+      properties:
+        removeTenantAccess:
+          type: object
+          properties:
+            tenant:
+              type: string
+              description: The project id to revoke access from.
+          required:
+            - tenant
+      required:
+        - removeTenantAccess
+    FlavorAccessActionRequest:
+      description: Exactly one top-level key naming the action to run.
+      oneOf:
+        - $ref: '#/components/schemas/AddTenantAccessAction'
+        - $ref: '#/components/schemas/RemoveTenantAccessAction'
+      example:
+        addTenantAccess:
+          tenant: 5d45e7ca01d1455d99f64aff15894faf
+    Aggregate:
+      type: object
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          description: 2.41+.
+        name:
+          type: string
+        availability_zone:
+          type:
+            - string
+            - 'null'
+        hosts:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
+        metadata:
+          type:
+            - object
+            - 'null'
+          additionalProperties:
+            type: string
+        created_at:
+          type: string
+        updated_at:
+          type:
+            - string
+            - 'null'
+        deleted:
+          type: boolean
+        deleted_at:
+          type:
+            - string
+            - 'null'
+      required:
+        - id
+        - uuid
+        - name
+        - availability_zone
+        - hosts
+        - metadata
+        - created_at
+        - updated_at
+        - deleted
+        - deleted_at
+      example:
+        id: 1
+        uuid: 86a0da65-e1d8-4c95-9ff0-2418dc4d0261
+        name: host-aggregate-1
+        availability_zone: nova
+        hosts:
+          - compute-01
+        metadata:
+          availability_zone: nova
+        created_at: '2026-01-01T10:00:00.000000'
+        updated_at: null
+        deleted: false
+        deleted_at: null
+    AggregatesListResponse:
+      type: object
+      properties:
+        aggregates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Aggregate'
+      required:
+        - aggregates
+    AggregateResponse:
+      type: object
+      properties:
+        aggregate:
+          $ref: '#/components/schemas/Aggregate'
+      required:
+        - aggregate
+    CreateAggregate:
+      type: object
+      properties:
+        name:
+          type: string
+        availability_zone:
+          type:
+            - string
+            - 'null'
+      required:
+        - name
+    CreateAggregateRequest:
+      type: object
+      properties:
+        aggregate:
+          $ref: '#/components/schemas/CreateAggregate'
+      required:
+        - aggregate
+    UpdateAggregateRequest:
+      type: object
+      properties:
+        aggregate:
+          $ref: '#/components/schemas/CreateAggregate'
+      required:
+        - aggregate
+    AddHostAction:
+      type: object
+      properties:
+        add_host:
+          type: object
+          properties:
+            host:
+              type: string
+          required:
+            - host
+      required:
+        - add_host
+    RemoveHostAction:
+      type: object
+      properties:
+        remove_host:
+          type: object
+          properties:
+            host:
+              type: string
+          required:
+            - host
+      required:
+        - remove_host
+    SetMetadataAction:
+      type: object
+      properties:
+        set_metadata:
+          type: object
+          properties:
+            metadata:
+              type: object
+              description: Keys with null values are removed.
+              additionalProperties:
+                type:
+                  - string
+                  - 'null'
+          required:
+            - metadata
+      required:
+        - set_metadata
+    AggregateActionRequest:
+      description: Exactly one top-level key naming the action to run.
+      oneOf:
+        - $ref: '#/components/schemas/AddHostAction'
+        - $ref: '#/components/schemas/RemoveHostAction'
+        - $ref: '#/components/schemas/SetMetadataAction'
+      example:
+        add_host:
+          host: compute-02
+    CacheImagesRequest:
+      type: object
+      properties:
+        cache:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: Image id to pre-cache.
+            required:
+              - id
+      required:
+        - cache
+    HypervisorListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: UUID since 2.53.
+        hypervisor_hostname:
+          type: string
+        state:
+          type: string
+          enum:
+            - up
+            - down
+        status:
+          type: string
+          enum:
+            - enabled
+            - disabled
+        servers:
+          type: array
+          description: Present when with_servers was requested.
+          items:
+            $ref: '#/components/schemas/HypervisorServer'
+      required:
+        - id
+        - hypervisor_hostname
+        - state
+        - status
+    HypervisorServer:
+      type: object
+      properties:
+        uuid:
+          type: string
+        name:
+          type: string
+      required:
+        - uuid
+        - name
+    HypervisorService:
+      type: object
+      properties:
+        id:
+          type: string
+          description: UUID since 2.53.
+        host:
+          type: string
+        disabled_reason:
+          type:
+            - string
+            - 'null'
+      required:
+        - id
+        - host
+        - disabled_reason
+    Hypervisor:
+      type: object
+      description: >-
+        Detail shape at 2.88+ — the legacy metric fields (vcpus, memory_mb,
+        free_disk_gb, running_vms, cpu_info, …) were removed; use Placement.
+      properties:
+        id:
+          type: string
+          description: UUID since 2.53.
+        hypervisor_hostname:
+          type: string
+        hypervisor_type:
+          type: string
+        hypervisor_version:
+          type: integer
+        host_ip:
+          type: string
+        state:
+          type: string
+          enum:
+            - up
+            - down
+        status:
+          type: string
+          enum:
+            - enabled
+            - disabled
+        service:
+          $ref: '#/components/schemas/HypervisorService'
+        uptime:
+          type:
+            - string
+            - 'null'
+          description: Raw uptime output; in detail/show since 2.88.
+        servers:
+          type: array
+          description: Present when with_servers was requested.
+          items:
+            $ref: '#/components/schemas/HypervisorServer'
+      required:
+        - id
+        - hypervisor_hostname
+        - hypervisor_type
+        - hypervisor_version
+        - host_ip
+        - state
+        - status
+        - service
+      example:
+        id: b1e43b5f-eec1-44e0-9f10-7b4945c0226d
+        hypervisor_hostname: compute-01
+        hypervisor_type: QEMU
+        hypervisor_version: 8000000
+        host_ip: 10.0.0.10
+        state: up
+        status: enabled
+        service:
+          id: 9c2566e7-7a54-4777-a1ae-c2662f0c407c
+          host: compute-01
+          disabled_reason: null
+        uptime: ' 08:32:11 up 93 days, 18:25, 12 users,  load average: 0.20, 0.12, 0.14'
+    HypervisorsListResponse:
+      type: object
+      properties:
+        hypervisors:
+          type: array
+          items:
+            $ref: '#/components/schemas/HypervisorListItem'
+        hypervisors_links:
+          type: array
+          description: Present when there is a next page; the href carries the next marker.
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - hypervisors
+    HypervisorsDetailListResponse:
+      type: object
+      properties:
+        hypervisors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Hypervisor'
+        hypervisors_links:
+          type: array
+          description: Present when there is a next page; the href carries the next marker.
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - hypervisors
+    HypervisorResponse:
+      type: object
+      properties:
+        hypervisor:
+          $ref: '#/components/schemas/Hypervisor'
+      required:
+        - hypervisor
+    Service:
+      type: object
+      properties:
+        id:
+          type: string
+          description: UUID since 2.53.
+        binary:
+          type: string
+          description: e.g. nova-compute, nova-scheduler.
+        host:
+          type: string
+        zone:
+          type: string
+        status:
+          type: string
+          enum:
+            - enabled
+            - disabled
+        state:
+          type: string
+          enum:
+            - up
+            - down
+        updated_at:
+          type:
+            - string
+            - 'null'
+        disabled_reason:
+          type:
+            - string
+            - 'null'
+        forced_down:
+          type: boolean
+      required:
+        - id
+        - binary
+        - host
+        - zone
+        - status
+        - state
+        - updated_at
+        - disabled_reason
+        - forced_down
+      example:
+        id: 9c2566e7-7a54-4777-a1ae-c2662f0c407c
+        binary: nova-compute
+        host: compute-01
+        zone: nova
+        status: enabled
+        state: up
+        updated_at: '2026-01-02T10:00:00.000000'
+        disabled_reason: null
+        forced_down: false
+    ServicesListResponse:
+      type: object
+      properties:
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+      required:
+        - services
+    ServiceResponse:
+      type: object
+      properties:
+        service:
+          $ref: '#/components/schemas/Service'
+      required:
+        - service
+    UpdateService:
+      type: object
+      description: Unified update body since 2.53; give at least one field.
+      properties:
+        status:
+          type: string
+          enum:
+            - enabled
+            - disabled
+        disabled_reason:
+          type: string
+          description: Required when disabling.
+        forced_down:
+          type: boolean
+    Migration:
+      type: object
+      description: A migration record from /os-migrations (admin).
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          description: 2.59+.
+        instance_uuid:
+          type: string
+        source_compute:
+          type:
+            - string
+            - 'null'
+        source_node:
+          type:
+            - string
+            - 'null'
+        dest_compute:
+          type:
+            - string
+            - 'null'
+        dest_host:
+          type:
+            - string
+            - 'null'
+        dest_node:
+          type:
+            - string
+            - 'null'
+        status:
+          type: string
+        migration_type:
+          type: string
+          description: 2.23+.
+          enum:
+            - evacuation
+            - live-migration
+            - migration
+            - resize
+        old_instance_type_id:
+          type:
+            - integer
+            - 'null'
+        new_instance_type_id:
+          type:
+            - integer
+            - 'null'
+        user_id:
+          type:
+            - string
+            - 'null'
+          description: 2.80+.
+        project_id:
+          type:
+            - string
+            - 'null'
+          description: 2.80+.
+        created_at:
+          type: string
+        updated_at:
+          type:
+            - string
+            - 'null'
+      required:
+        - id
+        - instance_uuid
+        - status
+        - migration_type
+        - created_at
+        - updated_at
+    MigrationsListResponse:
+      type: object
+      properties:
+        migrations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Migration'
+        migrations_links:
+          type: array
+          description: Present when there is a next page (2.59+); the href carries the next marker.
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - migrations
+    AvailabilityZone:
+      type: object
+      properties:
+        zoneName:
+          type: string
+        zoneState:
+          type: object
+          properties:
+            available:
+              type: boolean
+          required:
+            - available
+        hosts:
+          type:
+            - object
+            - 'null'
+          description: >-
+            Null in the plain listing; in the detail listing, a map of host name to
+            a map of service name to its liveness info.
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: object
+              properties:
+                available:
+                  type: boolean
+                active:
+                  type: boolean
+                updated_at:
+                  type:
+                    - string
+                    - 'null'
+      required:
+        - zoneName
+        - zoneState
+        - hosts
+      example:
+        zoneName: nova
+        zoneState:
+          available: true
+        hosts: null
+    AvailabilityZonesListResponse:
+      type: object
+      properties:
+        availabilityZoneInfo:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilityZone'
+      required:
+        - availabilityZoneInfo
+    QuotaSet:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The project id; absent in update responses.
+        cores:
+          type: integer
+        instances:
+          type: integer
+        key_pairs:
+          type: integer
+        metadata_items:
+          type: integer
+        ram:
+          type: integer
+          description: MiB.
+        server_groups:
+          type: integer
+        server_group_members:
+          type: integer
+      required:
+        - cores
+        - instances
+        - key_pairs
+        - metadata_items
+        - ram
+        - server_groups
+        - server_group_members
+      example:
+        id: 5d45e7ca01d1455d99f64aff15894faf
+        cores: 20
+        instances: 10
+        key_pairs: 100
+        metadata_items: 128
+        ram: 51200
+        server_groups: 10
+        server_group_members: 10
+    QuotaSetResponse:
+      type: object
+      properties:
+        quota_set:
+          $ref: '#/components/schemas/QuotaSet'
+      required:
+        - quota_set
+    UpdateQuotaSet:
+      type: object
+      properties:
+        cores:
+          type: integer
+          minimum: -1
+        instances:
+          type: integer
+          minimum: -1
+        key_pairs:
+          type: integer
+          minimum: -1
+        metadata_items:
+          type: integer
+          minimum: -1
+        ram:
+          type: integer
+          minimum: -1
+        server_groups:
+          type: integer
+          minimum: -1
+        server_group_members:
+          type: integer
+          minimum: -1
+        force:
+          type: boolean
+          description: Apply even below current usage.
+    UpdateQuotaSetRequest:
+      type: object
+      properties:
+        quota_set:
+          $ref: '#/components/schemas/UpdateQuotaSet'
+      required:
+        - quota_set
+    QuotaDetail:
+      type: object
+      properties:
+        in_use:
+          type: integer
+        limit:
+          type: integer
+        reserved:
+          type: integer
+      required:
+        - in_use
+        - limit
+        - reserved
+    QuotaSetDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        cores:
+          $ref: '#/components/schemas/QuotaDetail'
+        instances:
+          $ref: '#/components/schemas/QuotaDetail'
+        key_pairs:
+          $ref: '#/components/schemas/QuotaDetail'
+        metadata_items:
+          $ref: '#/components/schemas/QuotaDetail'
+        ram:
+          $ref: '#/components/schemas/QuotaDetail'
+        server_groups:
+          $ref: '#/components/schemas/QuotaDetail'
+        server_group_members:
+          $ref: '#/components/schemas/QuotaDetail'
+      required:
+        - id
+        - cores
+        - instances
+        - key_pairs
+        - metadata_items
+        - ram
+        - server_groups
+        - server_group_members
+    QuotaSetDetailResponse:
+      type: object
+      properties:
+        quota_set:
+          $ref: '#/components/schemas/QuotaSetDetail'
+      required:
+        - quota_set
+    QuotaClassSet:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The quota class name; absent in update responses.
+        cores:
+          type: integer
+        instances:
+          type: integer
+        key_pairs:
+          type: integer
+        metadata_items:
+          type: integer
+        ram:
+          type: integer
+        server_groups:
+          type: integer
+          description: 2.50+.
+        server_group_members:
+          type: integer
+          description: 2.50+.
+      required:
+        - cores
+        - instances
+        - key_pairs
+        - metadata_items
+        - ram
+        - server_groups
+        - server_group_members
+    QuotaClassSetResponse:
+      type: object
+      properties:
+        quota_class_set:
+          $ref: '#/components/schemas/QuotaClassSet'
+      required:
+        - quota_class_set
+    UpdateQuotaClassSet:
+      type: object
+      properties:
+        cores:
+          type: integer
+          minimum: -1
+        instances:
+          type: integer
+          minimum: -1
+        key_pairs:
+          type: integer
+          minimum: -1
+        metadata_items:
+          type: integer
+          minimum: -1
+        ram:
+          type: integer
+          minimum: -1
+        server_groups:
+          type: integer
+          minimum: -1
+        server_group_members:
+          type: integer
+          minimum: -1
+    UpdateQuotaClassSetRequest:
+      type: object
+      properties:
+        quota_class_set:
+          $ref: '#/components/schemas/UpdateQuotaClassSet'
+      required:
+        - quota_class_set
+    ServerGroupRules:
+      type: object
+      properties:
+        max_server_per_host:
+          type: integer
+          minimum: 1
+          description: Only valid with the anti-affinity policy.
+    ServerGroup:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        policy:
+          type: string
+          description: 2.64+.
+          enum:
+            - affinity
+            - anti-affinity
+            - soft-affinity
+            - soft-anti-affinity
+        rules:
+          $ref: '#/components/schemas/ServerGroupRules'
+        members:
+          type: array
+          items:
+            type: string
+        user_id:
+          type: string
+        project_id:
+          type: string
+      required:
+        - id
+        - name
+        - policy
+        - members
+        - user_id
+        - project_id
+      example:
+        id: 616fb98f-46ca-475e-917e-2563e5a8cd19
+        name: ha-group
+        policy: anti-affinity
+        members: []
+        user_id: 32dd0b9998f5472f8ba190dc4d09a49f
+        project_id: 5d45e7ca01d1455d99f64aff15894faf
+    ServerGroupsListResponse:
+      type: object
+      properties:
+        server_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServerGroup'
+      required:
+        - server_groups
+    ServerGroupResponse:
+      type: object
+      properties:
+        server_group:
+          $ref: '#/components/schemas/ServerGroup'
+      required:
+        - server_group
+    CreateServerGroup:
+      type: object
+      properties:
+        name:
+          type: string
+        policy:
+          type: string
+          description: 2.64+.
+          enum:
+            - affinity
+            - anti-affinity
+            - soft-affinity
+            - soft-anti-affinity
+        rules:
+          $ref: '#/components/schemas/ServerGroupRules'
+      required:
+        - name
+        - policy
+    CreateServerGroupRequest:
+      type: object
+      properties:
+        server_group:
+          $ref: '#/components/schemas/CreateServerGroup'
+      required:
+        - server_group
+    ServerUsage:
+      type: object
+      properties:
+        instance_id:
+          type: string
+        name:
+          type: string
+        tenant_id:
+          type: string
+        flavor:
+          type: string
+          description: Flavor name.
+        state:
+          type: string
+        started_at:
+          type: string
+        ended_at:
+          type:
+            - string
+            - 'null'
+        uptime:
+          type: integer
+          description: Seconds.
+        hours:
+          type: number
+        vcpus:
+          type: integer
+        memory_mb:
+          type: integer
+        local_gb:
+          type: integer
+      required:
+        - instance_id
+        - name
+        - tenant_id
+        - flavor
+        - state
+        - started_at
+        - ended_at
+        - uptime
+        - hours
+        - vcpus
+        - memory_mb
+        - local_gb
+    TenantUsage:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+        start:
+          type: string
+        stop:
+          type: string
+        total_hours:
+          type: number
+        total_local_gb_usage:
+          type: number
+          description: GiB-hours.
+        total_memory_mb_usage:
+          type: number
+          description: MiB-hours.
+        total_vcpus_usage:
+          type: number
+          description: vCPU-hours.
+        server_usages:
+          type: array
+          description: Present on show, or on list with detailed=1.
+          items:
+            $ref: '#/components/schemas/ServerUsage'
+      required:
+        - tenant_id
+        - start
+        - stop
+        - total_hours
+        - total_local_gb_usage
+        - total_memory_mb_usage
+        - total_vcpus_usage
+      example:
+        tenant_id: 5d45e7ca01d1455d99f64aff15894faf
+        start: '2026-06-18T10:00:00.000000'
+        stop: '2026-07-16T10:00:00.000000'
+        total_hours: 672.0
+        total_local_gb_usage: 13440.0
+        total_memory_mb_usage: 1376256.0
+        total_vcpus_usage: 1344.0
+    TenantUsagesListResponse:
+      type: object
+      properties:
+        tenant_usages:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantUsage'
+        tenant_usages_links:
+          type: array
+          description: Present when there is a next page (2.40+); the href carries the next marker.
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - tenant_usages
+    TenantUsageResponse:
+      type: object
+      properties:
+        tenant_usage:
+          $ref: '#/components/schemas/TenantUsage'
+        tenant_usage_links:
+          type: array
+          description: Present when there is a next page (2.40+); the href carries the next marker.
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - tenant_usage
+    InstanceUsageAuditLogHost:
+      type: object
+      properties:
+        state:
+          type: string
+          description: RUNNING or DONE.
+        instances:
+          type: integer
+        errors:
+          type: integer
+        message:
+          type: string
+      required:
+        - state
+        - instances
+        - errors
+        - message
+    InstanceUsageAuditLog:
+      type: object
+      properties:
+        hosts_not_run:
+          type: array
+          items:
+            type: string
+        log:
+          type: object
+          description: Per-host audit results keyed by host name.
+          additionalProperties:
+            $ref: '#/components/schemas/InstanceUsageAuditLogHost'
+        num_hosts:
+          type: integer
+        num_hosts_done:
+          type: integer
+        num_hosts_not_run:
+          type: integer
+        num_hosts_running:
+          type: integer
+        overall_status:
+          type: string
+        period_beginning:
+          type: string
+        period_ending:
+          type: string
+        total_errors:
+          type: integer
+        total_instances:
+          type: integer
+      required:
+        - hosts_not_run
+        - log
+        - num_hosts
+        - num_hosts_done
+        - num_hosts_not_run
+        - num_hosts_running
+        - overall_status
+        - period_beginning
+        - period_ending
+        - total_errors
+        - total_instances
+    InstanceUsageAuditLogsResponse:
+      type: object
+      properties:
+        instance_usage_audit_logs:
+          $ref: '#/components/schemas/InstanceUsageAuditLog'
+      required:
+        - instance_usage_audit_logs
+    InstanceUsageAuditLogResponse:
+      type: object
+      properties:
+        instance_usage_audit_log:
+          $ref: '#/components/schemas/InstanceUsageAuditLog'
+      required:
+        - instance_usage_audit_log
+    CreateExternalEvent:
+      type: object
+      properties:
+        name:
+          type: string
+          enum:
+            - network-changed
+            - network-vif-plugged
+            - network-vif-unplugged
+            - network-vif-deleted
+            - volume-extended
+            - power-update
+            - accelerator-request-bound
+            - volume-reimaged
+        server_uuid:
+          type: string
+        status:
+          type: string
+          description: Defaults to completed.
+          enum:
+            - failed
+            - completed
+            - in-progress
+        tag:
+          type: string
+          description: Resource the event applies to (e.g. port or volume id); required for most event types.
+      required:
+        - name
+        - server_uuid
+    CreateExternalEventsRequest:
+      type: object
+      properties:
+        events:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateExternalEvent'
+      required:
+        - events
+    ExternalEvent:
+      type: object
+      properties:
+        name:
+          type: string
+        server_uuid:
+          type: string
+        status:
+          type: string
+        tag:
+          type: string
+        code:
+          type: integer
+          description: Per-event HTTP-style result code (e.g. 200, 404, 422).
+      required:
+        - name
+        - server_uuid
+        - status
+        - code
+    ExternalEventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalEvent'
+      required:
+        - events
+    CreateAssistedVolumeSnapshot:
+      type: object
+      properties:
+        volume_id:
+          type: string
+        create_info:
+          type: object
+          properties:
+            snapshot_id:
+              type: string
+            type:
+              type: string
+              description: e.g. qcow2.
+            new_file:
+              type: string
+            id:
+              type: string
+          required:
+            - snapshot_id
+            - type
+            - new_file
+      required:
+        - volume_id
+        - create_info
+    CreateAssistedVolumeSnapshotRequest:
+      type: object
+      properties:
+        snapshot:
+          $ref: '#/components/schemas/CreateAssistedVolumeSnapshot'
+      required:
+        - snapshot
+    AssistedVolumeSnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+        volumeId:
+          type: string
+      required:
+        - id
+        - volumeId
+    AssistedVolumeSnapshotResponse:
+      type: object
+      properties:
+        snapshot:
+          $ref: '#/components/schemas/AssistedVolumeSnapshot'
+      required:
+        - snapshot
+    ConsoleConnectInfo:
+      type: object
+      properties:
+        instance_uuid:
+          type: string
+        host:
+          type: string
+        port:
+          type: integer
+        internal_access_path:
+          type:
+            - string
+            - 'null'
+      required:
+        - instance_uuid
+        - host
+        - port
+        - internal_access_path
+    ConsoleConnectInfoResponse:
+      type: object
+      properties:
+        console:
+          $ref: '#/components/schemas/ConsoleConnectInfo'
+      required:
+        - console
+    ApiVersion:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum:
+            - CURRENT
+            - SUPPORTED
+            - DEPRECATED
+        version:
+          type: string
+          description: Maximum supported microversion; empty for pre-microversion APIs.
+        min_version:
+          type: string
+          description: Minimum supported microversion; empty for pre-microversion APIs.
+        updated:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - id
+        - status
+        - version
+        - min_version
+        - updated
+        - links
+      example:
+        id: v2.1
+        status: CURRENT
+        version: '2.96'
+        min_version: '2.1'
+        updated: '2013-07-23T11:33:21Z'
+        links:
+          - href: https://compute.example.com/v2.1/
+            rel: self
+    VersionsListResponse:
+      type: object
+      properties:
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiVersion'
+      required:
+        - versions
+    ApiVersionDetail:
+      allOf:
+        - $ref: '#/components/schemas/ApiVersion'
+        - type: object
+          properties:
+            media-types:
+              type: array
+              items:
+                type: object
+                properties:
+                  base:
+                    type: string
+                  type:
+                    type: string
+                required:
+                  - base
+                  - type
+          required:
+            - media-types
+    VersionResponse:
+      type: object
+      properties:
+        version:
+          $ref: '#/components/schemas/ApiVersionDetail'
+      required:
+        - version
+  responses:
+    Fault:
+      description: Nova error (4xx/5xx). The envelope key names the fault kind.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Fault'

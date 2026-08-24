@@ -1,0 +1,1652 @@
+openapi: 3.1.0
+info:
+  title: OpenStack Image API
+  description: |-
+    This is a reference for the OpenStack Image API which is provided by the
+    Glance project. To learn more about the OpenStack Image API concepts, please
+    refer to the [API reference](https://docs.openstack.org/api-ref/image/v2/index.html).
+
+    The Image API v2 has no microversions; the minor version (this document
+    describes 2.16) is discovered through version negotiation and every feature
+    listed here is available without a version header. Interoperable image
+    import (`/images/{image_id}/import`), multi-store support (`stores`
+    discovery, per-store upload and delete), and the cache API are described at
+    the level of the 2.16 API.
+
+    Not described here: the metadata definitions catalog (`/metadefs/*`), the
+    JSON-schema self-description documents (`/schemas/*`), the per-image
+    `/locations` sub-resource introduced after 2.16, and the long-deprecated
+    Image API v1. Image updates use JSON Patch with the Glance-specific media
+    type `application/openstack-images-v2.1-json-patch`.
+  version: '2.16'
+servers:
+  - url: 'https://{host}/v2'
+    description: Glance endpoint. Project-scoped operations carry the project id as a path parameter on each request.
+    variables:
+      host:
+        default: image.example.com
+tags:
+  - name: images
+    description: Images — list, create, show, update (JSON Patch), delete.
+  - name: image-data
+    description: Binary image data — upload, download, and staging for interoperable import.
+  - name: image-import
+    description: Interoperable image import (glance-direct, web-download, copy-image, glance-download) and import method discovery.
+  - name: image-actions
+    description: Image actions — deactivate and reactivate.
+  - name: image-members
+    description: Members of shared images — the projects an image is shared with and their acceptance status.
+  - name: image-tags
+    description: Simple string tags on images (add/delete one tag; bulk changes go through JSON Patch).
+  - name: stores
+    description: Backend store discovery and per-store image deletion (multi-store deployments).
+  - name: tasks
+    description: Asynchronous tasks (import bookkeeping); creation of ad-hoc tasks is disabled in most deployments.
+  - name: cache
+    description: Local image cache management on the API worker (2.14+, admin).
+security:
+  - glanceAuth: []
+paths:
+  /glance/{project_id}/images:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listImages
+      tags:
+        - images
+      summary: List images
+      description: >-
+        Lists images visible to the caller: own images, shared images the caller
+        is a member of (subject to `member_status`), community and public
+        images. Time filters (`created_at`, `updated_at`) accept an optional
+        comparison operator prefix, e.g. `gte:2026-01-01T00:00:00Z`.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/SortParam'
+        - $ref: '#/components/parameters/ImageFilterName'
+        - $ref: '#/components/parameters/ImageFilterId'
+        - $ref: '#/components/parameters/ImageFilterOwner'
+        - $ref: '#/components/parameters/ImageFilterStatus'
+        - $ref: '#/components/parameters/ImageFilterVisibility'
+        - $ref: '#/components/parameters/ImageFilterMemberStatus'
+        - $ref: '#/components/parameters/ImageFilterContainerFormat'
+        - $ref: '#/components/parameters/ImageFilterDiskFormat'
+        - $ref: '#/components/parameters/ImageFilterProtected'
+        - $ref: '#/components/parameters/ImageFilterOsHidden'
+        - $ref: '#/components/parameters/ImageFilterTag'
+        - $ref: '#/components/parameters/ImageFilterSizeMin'
+        - $ref: '#/components/parameters/ImageFilterSizeMax'
+        - $ref: '#/components/parameters/ImageFilterCreatedAt'
+        - $ref: '#/components/parameters/ImageFilterUpdatedAt'
+        - $ref: '#/components/parameters/ImageFilterOsHashValue'
+      responses:
+        '200':
+          description: Image list, with a `next` link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImagesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createImage
+      tags:
+        - images
+      summary: Create image
+      description: >-
+        Creates a catalog record for an image. The record starts in `queued`
+        status with no data; upload data with the `file` endpoint or stage and
+        import it. Any request property outside the defined set is stored as a
+        custom string property. `visibility` defaults to `shared`; creating
+        `public` or `community` images is policy-gated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateImageRequest'
+      responses:
+        '201':
+          description: The created image. The Location header points at the new image.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Image'
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/images/{image_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+    get:
+      operationId: getImage
+      tags:
+        - images
+      summary: Show image details
+      description: Shows details for an image the caller can access.
+      responses:
+        '200':
+          description: The image.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Image'
+        default:
+          $ref: '#/components/responses/Fault'
+    patch:
+      operationId: updateImage
+      tags:
+        - images
+      summary: Update image
+      description: >-
+        Updates an image with a JSON Patch document in the Glance media type
+        `application/openstack-images-v2.1-json-patch`. Adds, replaces, or
+        removes both defined attributes (name, visibility, protected, tags, …)
+        and custom properties. Read-only attributes (status, checksum, size, …)
+        answer 403 when patched.
+      requestBody:
+        required: true
+        content:
+          application/openstack-images-v2.1-json-patch:
+            schema:
+              $ref: '#/components/schemas/ImagePatchRequest'
+      responses:
+        '200':
+          description: The updated image.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Image'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteImage
+      tags:
+        - images
+      summary: Delete image
+      description: >-
+        Deletes an image and its data from every store. Images with
+        `protected: true` answer 403 until the flag is cleared.
+      responses:
+        '204':
+          description: Image deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/images/{image_id}/file:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+    put:
+      operationId: uploadImageData
+      tags:
+        - image-data
+      summary: Upload image data
+      description: >-
+        Uploads binary data to a `queued` image, moving it through `saving` to
+        `active`. In multi-store deployments the target store can be selected
+        with the `X-Image-Meta-Store` header; otherwise the default store is
+        used. The image is immutable afterwards — a second upload answers 409.
+      parameters:
+        - $ref: '#/components/parameters/ImageMetaStoreHeader'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '204':
+          description: Upload complete; the image is active.
+        default:
+          $ref: '#/components/responses/Fault'
+    get:
+      operationId: downloadImageData
+      tags:
+        - image-data
+      summary: Download image data
+      description: >-
+        Downloads the image's binary data. Supports `Range` requests (answered
+        with 206). Downloading is policy-gated for images the caller does not
+        own; `deactivated` images answer 403 for non-admins.
+      responses:
+        '200':
+          description: The image data. `Content-MD5` carries the checksum when known.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '204':
+          description: The image has no data.
+        '206':
+          description: The requested byte range of the image data.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/images/{image_id}/stage:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+    put:
+      operationId: stageImageData
+      tags:
+        - image-data
+      summary: Stage image data
+      description: >-
+        Uploads binary data to the staging area for the `glance-direct` import
+        flow, moving a `queued` image to `uploading`. Staged data is not usable
+        until an import is triggered.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '204':
+          description: Data staged.
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/images/{image_id}/import:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+    post:
+      operationId: importImage
+      tags:
+        - image-import
+      summary: Import image
+      description: >-
+        Triggers interoperable image import. `glance-direct` processes
+        previously staged data; `web-download` fetches from a URI;
+        `copy-image` copies an active image into additional stores;
+        `glance-download` fetches from a Glance in another region. Target
+        stores are selected with `stores` or `all_stores`; discover the enabled
+        methods with the import discovery endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportImageRequest'
+      responses:
+        '202':
+          description: Import accepted; progress is reported through the image status and `os_glance_importing_to_stores`/`os_glance_failed_import` properties.
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/images/{image_id}/actions/deactivate:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+    post:
+      operationId: deactivateImage
+      tags:
+        - image-actions
+      summary: Deactivate image
+      description: >-
+        Deactivates an active image, blocking data download for non-admins
+        while keeping the record visible. Deactivating a `deactivated` image is
+        a no-op. The request has no body.
+      responses:
+        '204':
+          description: Image deactivated.
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/images/{image_id}/actions/reactivate:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+    post:
+      operationId: reactivateImage
+      tags:
+        - image-actions
+      summary: Reactivate image
+      description: >-
+        Reactivates a deactivated image, making its data downloadable again.
+        Reactivating an `active` image is a no-op. The request has no body.
+      responses:
+        '204':
+          description: Image reactivated.
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/images/{image_id}/members:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+    get:
+      operationId: listImageMembers
+      tags:
+        - image-members
+      summary: List image members
+      description: >-
+        Lists the members of a shared image. Visible to the image owner and to
+        the members themselves (each member sees only its own record).
+      responses:
+        '200':
+          description: The members.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageMembersListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createImageMember
+      tags:
+        - image-members
+      summary: Create image member
+      description: >-
+        Shares the image with another project (owner only). The image must have
+        `shared` visibility. The new member starts in `pending` status and must
+        accept the membership before the image appears in its default image
+        list.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateImageMemberRequest'
+      responses:
+        '200':
+          description: The created member.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageMember'
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/images/{image_id}/members/{member_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+      - $ref: '#/components/parameters/MemberIdParam'
+    get:
+      operationId: getImageMember
+      tags:
+        - image-members
+      summary: Show image member
+      description: Shows one member of a shared image (owner or the member itself).
+      responses:
+        '200':
+          description: The member.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageMember'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateImageMember
+      tags:
+        - image-members
+      summary: Update image member
+      description: >-
+        Accepts or rejects a membership. Only the member project itself can
+        change the status; the owner answers 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateImageMemberRequest'
+      responses:
+        '200':
+          description: The updated member.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageMember'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteImageMember
+      tags:
+        - image-members
+      summary: Delete image member
+      description: Unshares the image from the project (owner only).
+      responses:
+        '204':
+          description: Member deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/images/{image_id}/tags/{tag}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+      - $ref: '#/components/parameters/ImageTagParam'
+    put:
+      operationId: addImageTag
+      tags:
+        - image-tags
+      summary: Add a tag
+      description: Adds a single tag to the image. The request has no body. Adding an existing tag is a no-op.
+      responses:
+        '204':
+          description: Tag added.
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteImageTag
+      tags:
+        - image-tags
+      summary: Delete a tag
+      description: Removes a single tag from the image; answers 404 when the image does not carry it.
+      responses:
+        '204':
+          description: Tag deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/stores/{store_id}/{image_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/StoreIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+    delete:
+      operationId: deleteImageFromStore
+      tags:
+        - stores
+      summary: Delete image data from a store
+      description: >-
+        Deletes the image's data from one store without touching the catalog
+        record or the copies in other stores (admin). Deleting the last copy
+        answers 403; delete the image itself instead.
+      responses:
+        '204':
+          description: Store copy deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/info/stores:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listStores
+      tags:
+        - stores
+      summary: List stores
+      description: >-
+        Lists the enabled backend stores of a multi-store deployment. Answers
+        404 when multi-store is not configured.
+      responses:
+        '200':
+          description: The stores.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoresListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/info/stores/detail:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listStoresDetail
+      tags:
+        - stores
+      summary: List stores detailed
+      description: >-
+        Lists the enabled backend stores with their type and store-specific
+        properties (admin, 2.15+).
+      responses:
+        '200':
+          description: The stores with details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoresDetailListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/info/import:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listImportMethods
+      tags:
+        - image-import
+      summary: List import methods
+      description: Lists the interoperable import methods enabled in this deployment.
+      responses:
+        '200':
+          description: The import methods.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportMethodsResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listTasks
+      tags:
+        - tasks
+      summary: List tasks
+      description: >-
+        Lists the caller's tasks. Interoperable import creates `api_image_import`
+        tasks that can be inspected here for import progress and failure
+        messages.
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/TaskFilterType'
+        - $ref: '#/components/parameters/TaskFilterStatus'
+      responses:
+        '200':
+          description: Brief task list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TasksListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createTask
+      tags:
+        - tasks
+      summary: Create task
+      description: >-
+        Creates an ad-hoc task (legacy `import` type). Most deployments disable
+        this in favor of interoperable image import and answer 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: The created task.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/tasks/{task_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/TaskIdParam'
+    get:
+      operationId: getTask
+      tags:
+        - tasks
+      summary: Show task details
+      description: >-
+        Shows one task with its input, result, and failure message. Finished
+        tasks expire and are garbage-collected after a deployment-configured
+        time (`expires_at`).
+      responses:
+        '200':
+          description: The task.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/cache:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: getCacheState
+      tags:
+        - cache
+      summary: Show cache state
+      description: >-
+        Lists the images currently cached on this API worker and the images
+        queued for caching (2.14+, admin). Answers 404 when the cache is not
+        enabled.
+      responses:
+        '200':
+          description: Cached and queued images.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheStateResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: clearCache
+      tags:
+        - cache
+      summary: Clear the cache
+      description: >-
+        Deletes all cached and queued images on this API worker (2.14+, admin).
+        The `x-image-cache-clear-target` header restricts clearing to `cache`
+        or `queue`.
+      parameters:
+        - name: x-image-cache-clear-target
+          in: header
+          required: false
+          description: Restrict clearing to one part of the cache; both are cleared when omitted.
+          schema:
+            type: string
+            enum:
+              - cache
+              - queue
+      responses:
+        '204':
+          description: Cache cleared.
+        default:
+          $ref: '#/components/responses/Fault'
+  /glance/{project_id}/cache/{image_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ImageIdParam'
+    put:
+      operationId: queueImageForCaching
+      tags:
+        - cache
+      summary: Queue image for caching
+      description: Queues an image for background caching on this API worker (2.14+, admin). The request has no body.
+      responses:
+        '202':
+          description: Image queued.
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteCachedImage
+      tags:
+        - cache
+      summary: Delete image from cache
+      description: Removes one image from the cache or the caching queue (2.14+, admin).
+      responses:
+        '204':
+          description: Cache entry deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+components:
+  securitySchemes:
+    glanceAuth:
+      type: apiKey
+      in: header
+      name: X-Auth-Token
+      description: A valid Keystone authentication token.
+  parameters:
+    ProjectIdParam:
+      name: project_id
+      in: path
+      required: true
+      description: Keystone project (tenant) id that scopes this request.
+      schema:
+        type: string
+    ImageIdParam:
+      name: image_id
+      in: path
+      required: true
+      description: The UUID of the image.
+      schema:
+        type: string
+    MemberIdParam:
+      name: member_id
+      in: path
+      required: true
+      description: The project id of the image member.
+      schema:
+        type: string
+    ImageTagParam:
+      name: tag
+      in: path
+      required: true
+      description: The tag (max 255 characters).
+      schema:
+        type: string
+    StoreIdParam:
+      name: store_id
+      in: path
+      required: true
+      description: The identifier of the backend store.
+      schema:
+        type: string
+    TaskIdParam:
+      name: task_id
+      in: path
+      required: true
+      description: The UUID of the task.
+      schema:
+        type: string
+    ImageMetaStoreHeader:
+      name: X-Image-Meta-Store
+      in: header
+      required: false
+      description: Backend store to write the data to (multi-store deployments); the default store is used when omitted.
+      schema:
+        type: string
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return; enables paginated responses.
+      schema:
+        type: integer
+        minimum: 1
+    MarkerParam:
+      name: marker
+      in: query
+      required: false
+      description: The id of the last item on the previous page; the listing starts after it.
+      schema:
+        type: string
+    SortKeyParam:
+      name: sort_key
+      in: query
+      required: false
+      description: >-
+        Resource attribute to sort by (default created_at). May be given
+        multiple times.
+      schema:
+        type: string
+    SortDirParam:
+      name: sort_dir
+      in: query
+      required: false
+      description: Sort direction (default desc).
+      schema:
+        type: string
+        enum:
+          - asc
+          - desc
+    SortParam:
+      name: sort
+      in: query
+      required: false
+      description: >-
+        Combined sort expression as comma-separated `key:dir` pairs, e.g.
+        `name:asc,status:desc`. Mutually exclusive with sort_key/sort_dir.
+      schema:
+        type: string
+    ImageFilterName:
+      name: name
+      in: query
+      required: false
+      description: Filter by image name (exact match; `in:` prefix matches a comma-separated list).
+      schema:
+        type: string
+    ImageFilterId:
+      name: id
+      in: query
+      required: false
+      description: Filter by image id (`in:` prefix matches a comma-separated list).
+      schema:
+        type: string
+    ImageFilterOwner:
+      name: owner
+      in: query
+      required: false
+      description: Filter by owning project id.
+      schema:
+        type: string
+    ImageFilterStatus:
+      name: status
+      in: query
+      required: false
+      description: Filter by image status.
+      schema:
+        type: string
+        enum:
+          - queued
+          - saving
+          - uploading
+          - importing
+          - active
+          - deactivated
+          - killed
+          - pending_delete
+          - deleted
+    ImageFilterVisibility:
+      name: visibility
+      in: query
+      required: false
+      description: >-
+        Filter by visibility. `all` lists every image the caller can see
+        regardless of visibility; omitting the filter applies the default
+        visibility mix.
+      schema:
+        type: string
+        enum:
+          - public
+          - private
+          - shared
+          - community
+          - all
+    ImageFilterMemberStatus:
+      name: member_status
+      in: query
+      required: false
+      description: >-
+        Filter shared images by the caller's membership status (default
+        accepted).
+      schema:
+        type: string
+        enum:
+          - pending
+          - accepted
+          - rejected
+          - all
+    ImageFilterContainerFormat:
+      name: container_format
+      in: query
+      required: false
+      description: Filter by container format.
+      schema:
+        type: string
+    ImageFilterDiskFormat:
+      name: disk_format
+      in: query
+      required: false
+      description: Filter by disk format.
+      schema:
+        type: string
+    ImageFilterProtected:
+      name: protected
+      in: query
+      required: false
+      description: Filter by deletion protection flag.
+      schema:
+        type: boolean
+    ImageFilterOsHidden:
+      name: os_hidden
+      in: query
+      required: false
+      description: Filter by hidden flag; hidden images are excluded unless explicitly requested.
+      schema:
+        type: boolean
+    ImageFilterTag:
+      name: tag
+      in: query
+      required: false
+      description: Filter by tag; may be given multiple times, only images carrying all of them match.
+      schema:
+        type: string
+    ImageFilterSizeMin:
+      name: size_min
+      in: query
+      required: false
+      description: Minimum image size in bytes (inclusive).
+      schema:
+        type: integer
+    ImageFilterSizeMax:
+      name: size_max
+      in: query
+      required: false
+      description: Maximum image size in bytes (inclusive).
+      schema:
+        type: integer
+    ImageFilterCreatedAt:
+      name: created_at
+      in: query
+      required: false
+      description: >-
+        Filter by creation time. An ISO 8601 timestamp, optionally prefixed
+        with a comparison operator (gt, gte, eq, neq, lt, lte), e.g.
+        `lt:2026-01-01T00:00:00Z`.
+      schema:
+        type: string
+    ImageFilterUpdatedAt:
+      name: updated_at
+      in: query
+      required: false
+      description: Filter by last-update time; same operator syntax as created_at.
+      schema:
+        type: string
+    ImageFilterOsHashValue:
+      name: os_hash_value
+      in: query
+      required: false
+      description: Filter by multihash value.
+      schema:
+        type: string
+    TaskFilterType:
+      name: type
+      in: query
+      required: false
+      description: Filter by task type.
+      schema:
+        type: string
+        enum:
+          - import
+          - api_image_import
+          - location_import
+    TaskFilterStatus:
+      name: status
+      in: query
+      required: false
+      description: Filter by task status.
+      schema:
+        type: string
+        enum:
+          - pending
+          - processing
+          - success
+          - failure
+  schemas:
+    GlanceErrorBody:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code.
+        title:
+          type: string
+          description: Short error title, e.g. Not Found.
+        message:
+          type: string
+          description: Human-readable explanation of the error.
+      example:
+        code: 404
+        title: Not Found
+        message: No image found with ID 9bacb3c5-8433-41a5-a163-df95b6c116f2
+    Image:
+      type: object
+      description: >-
+        An image record. Properties outside the defined set are custom image
+        properties and carry string values (e.g. os_type, hw_disk_bus,
+        os_glance_importing_to_stores).
+      properties:
+        id:
+          type: string
+          description: The UUID of the image.
+        name:
+          type:
+            - string
+            - 'null'
+          description: Human-readable image name; not unique.
+        status:
+          type: string
+          description: Image status.
+          enum:
+            - queued
+            - saving
+            - uploading
+            - importing
+            - active
+            - deactivated
+            - killed
+            - pending_delete
+            - deleted
+        visibility:
+          type: string
+          description: Who can see the image.
+          enum:
+            - public
+            - private
+            - shared
+            - community
+        protected:
+          type: boolean
+          description: Deletion protection flag.
+        os_hidden:
+          type: boolean
+          description: Hidden images are excluded from default listings.
+        owner:
+          type:
+            - string
+            - 'null'
+          description: Project id that owns the image.
+        size:
+          type:
+            - integer
+            - 'null'
+          description: Size of the image data in bytes; null until data is uploaded.
+        virtual_size:
+          type:
+            - integer
+            - 'null'
+          description: Virtual size of the disk in bytes when the format allows determining it.
+        checksum:
+          type:
+            - string
+            - 'null'
+          description: MD5 checksum of the image data (legacy; prefer the multihash).
+        os_hash_algo:
+          type:
+            - string
+            - 'null'
+          description: Algorithm of the multihash, e.g. sha512.
+        os_hash_value:
+          type:
+            - string
+            - 'null'
+          description: Hexdigest of the image data under os_hash_algo.
+        container_format:
+          type:
+            - string
+            - 'null'
+          description: Container format.
+          enum:
+            - ami
+            - ari
+            - aki
+            - bare
+            - ovf
+            - ova
+            - docker
+            - compressed
+            - null
+        disk_format:
+          type:
+            - string
+            - 'null'
+          description: Disk format.
+          enum:
+            - ami
+            - ari
+            - aki
+            - vhd
+            - vhdx
+            - vmdk
+            - raw
+            - qcow2
+            - vdi
+            - iso
+            - ploop
+            - null
+        min_ram:
+          type: integer
+          description: Minimum RAM in MiB required to boot the image.
+        min_disk:
+          type: integer
+          description: Minimum disk size in GiB required to boot the image.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+        stores:
+          type: string
+          description: Comma-separated list of stores holding the data (multi-store deployments).
+        direct_url:
+          type: string
+          description: URL of the backing store location (only when the deployment exposes it).
+        self:
+          type: string
+          description: URI of the image.
+        file:
+          type: string
+          description: URI of the image data endpoint.
+        schema:
+          type: string
+          description: URI of the image JSON schema.
+        owner_specified.openstack.md5:
+          type: string
+          description: Custom property. MD5 checksum supplied by the owner.
+        owner_specified.openstack.sha256:
+          type: string
+          description: Custom property. SHA256 checksum supplied by the owner.
+        owner_specified.openstack.object:
+          type: string
+          description: Custom property. Name of the backing object supplied by the owner.
+        hw_disk_bus:
+          type: string
+          description: Custom property. Disk bus, e.g. scsi.
+        hw_firmware_type:
+          type: string
+          description: Custom property. Firmware type, e.g. uefi.
+        hw_pointer_model:
+          type: string
+          description: Custom property. Pointer device model, e.g. usbtablet.
+        hw_qemu_guest_agent:
+          type: string
+          description: Custom property. Whether the QEMU guest agent is required, e.g. yes.
+        hw_rng_model:
+          type: string
+          description: Custom property. Random number generator device model, e.g. virtio.
+        hw_scsi_model:
+          type: string
+          description: Custom property. SCSI controller model, e.g. virtio-scsi.
+        hw_vif_model:
+          type: string
+          description: Custom property. Virtual network interface model, e.g. virtio.
+        os_distro:
+          type: string
+          description: Custom property. OS distribution, e.g. windows.
+        os_require_quiesce:
+          type: string
+          description: Custom property. Whether the guest must be quiesced before snapshotting, e.g. yes.
+        os_shutdown_timeout:
+          type: string
+          description: Custom property. Seconds to wait for guest shutdown, e.g. "300".
+        os_type:
+          type: string
+          description: Custom property. OS type, e.g. windows.
+        os_version:
+          type: string
+          description: Custom property. OS version, e.g. "2022".
+      required:
+        - id
+        - status
+        - visibility
+        - protected
+        - tags
+        - created_at
+        - updated_at
+        - self
+        - file
+        - schema
+      example:
+        id: 1bea47ed-f6a9-463b-b423-14b9cca9ad27
+        name: cirros-0.6.2-x86_64
+        status: active
+        visibility: public
+        protected: false
+        os_hidden: false
+        owner: 5ef70662f8b34079a6eddb8da9d75fe8
+        size: 21430272
+        virtual_size: 117440512
+        checksum: c8fc807773e5354afe61636071771906
+        os_hash_algo: sha512
+        os_hash_value: 6b813aa46bb90b4da216af426c27e83f...
+        container_format: bare
+        disk_format: qcow2
+        min_ram: 0
+        min_disk: 0
+        created_at: '2026-01-05T09:00:00Z'
+        updated_at: '2026-01-05T09:01:12Z'
+        tags:
+          - baseos
+        stores: ceph-1
+        self: /v2/images/1bea47ed-f6a9-463b-b423-14b9cca9ad27
+        file: /v2/images/1bea47ed-f6a9-463b-b423-14b9cca9ad27/file
+        schema: /v2/schemas/image
+    ImagesListResponse:
+      type: object
+      properties:
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/Image'
+        first:
+          type: string
+          description: URI of the first page.
+        next:
+          type: string
+          description: URI of the next page; absent on the last page.
+        schema:
+          type: string
+          description: URI of the images JSON schema.
+      required:
+        - images
+        - first
+        - schema
+    CreateImageRequest:
+      type: object
+      description: >-
+        Additional properties beyond the defined set are stored as custom
+        string properties on the image.
+      properties:
+        id:
+          type: string
+          description: UUID for the new image; generated when omitted.
+        name:
+          type: string
+        visibility:
+          type: string
+          description: Defaults to shared. public and community are policy-gated.
+          enum:
+            - public
+            - private
+            - shared
+            - community
+        protected:
+          type: boolean
+          default: false
+        os_hidden:
+          type: boolean
+          default: false
+        container_format:
+          type: string
+          enum:
+            - ami
+            - ari
+            - aki
+            - bare
+            - ovf
+            - ova
+            - docker
+            - compressed
+        disk_format:
+          type: string
+          enum:
+            - ami
+            - ari
+            - aki
+            - vhd
+            - vhdx
+            - vmdk
+            - raw
+            - qcow2
+            - vdi
+            - iso
+            - ploop
+        min_ram:
+          type: integer
+          minimum: 0
+        min_disk:
+          type: integer
+          minimum: 0
+        tags:
+          type: array
+          items:
+            type: string
+      example:
+        name: ubuntu-24.04-server
+        container_format: bare
+        disk_format: qcow2
+        min_disk: 8
+        visibility: private
+        tags:
+          - baseos
+        os_type: linux
+    ImagePatchRequest:
+      type: array
+      description: >-
+        A JSON Patch document (media type
+        application/openstack-images-v2.1-json-patch).
+      items:
+        $ref: '#/components/schemas/PatchOperation'
+      example:
+        - op: replace
+          path: /name
+          value: ubuntu-24.04-server-fixed
+        - op: add
+          path: /os_type
+          value: linux
+        - op: remove
+          path: /unused_property
+    PatchOperation:
+      type: object
+      properties:
+        op:
+          type: string
+          enum:
+            - add
+            - remove
+            - replace
+        path:
+          type: string
+          description: JSON pointer to the attribute or custom property, e.g. /name or /os_type.
+        value:
+          description: The new value; required for add and replace.
+      required:
+        - op
+        - path
+    ImportImageRequest:
+      type: object
+      properties:
+        method:
+          $ref: '#/components/schemas/ImportMethod'
+        stores:
+          type: array
+          description: Target stores (multi-store deployments). Mutually exclusive with all_stores.
+          items:
+            type: string
+        all_stores:
+          type: boolean
+          description: Import into every enabled store. Mutually exclusive with stores.
+        all_stores_must_succeed:
+          type: boolean
+          description: >-
+            When true (default), failure in any store fails the whole import;
+            when false, partial success is kept.
+      required:
+        - method
+      example:
+        method:
+          name: web-download
+          uri: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+        stores:
+          - ceph-1
+    ImportMethod:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The import method.
+          enum:
+            - glance-direct
+            - web-download
+            - copy-image
+            - glance-download
+        uri:
+          type: string
+          description: Source URI (web-download only).
+        glance_image_id:
+          type: string
+          description: Image id in the remote region (glance-download only).
+        glance_region:
+          type: string
+          description: Remote region name (glance-download only).
+        glance_service_interface:
+          type: string
+          description: Remote endpoint interface, e.g. public (glance-download only).
+      required:
+        - name
+    ImportMethodsResponse:
+      type: object
+      properties:
+        import-methods:
+          type: object
+          properties:
+            description:
+              type: string
+            type:
+              type: string
+            value:
+              type: array
+              items:
+                type: string
+          required:
+            - value
+      required:
+        - import-methods
+      example:
+        import-methods:
+          description: Import methods available.
+          type: array
+          value:
+            - glance-direct
+            - web-download
+            - copy-image
+    ImageMember:
+      type: object
+      properties:
+        member_id:
+          type: string
+          description: Project id of the member.
+        image_id:
+          type: string
+        status:
+          type: string
+          description: Membership status.
+          enum:
+            - pending
+            - accepted
+            - rejected
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        schema:
+          type: string
+          description: URI of the member JSON schema.
+      required:
+        - member_id
+        - image_id
+        - status
+        - created_at
+        - updated_at
+      example:
+        member_id: 8989447062e04a818baf9e073fd04fa7
+        image_id: 1bea47ed-f6a9-463b-b423-14b9cca9ad27
+        status: pending
+        created_at: '2026-01-05T09:10:00Z'
+        updated_at: '2026-01-05T09:10:00Z'
+        schema: /v2/schemas/member
+    ImageMembersListResponse:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageMember'
+        schema:
+          type: string
+          description: URI of the members JSON schema.
+      required:
+        - members
+    CreateImageMemberRequest:
+      type: object
+      properties:
+        member:
+          type: string
+          description: Project id to share the image with.
+      required:
+        - member
+      example:
+        member: 8989447062e04a818baf9e073fd04fa7
+    UpdateImageMemberRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - pending
+            - accepted
+            - rejected
+      required:
+        - status
+      example:
+        status: accepted
+    Store:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Store identifier, used in X-Image-Meta-Store and import store lists.
+        description:
+          type: string
+        default:
+          type: boolean
+          description: Present and true on the default store.
+        read-only:
+          type: boolean
+          description: Present and true on stores that cannot be written to.
+      required:
+        - id
+    StoresListResponse:
+      type: object
+      properties:
+        stores:
+          type: array
+          items:
+            $ref: '#/components/schemas/Store'
+      required:
+        - stores
+      example:
+        stores:
+          - id: ceph-1
+            description: Primary Ceph RBD store
+            default: true
+          - id: swift-archive
+            description: Swift archive store
+            read-only: true
+    StoreDetail:
+      allOf:
+        - $ref: '#/components/schemas/Store'
+        - type: object
+          properties:
+            type:
+              type: string
+              description: Store driver, e.g. rbd, file, swift, cinder, s3.
+            weight:
+              type: integer
+              description: Relative weight used when picking a store automatically.
+            properties:
+              type: object
+              description: Store-specific configuration details, keyed by driver.
+    StoresDetailListResponse:
+      type: object
+      properties:
+        stores:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoreDetail'
+      required:
+        - stores
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The UUID of the task.
+        type:
+          type: string
+          enum:
+            - import
+            - api_image_import
+            - location_import
+        status:
+          type: string
+          enum:
+            - pending
+            - processing
+            - success
+            - failure
+        owner:
+          type: string
+          description: Project id that owns the task.
+        input:
+          type:
+            - object
+            - 'null'
+          description: Task input, e.g. the image id and import method.
+        result:
+          type:
+            - object
+            - 'null'
+          description: Task result; null until the task finishes.
+        message:
+          type: string
+          description: Human-readable message, populated on failure.
+        image_id:
+          type: string
+          description: The image the task operates on (api_image_import).
+        request_id:
+          type: string
+          description: The API request that spawned the task.
+        user_id:
+          type: string
+        expires_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: When the finished task record will be garbage-collected.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        self:
+          type: string
+        schema:
+          type: string
+      required:
+        - id
+        - type
+        - status
+        - owner
+        - created_at
+        - updated_at
+        - self
+        - schema
+    TasksListResponse:
+      type: object
+      properties:
+        tasks:
+          type: array
+          description: Brief task records (no input/result; fetch the task for details).
+          items:
+            $ref: '#/components/schemas/Task'
+        first:
+          type: string
+        next:
+          type: string
+          description: URI of the next page; absent on the last page.
+        schema:
+          type: string
+      required:
+        - tasks
+        - first
+        - schema
+    CreateTaskRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - import
+        input:
+          type: object
+          description: Task-type-specific input, e.g. import_from, import_from_format, image_properties.
+      required:
+        - type
+        - input
+      example:
+        type: import
+        input:
+          import_from: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+          import_from_format: qcow2
+          image_properties:
+            name: ubuntu-24.04-server
+            disk_format: qcow2
+            container_format: bare
+    CachedImage:
+      type: object
+      properties:
+        image_id:
+          type: string
+        size:
+          type: integer
+          description: Size of the cached data in bytes.
+        hits:
+          type: integer
+          description: Number of cache hits since the image was cached.
+        last_accessed:
+          type: number
+          description: Unix timestamp of the last cache hit.
+        last_modified:
+          type: number
+          description: Unix timestamp when the cache entry was written.
+      required:
+        - image_id
+    CacheStateResponse:
+      type: object
+      properties:
+        cached_images:
+          type: array
+          items:
+            $ref: '#/components/schemas/CachedImage'
+        queued_images:
+          type: array
+          description: Ids of images queued for caching.
+          items:
+            type: string
+      required:
+        - cached_images
+        - queued_images
+      example:
+        cached_images:
+          - image_id: 1bea47ed-f6a9-463b-b423-14b9cca9ad27
+            size: 21430272
+            hits: 42
+            last_accessed: 1767606000.0
+            last_modified: 1767519600.0
+        queued_images:
+          - 8f7fd1f7-e10a-4b41-92b0-b0b0c8a930fa
+  responses:
+    Fault:
+      description: Glance error (4xx/5xx). Some errors are answered with a text/html body instead of JSON.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GlanceErrorBody'

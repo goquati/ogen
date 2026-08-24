@@ -1,0 +1,4599 @@
+openapi: 3.1.0
+info:
+  title: OpenStack Networking API
+  description: |-
+    This is a reference for the OpenStack Networking API which is provided by the
+    Neutron project. To learn more about the OpenStack Networking API concepts,
+    please refer to the [API reference](https://docs.openstack.org/api-ref/network/v2/index.html).
+
+    The Networking API v2.0 has no microversions; optional features are announced
+    through the extensions list (`/extensions`) instead. This document describes
+    the core resources plus the extensions that are enabled in effectively every
+    deployment: layer-3 routers (`router`, `extraroute`, `extraroute-atomic`),
+    floating IPs with port forwardings (`floating-ip-port-forwarding`), security
+    groups (`security-group`), subnet pools, address scopes, RBAC policies,
+    quotas (`quotas`, `quota_details`), agents (`agent`), availability zones
+    (`availability_zone`), network IP availability (`network-ip-availability`),
+    and the standard tag API (`standard-attr-tag`).
+
+    Feature groups that are not described here: load balancing (moved to the
+    Octavia API), FWaaS, VPNaaS, QoS policies and rules, trunks, BGP speakers,
+    metering labels, log resources, segments, address groups, network flavors,
+    auto-allocated topology, conntrack helpers, NDP proxies, local IPs, the
+    agent scheduler sub-resources (`dhcp-networks`, `l3-routers`), the port
+    `bindings` sub-resource, and bulk (multi-item) create request bodies.
+  version: '2.0'
+servers:
+  - url: 'https://{host}/v2.0'
+    description: Neutron endpoint. Project-scoped operations carry the project id as a path parameter on each request.
+    variables:
+      host:
+        default: network.example.com
+tags:
+  - name: networks
+    description: Layer-2 networks — list, create, show, update, delete.
+  - name: subnets
+    description: Subnets — IP address blocks allocated on a network.
+  - name: ports
+    description: Ports — connection points for attaching devices (servers, routers, DHCP) to a network.
+  - name: routers
+    description: Layer-3 routers, including interface attach/detach and atomic extra-route editing.
+  - name: floating-ips
+    description: Floating IPs — externally reachable addresses mapped onto internal ports.
+  - name: port-forwardings
+    description: Port forwardings on floating IPs (floating-ip-port-forwarding extension).
+  - name: security-groups
+    description: Security groups — containers for security group rules.
+  - name: security-group-rules
+    description: Security group rules (immutable; delete and recreate to change).
+  - name: subnet-pools
+    description: Subnet pools — prefix pools that subnets can be allocated from.
+  - name: address-scopes
+    description: Address scopes — address-uniqueness domains that subnet pools belong to.
+  - name: rbac-policies
+    description: RBAC policies granting other projects access to networks and other shareable objects.
+  - name: quotas
+    description: Per-project networking quotas.
+  - name: agents
+    description: Networking agents (DHCP, L3, OVN controllers, …) and their liveness (admin).
+  - name: availability-zones
+    description: Availability zone information for networks and routers.
+  - name: network-ip-availability
+    description: Total and used IP counts per network and subnet (admin).
+  - name: extensions
+    description: Extension discovery — the capability list of this Neutron deployment.
+  - name: resource-tags
+    description: Standard tag API shared by networks, subnets, ports, routers, floating IPs, subnet pools, and security groups.
+security:
+  - neutronAuth: []
+paths:
+  /neutron/{project_id}/networks:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listNetworks
+      tags:
+        - networks
+      summary: List networks
+      description: >-
+        Lists networks visible to the caller: the project's own networks, shared
+        networks, and external networks. Unknown filter attributes are ignored
+        unless the `filter-validation` extension rejects them.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/NameFilterParam'
+        - $ref: '#/components/parameters/DescriptionFilterParam'
+        - $ref: '#/components/parameters/AdminStateUpFilterParam'
+        - $ref: '#/components/parameters/StatusFilterParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+        - $ref: '#/components/parameters/SharedFilterParam'
+        - $ref: '#/components/parameters/RouterExternalFilterParam'
+        - $ref: '#/components/parameters/MtuFilterParam'
+        - $ref: '#/components/parameters/NetworkProviderTypeFilterParam'
+        - $ref: '#/components/parameters/TagsParam'
+        - $ref: '#/components/parameters/TagsAnyParam'
+        - $ref: '#/components/parameters/NotTagsParam'
+        - $ref: '#/components/parameters/NotTagsAnyParam'
+      responses:
+        '200':
+          description: Network list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworksListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createNetwork
+      tags:
+        - networks
+      summary: Create network
+      description: >-
+        Creates a network. Provider attributes (`provider:*`) and `router:external`
+        require admin rights; `shared` requires admin or a matching RBAC policy
+        capability.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNetworkRequest'
+      responses:
+        '201':
+          description: The created network.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/networks/{network_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/NetworkIdParam'
+    get:
+      operationId: getNetwork
+      tags:
+        - networks
+      summary: Show network details
+      description: Shows details for a network.
+      responses:
+        '200':
+          description: The network.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateNetwork
+      tags:
+        - networks
+      summary: Update network
+      description: >-
+        Updates the network's name, admin state, MTU, or other mutable attributes.
+        Provider attributes are immutable on networks with active ports.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNetworkRequest'
+      responses:
+        '200':
+          description: The updated network.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteNetwork
+      tags:
+        - networks
+      summary: Delete network
+      description: >-
+        Deletes the network and its subnets, provided no non-service ports
+        (server, router, floating IP) remain on it.
+      responses:
+        '204':
+          description: Network deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/subnets:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listSubnets
+      tags:
+        - subnets
+      summary: List subnets
+      description: Lists subnets visible to the caller.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/NameFilterParam'
+        - $ref: '#/components/parameters/DescriptionFilterParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+        - $ref: '#/components/parameters/NetworkIdFilterParam'
+        - $ref: '#/components/parameters/IpVersionFilterParam'
+        - $ref: '#/components/parameters/CidrFilterParam'
+        - $ref: '#/components/parameters/GatewayIpFilterParam'
+        - $ref: '#/components/parameters/EnableDhcpFilterParam'
+        - $ref: '#/components/parameters/SubnetPoolIdFilterParam'
+        - $ref: '#/components/parameters/SharedFilterParam'
+        - $ref: '#/components/parameters/TagsParam'
+        - $ref: '#/components/parameters/TagsAnyParam'
+        - $ref: '#/components/parameters/NotTagsParam'
+        - $ref: '#/components/parameters/NotTagsAnyParam'
+      responses:
+        '200':
+          description: Subnet list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubnetsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createSubnet
+      tags:
+        - subnets
+      summary: Create subnet
+      description: >-
+        Creates a subnet on a network. Pass an explicit `cidr`, or allocate one by
+        passing `subnetpool_id` (or `use_default_subnetpool`) together with
+        `prefixlen`. `gateway_ip` defaults to the first address; pass null to
+        create the subnet without a gateway.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubnetRequest'
+      responses:
+        '201':
+          description: The created subnet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubnetResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/subnets/{subnet_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/SubnetIdParam'
+    get:
+      operationId: getSubnet
+      tags:
+        - subnets
+      summary: Show subnet details
+      description: Shows details for a subnet.
+      responses:
+        '200':
+          description: The subnet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubnetResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateSubnet
+      tags:
+        - subnets
+      summary: Update subnet
+      description: >-
+        Updates the subnet's name, gateway, DNS nameservers, host routes,
+        allocation pools, or DHCP flag. `cidr` and `ip_version` are immutable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubnetRequest'
+      responses:
+        '200':
+          description: The updated subnet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubnetResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteSubnet
+      tags:
+        - subnets
+      summary: Delete subnet
+      description: Deletes the subnet, provided no allocated IPs on it remain in use.
+      responses:
+        '204':
+          description: Subnet deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/ports:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listPorts
+      tags:
+        - ports
+      summary: List ports
+      description: >-
+        Lists ports visible to the caller. `fixed_ips` filters use the
+        `fixed_ips=ip_address=…` / `fixed_ips=subnet_id=…` key=value syntax and
+        may be repeated.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/NameFilterParam'
+        - $ref: '#/components/parameters/DescriptionFilterParam'
+        - $ref: '#/components/parameters/AdminStateUpFilterParam'
+        - $ref: '#/components/parameters/StatusFilterParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+        - $ref: '#/components/parameters/NetworkIdFilterParam'
+        - $ref: '#/components/parameters/DeviceIdFilterParam'
+        - $ref: '#/components/parameters/DeviceOwnerFilterParam'
+        - $ref: '#/components/parameters/MacAddressFilterParam'
+        - $ref: '#/components/parameters/FixedIpsFilterParam'
+        - $ref: '#/components/parameters/BindingHostIdFilterParam'
+        - $ref: '#/components/parameters/TagsParam'
+        - $ref: '#/components/parameters/TagsAnyParam'
+        - $ref: '#/components/parameters/NotTagsParam'
+        - $ref: '#/components/parameters/NotTagsAnyParam'
+      responses:
+        '200':
+          description: Port list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createPort
+      tags:
+        - ports
+      summary: Create port
+      description: >-
+        Creates a port on a network. Omit `fixed_ips` to auto-allocate an address
+        on each subnet; `binding:*` attributes other than `binding:vnic_type`
+        require admin rights.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePortRequest'
+      responses:
+        '201':
+          description: The created port.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/ports/{port_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/PortIdParam'
+    get:
+      operationId: getPort
+      tags:
+        - ports
+      summary: Show port details
+      description: Shows details for a port. `binding:vif_type`/`binding:vif_details` appear for admins only.
+      responses:
+        '200':
+          description: The port.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updatePort
+      tags:
+        - ports
+      summary: Update port
+      description: >-
+        Updates the port's name, admin state, fixed IPs, security groups, allowed
+        address pairs, or DHCP options. `network_id` is immutable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePortRequest'
+      responses:
+        '200':
+          description: The updated port.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deletePort
+      tags:
+        - ports
+      summary: Delete port
+      description: Deletes the port. Ports still owned by a device (server, router) answer 409.
+      responses:
+        '204':
+          description: Port deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/routers:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listRouters
+      tags:
+        - routers
+      summary: List routers
+      description: Lists routers visible to the caller.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/NameFilterParam'
+        - $ref: '#/components/parameters/DescriptionFilterParam'
+        - $ref: '#/components/parameters/AdminStateUpFilterParam'
+        - $ref: '#/components/parameters/StatusFilterParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+        - $ref: '#/components/parameters/TagsParam'
+        - $ref: '#/components/parameters/TagsAnyParam'
+        - $ref: '#/components/parameters/NotTagsParam'
+        - $ref: '#/components/parameters/NotTagsAnyParam'
+      responses:
+        '200':
+          description: Router list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutersListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createRouter
+      tags:
+        - routers
+      summary: Create router
+      description: >-
+        Creates a router, optionally with an external gateway. `distributed` and
+        `ha` require admin rights; `enable_snat` inside `external_gateway_info`
+        does too.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRouterRequest'
+      responses:
+        '201':
+          description: The created router.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouterResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/routers/{router_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/RouterIdParam'
+    get:
+      operationId: getRouter
+      tags:
+        - routers
+      summary: Show router details
+      description: Shows details for a router.
+      responses:
+        '200':
+          description: The router.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouterResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateRouter
+      tags:
+        - routers
+      summary: Update router
+      description: >-
+        Updates the router's name, admin state, external gateway, or static
+        routes. Replacing `routes` wholesale here races with concurrent editors;
+        prefer the atomic `add_extraroutes`/`remove_extraroutes` actions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRouterRequest'
+      responses:
+        '200':
+          description: The updated router.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouterResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteRouter
+      tags:
+        - routers
+      summary: Delete router
+      description: Deletes the router. Routers with internal interfaces still attached answer 409.
+      responses:
+        '204':
+          description: Router deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/routers/{router_id}/add_router_interface:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/RouterIdParam'
+    put:
+      operationId: addRouterInterface
+      tags:
+        - routers
+      summary: Attach an internal interface
+      description: >-
+        Attaches a subnet or a port to the router as an internal interface. Pass
+        exactly one of `subnet_id` or `port_id`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouterInterfaceRequest'
+      responses:
+        '200':
+          description: The attached interface.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouterInterfaceResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/routers/{router_id}/remove_router_interface:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/RouterIdParam'
+    put:
+      operationId: removeRouterInterface
+      tags:
+        - routers
+      summary: Detach an internal interface
+      description: >-
+        Detaches a subnet or a port from the router. Pass exactly one of
+        `subnet_id` or `port_id`; the interface port itself is deleted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouterInterfaceRequest'
+      responses:
+        '200':
+          description: The detached interface.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouterInterfaceResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/routers/{router_id}/add_extraroutes:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/RouterIdParam'
+    put:
+      operationId: addRouterExtraroutes
+      tags:
+        - routers
+      summary: Add extra routes atomically
+      description: >-
+        Atomically adds the given static routes to the router's route table
+        (extraroute-atomic extension). Routes already present are left in place.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouterRoutesRequest'
+      responses:
+        '200':
+          description: The router with its updated route table.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouterResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/routers/{router_id}/remove_extraroutes:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/RouterIdParam'
+    put:
+      operationId: removeRouterExtraroutes
+      tags:
+        - routers
+      summary: Remove extra routes atomically
+      description: >-
+        Atomically removes the given static routes from the router's route table
+        (extraroute-atomic extension). Routes not present are ignored.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouterRoutesRequest'
+      responses:
+        '200':
+          description: The router with its updated route table.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouterResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/floatingips:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listFloatingIps
+      tags:
+        - floating-ips
+      summary: List floating IPs
+      description: Lists floating IPs visible to the caller.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/DescriptionFilterParam'
+        - $ref: '#/components/parameters/StatusFilterParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+        - $ref: '#/components/parameters/FloatingNetworkIdFilterParam'
+        - $ref: '#/components/parameters/FloatingIpAddressFilterParam'
+        - $ref: '#/components/parameters/FixedIpAddressFilterParam'
+        - $ref: '#/components/parameters/PortIdFilterParam'
+        - $ref: '#/components/parameters/RouterIdFilterParam'
+        - $ref: '#/components/parameters/TagsParam'
+        - $ref: '#/components/parameters/TagsAnyParam'
+        - $ref: '#/components/parameters/NotTagsParam'
+        - $ref: '#/components/parameters/NotTagsAnyParam'
+      responses:
+        '200':
+          description: Floating IP list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FloatingIpsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createFloatingIp
+      tags:
+        - floating-ips
+      summary: Create floating IP
+      description: >-
+        Allocates a floating IP from an external network, optionally associating
+        it with a port in the same call. Requesting a specific
+        `floating_ip_address` is policy-gated (admin by default).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFloatingIpRequest'
+      responses:
+        '201':
+          description: The created floating IP.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FloatingIpResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/floatingips/{floatingip_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/FloatingIpIdParam'
+    get:
+      operationId: getFloatingIp
+      tags:
+        - floating-ips
+      summary: Show floating IP details
+      description: Shows details for a floating IP, including `port_details` for the associated port.
+      responses:
+        '200':
+          description: The floating IP.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FloatingIpResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateFloatingIp
+      tags:
+        - floating-ips
+      summary: Update floating IP
+      description: >-
+        Associates the floating IP with a port (`port_id`), moves it, or
+        disassociates it (`port_id: null`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFloatingIpRequest'
+      responses:
+        '200':
+          description: The updated floating IP.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FloatingIpResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteFloatingIp
+      tags:
+        - floating-ips
+      summary: Delete floating IP
+      description: Releases the floating IP back to the external network's pool.
+      responses:
+        '204':
+          description: Floating IP deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/floatingips/{floatingip_id}/port_forwardings:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/FloatingIpIdParam'
+    get:
+      operationId: listPortForwardings
+      tags:
+        - port-forwardings
+      summary: List port forwardings
+      description: Lists the floating IP's port forwardings (floating-ip-port-forwarding extension).
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+      responses:
+        '200':
+          description: The port forwardings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortForwardingsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createPortForwarding
+      tags:
+        - port-forwardings
+      summary: Create port forwarding
+      description: >-
+        Creates a port forwarding on the floating IP. The floating IP must not be
+        associated with a port. Pass either single ports (`internal_port`,
+        `external_port`) or ranges (`internal_port_range`, `external_port_range`),
+        not both.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePortForwardingRequest'
+      responses:
+        '201':
+          description: The created port forwarding.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortForwardingResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/floatingips/{floatingip_id}/port_forwardings/{port_forwarding_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/FloatingIpIdParam'
+      - $ref: '#/components/parameters/PortForwardingIdParam'
+    get:
+      operationId: getPortForwarding
+      tags:
+        - port-forwardings
+      summary: Show a port forwarding
+      description: Shows one port forwarding on the floating IP.
+      responses:
+        '200':
+          description: The port forwarding.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortForwardingResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updatePortForwarding
+      tags:
+        - port-forwardings
+      summary: Update a port forwarding
+      description: Updates the port forwarding's protocol, ports, or internal target.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePortForwardingRequest'
+      responses:
+        '200':
+          description: The updated port forwarding.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortForwardingResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deletePortForwarding
+      tags:
+        - port-forwardings
+      summary: Delete a port forwarding
+      description: Deletes the port forwarding.
+      responses:
+        '204':
+          description: Port forwarding deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/security-groups:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listSecurityGroups
+      tags:
+        - security-groups
+      summary: List security groups
+      description: Lists security groups visible to the caller, each with its rules embedded.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/NameFilterParam'
+        - $ref: '#/components/parameters/DescriptionFilterParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+        - $ref: '#/components/parameters/SharedFilterParam'
+        - $ref: '#/components/parameters/TagsParam'
+        - $ref: '#/components/parameters/TagsAnyParam'
+        - $ref: '#/components/parameters/NotTagsParam'
+        - $ref: '#/components/parameters/NotTagsAnyParam'
+      responses:
+        '200':
+          description: Security group list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroupsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createSecurityGroup
+      tags:
+        - security-groups
+      summary: Create security group
+      description: >-
+        Creates a security group. The new group starts with the default egress
+        rules for IPv4 and IPv6.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSecurityGroupRequest'
+      responses:
+        '201':
+          description: The created security group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroupResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/security-groups/{security_group_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/SecurityGroupIdParam'
+    get:
+      operationId: getSecurityGroup
+      tags:
+        - security-groups
+      summary: Show security group details
+      description: Shows details for a security group, including its rules.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+      responses:
+        '200':
+          description: The security group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroupResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateSecurityGroup
+      tags:
+        - security-groups
+      summary: Update security group
+      description: Updates the security group's name, description, or stateful flag.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSecurityGroupRequest'
+      responses:
+        '200':
+          description: The updated security group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroupResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteSecurityGroup
+      tags:
+        - security-groups
+      summary: Delete security group
+      description: Deletes the security group. Groups still bound to ports, and the project default group, answer 409.
+      responses:
+        '204':
+          description: Security group deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/security-group-rules:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listSecurityGroupRules
+      tags:
+        - security-group-rules
+      summary: List security group rules
+      description: Lists security group rules visible to the caller.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/DescriptionFilterParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+        - $ref: '#/components/parameters/SecurityGroupIdFilterParam'
+        - $ref: '#/components/parameters/DirectionFilterParam'
+        - $ref: '#/components/parameters/ProtocolFilterParam'
+        - $ref: '#/components/parameters/EthertypeFilterParam'
+        - $ref: '#/components/parameters/RemoteGroupIdFilterParam'
+      responses:
+        '200':
+          description: Security group rule list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroupRulesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createSecurityGroupRule
+      tags:
+        - security-group-rules
+      summary: Create security group rule
+      description: >-
+        Creates a rule in a security group. At most one of `remote_ip_prefix`,
+        `remote_group_id`, and `remote_address_group_id` may be set; rules are
+        immutable once created.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSecurityGroupRuleRequest'
+      responses:
+        '201':
+          description: The created rule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroupRuleResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/security-group-rules/{security_group_rule_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/SecurityGroupRuleIdParam'
+    get:
+      operationId: getSecurityGroupRule
+      tags:
+        - security-group-rules
+      summary: Show security group rule details
+      description: Shows details for a security group rule.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+      responses:
+        '200':
+          description: The rule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroupRuleResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteSecurityGroupRule
+      tags:
+        - security-group-rules
+      summary: Delete security group rule
+      description: Deletes the rule.
+      responses:
+        '204':
+          description: Rule deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/subnetpools:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listSubnetPools
+      tags:
+        - subnet-pools
+      summary: List subnet pools
+      description: Lists subnet pools visible to the caller.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/NameFilterParam'
+        - $ref: '#/components/parameters/DescriptionFilterParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+        - $ref: '#/components/parameters/SharedFilterParam'
+        - $ref: '#/components/parameters/IpVersionFilterParam'
+        - $ref: '#/components/parameters/AddressScopeIdFilterParam'
+        - $ref: '#/components/parameters/IsDefaultFilterParam'
+        - $ref: '#/components/parameters/TagsParam'
+        - $ref: '#/components/parameters/TagsAnyParam'
+        - $ref: '#/components/parameters/NotTagsParam'
+        - $ref: '#/components/parameters/NotTagsAnyParam'
+      responses:
+        '200':
+          description: Subnet pool list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubnetPoolsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createSubnetPool
+      tags:
+        - subnet-pools
+      summary: Create subnet pool
+      description: >-
+        Creates a subnet pool from a list of prefixes. `shared` and `is_default`
+        require admin rights.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubnetPoolRequest'
+      responses:
+        '201':
+          description: The created subnet pool.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubnetPoolResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/subnetpools/{subnetpool_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/SubnetPoolIdParam'
+    get:
+      operationId: getSubnetPool
+      tags:
+        - subnet-pools
+      summary: Show subnet pool details
+      description: Shows details for a subnet pool.
+      responses:
+        '200':
+          description: The subnet pool.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubnetPoolResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateSubnetPool
+      tags:
+        - subnet-pools
+      summary: Update subnet pool
+      description: >-
+        Updates the subnet pool. `prefixes` can only grow — new prefixes must
+        include the existing ones.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubnetPoolRequest'
+      responses:
+        '200':
+          description: The updated subnet pool.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubnetPoolResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteSubnetPool
+      tags:
+        - subnet-pools
+      summary: Delete subnet pool
+      description: Deletes the subnet pool, provided no subnets are allocated from it.
+      responses:
+        '204':
+          description: Subnet pool deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/address-scopes:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listAddressScopes
+      tags:
+        - address-scopes
+      summary: List address scopes
+      description: Lists address scopes visible to the caller.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/NameFilterParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+        - $ref: '#/components/parameters/SharedFilterParam'
+        - $ref: '#/components/parameters/IpVersionFilterParam'
+      responses:
+        '200':
+          description: Address scope list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressScopesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createAddressScope
+      tags:
+        - address-scopes
+      summary: Create address scope
+      description: Creates an address scope. `shared` requires admin rights.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAddressScopeRequest'
+      responses:
+        '201':
+          description: The created address scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressScopeResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/address-scopes/{address_scope_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/AddressScopeIdParam'
+    get:
+      operationId: getAddressScope
+      tags:
+        - address-scopes
+      summary: Show address scope details
+      description: Shows details for an address scope.
+      responses:
+        '200':
+          description: The address scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressScopeResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateAddressScope
+      tags:
+        - address-scopes
+      summary: Update address scope
+      description: Updates the address scope's name or shared flag (un-sharing requires no other project use it).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAddressScopeRequest'
+      responses:
+        '200':
+          description: The updated address scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressScopeResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteAddressScope
+      tags:
+        - address-scopes
+      summary: Delete address scope
+      description: Deletes the address scope, provided no subnet pools belong to it.
+      responses:
+        '204':
+          description: Address scope deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/rbac-policies:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listRbacPolicies
+      tags:
+        - rbac-policies
+      summary: List RBAC policies
+      description: Lists RBAC policies created by the caller's project.
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/MarkerParam'
+        - $ref: '#/components/parameters/PageReverseParam'
+        - $ref: '#/components/parameters/SortKeyParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+        - $ref: '#/components/parameters/RbacObjectTypeFilterParam'
+        - $ref: '#/components/parameters/RbacObjectIdFilterParam'
+        - $ref: '#/components/parameters/RbacActionFilterParam'
+        - $ref: '#/components/parameters/RbacTargetTenantFilterParam'
+      responses:
+        '200':
+          description: RBAC policy list, with a pagination link when more results exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RbacPoliciesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createRbacPolicy
+      tags:
+        - rbac-policies
+      summary: Create RBAC policy
+      description: >-
+        Grants another project (or `*` for all) access to an object owned by the
+        caller. `access_as_external` requires admin rights.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRbacPolicyRequest'
+      responses:
+        '201':
+          description: The created RBAC policy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RbacPolicyResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/rbac-policies/{rbac_policy_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/RbacPolicyIdParam'
+    get:
+      operationId: getRbacPolicy
+      tags:
+        - rbac-policies
+      summary: Show RBAC policy details
+      description: Shows details for an RBAC policy.
+      responses:
+        '200':
+          description: The RBAC policy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RbacPolicyResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateRbacPolicy
+      tags:
+        - rbac-policies
+      summary: Update RBAC policy
+      description: Updates the policy's target project; the object and action are immutable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRbacPolicyRequest'
+      responses:
+        '200':
+          description: The updated RBAC policy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RbacPolicyResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteRbacPolicy
+      tags:
+        - rbac-policies
+      summary: Delete RBAC policy
+      description: Deletes the RBAC policy, provided the grant is no longer in use by the target project.
+      responses:
+        '204':
+          description: RBAC policy deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/quotas:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listQuotas
+      tags:
+        - quotas
+      summary: List quotas
+      description: Lists networking quotas for all projects with non-default values (admin).
+      responses:
+        '200':
+          description: The quotas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotasListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/quotas/{tenant_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/QuotaTenantIdParam'
+    get:
+      operationId: getQuota
+      tags:
+        - quotas
+      summary: Show quotas
+      description: Shows the project's networking quotas.
+      responses:
+        '200':
+          description: The quotas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateQuota
+      tags:
+        - quotas
+      summary: Update quotas
+      description: Updates networking quotas for the project (admin). Pass -1 for unlimited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateQuotaRequest'
+      responses:
+        '200':
+          description: The updated quotas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteQuota
+      tags:
+        - quotas
+      summary: Revert quotas to defaults
+      description: Reverts the project's networking quotas to their defaults (admin).
+      responses:
+        '204':
+          description: Quotas reverted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/quotas/{tenant_id}/default:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/QuotaTenantIdParam'
+    get:
+      operationId: getQuotaDefaults
+      tags:
+        - quotas
+      summary: Show default quotas
+      description: Shows the default networking quotas for the project.
+      responses:
+        '200':
+          description: The default quotas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/quotas/{tenant_id}/details:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/QuotaTenantIdParam'
+    get:
+      operationId: getQuotaDetails
+      tags:
+        - quotas
+      summary: Show quotas with usage
+      description: Shows the project's quotas with limit, used, and reserved counts per resource (quota_details extension).
+      responses:
+        '200':
+          description: The detailed quotas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaDetailsResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/agents:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listAgents
+      tags:
+        - agents
+      summary: List agents
+      description: Lists networking agents and their liveness (admin).
+      parameters:
+        - $ref: '#/components/parameters/FieldsParam'
+        - $ref: '#/components/parameters/AgentTypeFilterParam'
+        - $ref: '#/components/parameters/AgentHostFilterParam'
+        - $ref: '#/components/parameters/AgentBinaryFilterParam'
+        - $ref: '#/components/parameters/AgentAliveFilterParam'
+      responses:
+        '200':
+          description: The agents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/agents/{agent_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/AgentIdParam'
+    get:
+      operationId: getAgent
+      tags:
+        - agents
+      summary: Show agent details
+      description: Shows details for an agent, including its configuration report (admin).
+      responses:
+        '200':
+          description: The agent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: updateAgent
+      tags:
+        - agents
+      summary: Update agent
+      description: Enables/disables the agent or sets its description (admin).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAgentRequest'
+      responses:
+        '200':
+          description: The updated agent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteAgent
+      tags:
+        - agents
+      summary: Delete agent
+      description: Deletes the agent record; the agent re-registers if it is still running (admin).
+      responses:
+        '204':
+          description: Agent deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/availability_zones:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listAvailabilityZones
+      tags:
+        - availability-zones
+      summary: List availability zones
+      description: Lists availability zones, one entry per zone and resource type (network, router).
+      responses:
+        '200':
+          description: The availability zones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityZonesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/network-ip-availabilities:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listNetworkIpAvailabilities
+      tags:
+        - network-ip-availability
+      summary: List network IP availability
+      description: Lists total and used IP counts for all networks (admin).
+      parameters:
+        - $ref: '#/components/parameters/NetworkIdFilterParam'
+        - $ref: '#/components/parameters/NetworkNameFilterParam'
+        - $ref: '#/components/parameters/IpVersionFilterParam'
+        - $ref: '#/components/parameters/ProjectIdFilterParam'
+      responses:
+        '200':
+          description: IP availability per network.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkIpAvailabilitiesListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/network-ip-availabilities/{network_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/NetworkIdParam'
+    get:
+      operationId: getNetworkIpAvailability
+      tags:
+        - network-ip-availability
+      summary: Show network IP availability
+      description: Shows total and used IP counts for one network, per subnet (admin).
+      responses:
+        '200':
+          description: The network's IP availability.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkIpAvailabilityResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/extensions:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: listExtensions
+      tags:
+        - extensions
+      summary: List extensions
+      description: Lists the extensions enabled in this deployment; the substitute for microversion discovery.
+      responses:
+        '200':
+          description: The extensions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtensionsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/extensions/{alias}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/ExtensionAliasParam'
+    get:
+      operationId: getExtension
+      tags:
+        - extensions
+      summary: Show extension details
+      description: Shows details for one extension by alias.
+      responses:
+        '200':
+          description: The extension.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtensionResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/{resource_type}/{resource_id}/tags:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/TagResourceTypeParam'
+      - $ref: '#/components/parameters/TagResourceIdParam'
+    get:
+      operationId: listResourceTags
+      tags:
+        - resource-tags
+      summary: List resource tags
+      description: Lists the tags on a resource (standard-attr-tag extension).
+      responses:
+        '200':
+          description: The tags.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceTags'
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: replaceResourceTags
+      tags:
+        - resource-tags
+      summary: Replace resource tags
+      description: Replaces the full tag set on the resource.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceTags'
+      responses:
+        '200':
+          description: The resulting tags.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceTags'
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteResourceTags
+      tags:
+        - resource-tags
+      summary: Delete all resource tags
+      description: Removes every tag from the resource.
+      responses:
+        '204':
+          description: Tags deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+  /neutron/{project_id}/{resource_type}/{resource_id}/tags/{tag}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+      - $ref: '#/components/parameters/TagResourceTypeParam'
+      - $ref: '#/components/parameters/TagResourceIdParam'
+      - $ref: '#/components/parameters/TagParam'
+    get:
+      operationId: checkResourceTag
+      tags:
+        - resource-tags
+      summary: Check tag existence
+      description: Answers 204 when the resource has the tag and 404 when it does not.
+      responses:
+        '204':
+          description: The resource has the tag.
+        default:
+          $ref: '#/components/responses/Fault'
+    put:
+      operationId: addResourceTag
+      tags:
+        - resource-tags
+      summary: Add a tag
+      description: Adds a single tag to the resource. The request has no body; adding an existing tag is a no-op.
+      responses:
+        '201':
+          description: Tag added.
+        default:
+          $ref: '#/components/responses/Fault'
+    delete:
+      operationId: deleteResourceTag
+      tags:
+        - resource-tags
+      summary: Delete a tag
+      description: Removes a single tag from the resource.
+      responses:
+        '204':
+          description: Tag deleted.
+        default:
+          $ref: '#/components/responses/Fault'
+components:
+  securitySchemes:
+    neutronAuth:
+      type: apiKey
+      in: header
+      name: X-Auth-Token
+      description: A valid Keystone authentication token.
+  parameters:
+    ProjectIdParam:
+      name: project_id
+      in: path
+      required: true
+      description: Keystone project (tenant) id that scopes this request.
+      schema:
+        type: string
+    NetworkIdParam:
+      name: network_id
+      in: path
+      required: true
+      description: The UUID of the network.
+      schema:
+        type: string
+    SubnetIdParam:
+      name: subnet_id
+      in: path
+      required: true
+      description: The UUID of the subnet.
+      schema:
+        type: string
+    PortIdParam:
+      name: port_id
+      in: path
+      required: true
+      description: The UUID of the port.
+      schema:
+        type: string
+    RouterIdParam:
+      name: router_id
+      in: path
+      required: true
+      description: The UUID of the router.
+      schema:
+        type: string
+    FloatingIpIdParam:
+      name: floatingip_id
+      in: path
+      required: true
+      description: The UUID of the floating IP.
+      schema:
+        type: string
+    PortForwardingIdParam:
+      name: port_forwarding_id
+      in: path
+      required: true
+      description: The UUID of the port forwarding.
+      schema:
+        type: string
+    SecurityGroupIdParam:
+      name: security_group_id
+      in: path
+      required: true
+      description: The UUID of the security group.
+      schema:
+        type: string
+    SecurityGroupRuleIdParam:
+      name: security_group_rule_id
+      in: path
+      required: true
+      description: The UUID of the security group rule.
+      schema:
+        type: string
+    SubnetPoolIdParam:
+      name: subnetpool_id
+      in: path
+      required: true
+      description: The UUID of the subnet pool.
+      schema:
+        type: string
+    AddressScopeIdParam:
+      name: address_scope_id
+      in: path
+      required: true
+      description: The UUID of the address scope.
+      schema:
+        type: string
+    RbacPolicyIdParam:
+      name: rbac_policy_id
+      in: path
+      required: true
+      description: The UUID of the RBAC policy.
+      schema:
+        type: string
+    QuotaTenantIdParam:
+      name: tenant_id
+      in: path
+      required: true
+      description: Project id whose quotas are shown or managed.
+      schema:
+        type: string
+    AgentIdParam:
+      name: agent_id
+      in: path
+      required: true
+      description: The UUID of the agent.
+      schema:
+        type: string
+    ExtensionAliasParam:
+      name: alias
+      in: path
+      required: true
+      description: The alias of the extension, e.g. router or standard-attr-tag.
+      schema:
+        type: string
+    TagResourceTypeParam:
+      name: resource_type
+      in: path
+      required: true
+      description: Collection name of the tagged resource type.
+      schema:
+        type: string
+        enum:
+          - networks
+          - subnets
+          - ports
+          - routers
+          - floatingips
+          - subnetpools
+          - security-groups
+    TagResourceIdParam:
+      name: resource_id
+      in: path
+      required: true
+      description: The UUID of the tagged resource.
+      schema:
+        type: string
+    TagParam:
+      name: tag
+      in: path
+      required: true
+      description: The tag (max 255 characters; must not contain commas or slashes).
+      schema:
+        type: string
+    FieldsParam:
+      name: fields
+      in: query
+      required: false
+      description: >-
+        Attribute name to include in the response, projecting away all others.
+        May be given multiple times.
+      schema:
+        type: string
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return; enables paginated responses.
+      schema:
+        type: integer
+        minimum: 1
+    MarkerParam:
+      name: marker
+      in: query
+      required: false
+      description: The id of the last item on the previous page; the listing starts after it.
+      schema:
+        type: string
+    PageReverseParam:
+      name: page_reverse
+      in: query
+      required: false
+      description: Reverse the page direction, listing items before the marker instead of after it.
+      schema:
+        type: boolean
+    SortKeyParam:
+      name: sort_key
+      in: query
+      required: false
+      description: >-
+        Resource attribute to sort by (e.g. id, name, status). May be given
+        multiple times; each occurrence must be paired with a sort_dir.
+      schema:
+        type: string
+    SortDirParam:
+      name: sort_dir
+      in: query
+      required: false
+      description: Sort direction; may be given multiple times, one per sort_key.
+      schema:
+        type: string
+        enum:
+          - asc
+          - desc
+    NameFilterParam:
+      name: name
+      in: query
+      required: false
+      description: Filter by name (exact match).
+      schema:
+        type: string
+    DescriptionFilterParam:
+      name: description
+      in: query
+      required: false
+      description: Filter by description (exact match).
+      schema:
+        type: string
+    AdminStateUpFilterParam:
+      name: admin_state_up
+      in: query
+      required: false
+      description: Filter by administrative state.
+      schema:
+        type: boolean
+    StatusFilterParam:
+      name: status
+      in: query
+      required: false
+      description: Filter by status (e.g. ACTIVE, DOWN, BUILD, ERROR).
+      schema:
+        type: string
+    ProjectIdFilterParam:
+      name: project_id
+      in: query
+      required: false
+      description: Filter by owning project id (admin, for cross-project listing).
+      schema:
+        type: string
+    SharedFilterParam:
+      name: shared
+      in: query
+      required: false
+      description: Filter by shared flag.
+      schema:
+        type: boolean
+    RouterExternalFilterParam:
+      name: 'router:external'
+      in: query
+      required: false
+      description: Filter by external-network flag.
+      schema:
+        type: boolean
+    MtuFilterParam:
+      name: mtu
+      in: query
+      required: false
+      description: Filter by MTU.
+      schema:
+        type: integer
+    NetworkProviderTypeFilterParam:
+      name: 'provider:network_type'
+      in: query
+      required: false
+      description: Filter by provider network type, e.g. flat, vlan, vxlan, geneve (admin).
+      schema:
+        type: string
+    TagsParam:
+      name: tags
+      in: query
+      required: false
+      description: Comma-separated tag list; only resources carrying all of them match.
+      schema:
+        type: string
+    TagsAnyParam:
+      name: tags-any
+      in: query
+      required: false
+      description: Comma-separated tag list; resources carrying any of them match.
+      schema:
+        type: string
+    NotTagsParam:
+      name: not-tags
+      in: query
+      required: false
+      description: Comma-separated tag list; resources carrying all of them are excluded.
+      schema:
+        type: string
+    NotTagsAnyParam:
+      name: not-tags-any
+      in: query
+      required: false
+      description: Comma-separated tag list; resources carrying any of them are excluded.
+      schema:
+        type: string
+    NetworkIdFilterParam:
+      name: network_id
+      in: query
+      required: false
+      description: Filter by network id.
+      schema:
+        type: string
+    NetworkNameFilterParam:
+      name: network_name
+      in: query
+      required: false
+      description: Filter by network name.
+      schema:
+        type: string
+    IpVersionFilterParam:
+      name: ip_version
+      in: query
+      required: false
+      description: Filter by IP version.
+      schema:
+        type: integer
+        enum:
+          - 4
+          - 6
+    CidrFilterParam:
+      name: cidr
+      in: query
+      required: false
+      description: Filter by CIDR (exact match).
+      schema:
+        type: string
+    GatewayIpFilterParam:
+      name: gateway_ip
+      in: query
+      required: false
+      description: Filter by gateway IP address.
+      schema:
+        type: string
+    EnableDhcpFilterParam:
+      name: enable_dhcp
+      in: query
+      required: false
+      description: Filter by DHCP flag.
+      schema:
+        type: boolean
+    SubnetPoolIdFilterParam:
+      name: subnetpool_id
+      in: query
+      required: false
+      description: Filter by subnet pool id.
+      schema:
+        type: string
+    DeviceIdFilterParam:
+      name: device_id
+      in: query
+      required: false
+      description: Filter by owning device id, e.g. a server UUID.
+      schema:
+        type: string
+    DeviceOwnerFilterParam:
+      name: device_owner
+      in: query
+      required: false
+      description: 'Filter by device owner, e.g. compute:nova or network:router_interface.'
+      schema:
+        type: string
+    MacAddressFilterParam:
+      name: mac_address
+      in: query
+      required: false
+      description: Filter by MAC address.
+      schema:
+        type: string
+    FixedIpsFilterParam:
+      name: fixed_ips
+      in: query
+      required: false
+      description: >-
+        Filter by fixed IP, using the key=value syntax
+        `fixed_ips=ip_address=10.0.0.5` or `fixed_ips=subnet_id=<uuid>`
+        (`ip_address_substr=` for substring match). May be given multiple times.
+      schema:
+        type: string
+    BindingHostIdFilterParam:
+      name: 'binding:host_id'
+      in: query
+      required: false
+      description: Filter by the host the port is bound to (admin).
+      schema:
+        type: string
+    FloatingNetworkIdFilterParam:
+      name: floating_network_id
+      in: query
+      required: false
+      description: Filter by external network id.
+      schema:
+        type: string
+    FloatingIpAddressFilterParam:
+      name: floating_ip_address
+      in: query
+      required: false
+      description: Filter by floating IP address.
+      schema:
+        type: string
+    FixedIpAddressFilterParam:
+      name: fixed_ip_address
+      in: query
+      required: false
+      description: Filter by the associated fixed IP address.
+      schema:
+        type: string
+    PortIdFilterParam:
+      name: port_id
+      in: query
+      required: false
+      description: Filter by associated port id.
+      schema:
+        type: string
+    RouterIdFilterParam:
+      name: router_id
+      in: query
+      required: false
+      description: Filter by the router carrying the association.
+      schema:
+        type: string
+    SecurityGroupIdFilterParam:
+      name: security_group_id
+      in: query
+      required: false
+      description: Filter by the security group the rules belong to.
+      schema:
+        type: string
+    DirectionFilterParam:
+      name: direction
+      in: query
+      required: false
+      description: Filter by traffic direction.
+      schema:
+        type: string
+        enum:
+          - ingress
+          - egress
+    ProtocolFilterParam:
+      name: protocol
+      in: query
+      required: false
+      description: Filter by IP protocol name or number.
+      schema:
+        type: string
+    EthertypeFilterParam:
+      name: ethertype
+      in: query
+      required: false
+      description: Filter by ethertype.
+      schema:
+        type: string
+        enum:
+          - IPv4
+          - IPv6
+    RemoteGroupIdFilterParam:
+      name: remote_group_id
+      in: query
+      required: false
+      description: Filter by remote security group id.
+      schema:
+        type: string
+    AddressScopeIdFilterParam:
+      name: address_scope_id
+      in: query
+      required: false
+      description: Filter by address scope id.
+      schema:
+        type: string
+    IsDefaultFilterParam:
+      name: is_default
+      in: query
+      required: false
+      description: Filter by default flag.
+      schema:
+        type: boolean
+    RbacObjectTypeFilterParam:
+      name: object_type
+      in: query
+      required: false
+      description: Filter by shared object type, e.g. network, security_group, subnetpool, address_scope.
+      schema:
+        type: string
+    RbacObjectIdFilterParam:
+      name: object_id
+      in: query
+      required: false
+      description: Filter by shared object id.
+      schema:
+        type: string
+    RbacActionFilterParam:
+      name: action
+      in: query
+      required: false
+      description: Filter by RBAC action (access_as_shared, access_as_external, access_as_readonly).
+      schema:
+        type: string
+    RbacTargetTenantFilterParam:
+      name: target_tenant
+      in: query
+      required: false
+      description: Filter by target project id.
+      schema:
+        type: string
+    AgentTypeFilterParam:
+      name: agent_type
+      in: query
+      required: false
+      description: Filter by agent type, e.g. DHCP agent, L3 agent, Open vSwitch agent.
+      schema:
+        type: string
+    AgentHostFilterParam:
+      name: host
+      in: query
+      required: false
+      description: Filter by the host the agent runs on.
+      schema:
+        type: string
+    AgentBinaryFilterParam:
+      name: binary
+      in: query
+      required: false
+      description: Filter by agent executable, e.g. neutron-dhcp-agent.
+      schema:
+        type: string
+    AgentAliveFilterParam:
+      name: alive
+      in: query
+      required: false
+      description: Filter by liveness.
+      schema:
+        type: boolean
+  schemas:
+    NeutronErrorBody:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Error class name, e.g. NetworkNotFound.
+        message:
+          type: string
+        detail:
+          type: string
+      required:
+        - type
+        - message
+    Fault:
+      type: object
+      description: Neutron error envelope.
+      properties:
+        NeutronError:
+          $ref: '#/components/schemas/NeutronErrorBody'
+      required:
+        - NeutronError
+      example:
+        NeutronError:
+          type: NetworkNotFound
+          message: Network 9bacb3c5-8433-41a5-a163-df95b6c116f2 could not be found.
+          detail: ''
+    Link:
+      type: object
+      properties:
+        href:
+          type: string
+        rel:
+          type: string
+          description: next or previous.
+      required:
+        - href
+        - rel
+    ResourceTags:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+          maxItems: 50
+      required:
+        - tags
+      example:
+        tags:
+          - production
+          - web-tier
+    AllocationPool:
+      type: object
+      description: A contiguous IP address range that DHCP and port creation allocate from.
+      properties:
+        start:
+          type: string
+        end:
+          type: string
+      required:
+        - start
+        - end
+      example:
+        start: 10.0.0.2
+        end: 10.0.0.254
+    StaticRoute:
+      type: object
+      description: A static route, used for subnet host routes and router extra routes.
+      properties:
+        destination:
+          type: string
+          description: Destination CIDR.
+        nexthop:
+          type: string
+          description: Next-hop IP address.
+      required:
+        - destination
+        - nexthop
+      example:
+        destination: 192.168.40.0/24
+        nexthop: 10.0.0.11
+    FixedIp:
+      type: object
+      description: >-
+        A fixed IP assignment. Responses always carry both fields; requests may
+        pass just a subnet_id (allocate any address on it) or just an ip_address.
+      properties:
+        ip_address:
+          type: string
+        subnet_id:
+          type: string
+    AllowedAddressPair:
+      type: object
+      description: An extra IP/MAC pair allowed to send traffic through the port.
+      properties:
+        ip_address:
+          type: string
+          description: IP address or CIDR.
+        mac_address:
+          type: string
+          description: Defaults to the port's own MAC.
+      required:
+        - ip_address
+    ExtraDhcpOpt:
+      type: object
+      properties:
+        opt_name:
+          type: string
+          description: DHCP option name, e.g. bootfile-name.
+        opt_value:
+          type:
+            - string
+            - 'null'
+          description: Pass null to unset the option on update.
+        ip_version:
+          type: integer
+          enum:
+            - 4
+            - 6
+          description: Restrict the option to one IP version.
+      required:
+        - opt_name
+        - opt_value
+    DnsAssignment:
+      type: object
+      description: Internal DNS record assigned to the port (dns-integration extension).
+      properties:
+        hostname:
+          type: string
+        ip_address:
+          type: string
+        fqdn:
+          type: string
+      required:
+        - hostname
+        - ip_address
+        - fqdn
+    Network:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          description: ACTIVE, DOWN, BUILD, or ERROR.
+        admin_state_up:
+          type: boolean
+        shared:
+          type: boolean
+          description: Whether the network is shared with other projects through an RBAC policy.
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+        mtu:
+          type: integer
+        subnets:
+          type: array
+          items:
+            type: string
+          description: Ids of the network's subnets.
+        'router:external':
+          type: boolean
+          description: Whether the network can serve as router gateway and floating IP pool.
+        port_security_enabled:
+          type: boolean
+          description: Default port-security state for new ports on the network.
+        availability_zones:
+          type: array
+          items:
+            type: string
+        availability_zone_hints:
+          type: array
+          items:
+            type: string
+        dns_domain:
+          type: string
+        qos_policy_id:
+          type:
+            - string
+            - 'null'
+        'provider:network_type':
+          type: string
+          description: flat, vlan, vxlan, geneve, gre, or local (admin).
+        'provider:physical_network':
+          type:
+            - string
+            - 'null'
+          description: Physical network name for flat/vlan networks (admin).
+        'provider:segmentation_id':
+          type:
+            - integer
+            - 'null'
+          description: VLAN id or tunnel id, depending on the network type (admin).
+        is_default:
+          type: boolean
+          description: Whether this external network is the default for auto-allocation.
+        revision_number:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - status
+        - admin_state_up
+        - shared
+        - project_id
+        - subnets
+      example:
+        id: d32019d3-bc6e-4319-9c1d-6722fc136a22
+        name: private
+        description: ''
+        status: ACTIVE
+        admin_state_up: true
+        shared: false
+        project_id: 4fd44f30292945e481c7b8a0c8908869
+        mtu: 1442
+        subnets:
+          - 54d6f61d-db07-451c-9ab3-b9609b6b6f0b
+        'router:external': false
+        port_security_enabled: true
+        availability_zones:
+          - nova
+        revision_number: 2
+        created_at: '2024-03-08T09:55:23Z'
+        updated_at: '2024-03-08T09:55:25Z'
+        tags: []
+    NetworksListResponse:
+      type: object
+      properties:
+        networks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Network'
+        networks_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - networks
+    NetworkResponse:
+      type: object
+      properties:
+        network:
+          $ref: '#/components/schemas/Network'
+      required:
+        - network
+    CreateNetworkRequest:
+      type: object
+      properties:
+        network:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            admin_state_up:
+              type: boolean
+            shared:
+              type: boolean
+              description: Policy-gated (admin by default).
+            'router:external':
+              type: boolean
+              description: Admin only.
+            mtu:
+              type: integer
+            port_security_enabled:
+              type: boolean
+            dns_domain:
+              type: string
+            qos_policy_id:
+              type: string
+            availability_zone_hints:
+              type: array
+              items:
+                type: string
+            'provider:network_type':
+              type: string
+              description: Admin only.
+            'provider:physical_network':
+              type: string
+              description: Admin only.
+            'provider:segmentation_id':
+              type: integer
+              description: Admin only.
+            is_default:
+              type: boolean
+              description: Admin only.
+            project_id:
+              type: string
+              description: Create on behalf of another project (admin).
+      required:
+        - network
+    UpdateNetworkRequest:
+      type: object
+      properties:
+        network:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            admin_state_up:
+              type: boolean
+            shared:
+              type: boolean
+            'router:external':
+              type: boolean
+            mtu:
+              type: integer
+            port_security_enabled:
+              type: boolean
+            dns_domain:
+              type: string
+            qos_policy_id:
+              type:
+                - string
+                - 'null'
+            is_default:
+              type: boolean
+      required:
+        - network
+    Subnet:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        network_id:
+          type: string
+        ip_version:
+          type: integer
+          enum:
+            - 4
+            - 6
+        cidr:
+          type: string
+        gateway_ip:
+          type:
+            - string
+            - 'null'
+          description: Null when the subnet has no gateway.
+        allocation_pools:
+          type: array
+          items:
+            $ref: '#/components/schemas/AllocationPool'
+        dns_nameservers:
+          type: array
+          items:
+            type: string
+        dns_publish_fixed_ip:
+          type: boolean
+          description: Whether fixed IPs get published to the external DNS service.
+        host_routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaticRoute'
+        enable_dhcp:
+          type: boolean
+        ipv6_ra_mode:
+          type:
+            - string
+            - 'null'
+          enum:
+            - slaac
+            - dhcpv6-stateful
+            - dhcpv6-stateless
+            - null
+        ipv6_address_mode:
+          type:
+            - string
+            - 'null'
+          enum:
+            - slaac
+            - dhcpv6-stateful
+            - dhcpv6-stateless
+            - null
+        subnetpool_id:
+          type:
+            - string
+            - 'null'
+          description: The pool the CIDR was allocated from, if any.
+        segment_id:
+          type:
+            - string
+            - 'null'
+        service_types:
+          type: array
+          items:
+            type: string
+          description: 'Device owners the subnet is reserved for, e.g. network:floatingip_agent_gateway.'
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+        revision_number:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - network_id
+        - ip_version
+        - cidr
+        - gateway_ip
+        - allocation_pools
+        - enable_dhcp
+        - project_id
+      example:
+        id: 54d6f61d-db07-451c-9ab3-b9609b6b6f0b
+        name: private-subnet
+        network_id: d32019d3-bc6e-4319-9c1d-6722fc136a22
+        ip_version: 4
+        cidr: 10.0.0.0/24
+        gateway_ip: 10.0.0.1
+        allocation_pools:
+          - start: 10.0.0.2
+            end: 10.0.0.254
+        dns_nameservers:
+          - 8.8.8.8
+        enable_dhcp: true
+        project_id: 4fd44f30292945e481c7b8a0c8908869
+    SubnetsListResponse:
+      type: object
+      properties:
+        subnets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subnet'
+        subnets_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - subnets
+    SubnetResponse:
+      type: object
+      properties:
+        subnet:
+          $ref: '#/components/schemas/Subnet'
+      required:
+        - subnet
+    CreateSubnetRequest:
+      type: object
+      properties:
+        subnet:
+          type: object
+          properties:
+            network_id:
+              type: string
+            ip_version:
+              type: integer
+              enum:
+                - 4
+                - 6
+            cidr:
+              type: string
+              description: Omit when allocating from a subnet pool.
+            prefixlen:
+              type: integer
+              description: Prefix length to allocate when using a subnet pool.
+            subnetpool_id:
+              type: string
+            use_default_subnetpool:
+              type: boolean
+              description: Allocate from the default subnet pool instead of naming one.
+            name:
+              type: string
+            description:
+              type: string
+            gateway_ip:
+              type:
+                - string
+                - 'null'
+              description: Defaults to the first address; pass null for no gateway.
+            allocation_pools:
+              type: array
+              items:
+                $ref: '#/components/schemas/AllocationPool'
+            dns_nameservers:
+              type: array
+              items:
+                type: string
+            dns_publish_fixed_ip:
+              type: boolean
+            host_routes:
+              type: array
+              items:
+                $ref: '#/components/schemas/StaticRoute'
+            enable_dhcp:
+              type: boolean
+            ipv6_ra_mode:
+              type: string
+              enum:
+                - slaac
+                - dhcpv6-stateful
+                - dhcpv6-stateless
+            ipv6_address_mode:
+              type: string
+              enum:
+                - slaac
+                - dhcpv6-stateful
+                - dhcpv6-stateless
+            segment_id:
+              type: string
+            service_types:
+              type: array
+              items:
+                type: string
+            project_id:
+              type: string
+              description: Create on behalf of another project (admin).
+          required:
+            - network_id
+            - ip_version
+      required:
+        - subnet
+    UpdateSubnetRequest:
+      type: object
+      properties:
+        subnet:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            gateway_ip:
+              type:
+                - string
+                - 'null'
+            allocation_pools:
+              type: array
+              items:
+                $ref: '#/components/schemas/AllocationPool'
+            dns_nameservers:
+              type: array
+              items:
+                type: string
+            dns_publish_fixed_ip:
+              type: boolean
+            host_routes:
+              type: array
+              items:
+                $ref: '#/components/schemas/StaticRoute'
+            enable_dhcp:
+              type: boolean
+            service_types:
+              type: array
+              items:
+                type: string
+            segment_id:
+              type: string
+      required:
+        - subnet
+    Port:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        network_id:
+          type: string
+        status:
+          type: string
+          description: ACTIVE, DOWN, BUILD, ERROR, or N/A.
+        admin_state_up:
+          type: boolean
+        mac_address:
+          type: string
+        fixed_ips:
+          type: array
+          items:
+            $ref: '#/components/schemas/FixedIp'
+        device_id:
+          type: string
+          description: Id of the device using the port, e.g. a server UUID; empty when unattached.
+        device_owner:
+          type: string
+          description: 'Entity type using the port, e.g. compute:nova or network:router_interface.'
+        security_groups:
+          type: array
+          items:
+            type: string
+          description: Ids of the security groups applied to the port.
+        allowed_address_pairs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AllowedAddressPair'
+        extra_dhcp_opts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtraDhcpOpt'
+        port_security_enabled:
+          type: boolean
+        dns_name:
+          type: string
+        dns_domain:
+          type: string
+        dns_assignment:
+          type: array
+          items:
+            $ref: '#/components/schemas/DnsAssignment'
+        'binding:vnic_type':
+          type: string
+          description: normal, macvtap, direct, direct-physical, baremetal, virtio-forwarder, smart-nic, or vdpa.
+        'binding:host_id':
+          type: string
+          description: Host the port is bound to (admin).
+        'binding:profile':
+          type: object
+          description: Binding information passed to/from the mechanism driver (admin).
+        'binding:vif_type':
+          type: string
+          description: ovs, bridge, unbound, … (admin).
+        'binding:vif_details':
+          type: object
+          description: Backend VIF details such as port_filter (admin).
+        qos_policy_id:
+          type:
+            - string
+            - 'null'
+        propagate_uplink_status:
+          type: boolean
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+        revision_number:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - network_id
+        - status
+        - admin_state_up
+        - mac_address
+        - fixed_ips
+        - device_id
+        - device_owner
+        - project_id
+      example:
+        id: 46d4bfb9-b26e-41f3-bd2e-e6dcc1ccedb2
+        name: ''
+        network_id: d32019d3-bc6e-4319-9c1d-6722fc136a22
+        status: ACTIVE
+        admin_state_up: true
+        mac_address: 'fa:16:3e:23:fd:d7'
+        fixed_ips:
+          - ip_address: 10.0.0.4
+            subnet_id: 54d6f61d-db07-451c-9ab3-b9609b6b6f0b
+        device_id: 5e3898d7-11be-483e-9732-b2f5eccd2b2e
+        device_owner: 'compute:nova'
+        security_groups:
+          - 85cc3048-abc3-43cc-89b3-377341426ac5
+        project_id: 4fd44f30292945e481c7b8a0c8908869
+    PortsListResponse:
+      type: object
+      properties:
+        ports:
+          type: array
+          items:
+            $ref: '#/components/schemas/Port'
+        ports_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - ports
+    PortResponse:
+      type: object
+      properties:
+        port:
+          $ref: '#/components/schemas/Port'
+      required:
+        - port
+    CreatePortRequest:
+      type: object
+      properties:
+        port:
+          type: object
+          properties:
+            network_id:
+              type: string
+            name:
+              type: string
+            description:
+              type: string
+            admin_state_up:
+              type: boolean
+            mac_address:
+              type: string
+              description: Defaults to a generated address.
+            fixed_ips:
+              type: array
+              items:
+                $ref: '#/components/schemas/FixedIp'
+            device_id:
+              type: string
+            device_owner:
+              type: string
+            security_groups:
+              type: array
+              items:
+                type: string
+            allowed_address_pairs:
+              type: array
+              items:
+                $ref: '#/components/schemas/AllowedAddressPair'
+            extra_dhcp_opts:
+              type: array
+              items:
+                $ref: '#/components/schemas/ExtraDhcpOpt'
+            port_security_enabled:
+              type: boolean
+            dns_name:
+              type: string
+            dns_domain:
+              type: string
+            'binding:vnic_type':
+              type: string
+            'binding:host_id':
+              type: string
+              description: Admin only.
+            'binding:profile':
+              type: object
+              description: Admin only.
+            qos_policy_id:
+              type: string
+            propagate_uplink_status:
+              type: boolean
+            project_id:
+              type: string
+              description: Create on behalf of another project (admin).
+          required:
+            - network_id
+      required:
+        - port
+    UpdatePortRequest:
+      type: object
+      properties:
+        port:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            admin_state_up:
+              type: boolean
+            mac_address:
+              type: string
+              description: Updatable only while the port is unbound (or by admin).
+            fixed_ips:
+              type: array
+              items:
+                $ref: '#/components/schemas/FixedIp'
+            device_id:
+              type: string
+            device_owner:
+              type: string
+            security_groups:
+              type: array
+              items:
+                type: string
+            allowed_address_pairs:
+              type: array
+              items:
+                $ref: '#/components/schemas/AllowedAddressPair'
+            extra_dhcp_opts:
+              type: array
+              items:
+                $ref: '#/components/schemas/ExtraDhcpOpt'
+            port_security_enabled:
+              type: boolean
+            dns_name:
+              type: string
+            dns_domain:
+              type: string
+            'binding:vnic_type':
+              type: string
+            'binding:host_id':
+              type: string
+              description: Admin only.
+            'binding:profile':
+              type: object
+              description: Admin only.
+            qos_policy_id:
+              type:
+                - string
+                - 'null'
+      required:
+        - port
+    ExternalFixedIp:
+      type: object
+      description: An IP allocation on an external network for a router gateway.
+      properties:
+        ip_address:
+          type: string
+        subnet_id:
+          type: string
+    ExternalGatewayInfo:
+      type: object
+      properties:
+        network_id:
+          type: string
+          description: Id of the external network.
+        enable_snat:
+          type: boolean
+          description: Whether the router SNATs internal traffic (admin to change).
+        external_fixed_ips:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalFixedIp'
+        qos_policy_id:
+          type:
+            - string
+            - 'null'
+      required:
+        - network_id
+    Router:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          description: ACTIVE, DOWN, or ERROR.
+        admin_state_up:
+          type: boolean
+        external_gateway_info:
+          oneOf:
+            - $ref: '#/components/schemas/ExternalGatewayInfo'
+            - type: 'null'
+          description: Null when the router has no external gateway.
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaticRoute'
+          description: Extra static routes (extraroute extension).
+        distributed:
+          type: boolean
+          description: Whether the router is a DVR router (admin).
+        ha:
+          type: boolean
+          description: Whether the router is highly available (admin).
+        flavor_id:
+          type:
+            - string
+            - 'null'
+        availability_zones:
+          type: array
+          items:
+            type: string
+        availability_zone_hints:
+          type: array
+          items:
+            type: string
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+        revision_number:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - status
+        - admin_state_up
+        - external_gateway_info
+        - routes
+        - project_id
+      example:
+        id: f8a44de0-fc8e-45df-93c7-f79bf3b01c95
+        name: router1
+        status: ACTIVE
+        admin_state_up: true
+        external_gateway_info:
+          network_id: ae34051f-aa6c-4c75-abf5-50dc9ac99ef3
+          enable_snat: true
+          external_fixed_ips:
+            - ip_address: 172.24.4.6
+              subnet_id: b930d7f6-ceb7-40a0-8b81-a425dd994ccf
+        routes: []
+        project_id: 4fd44f30292945e481c7b8a0c8908869
+    RoutersListResponse:
+      type: object
+      properties:
+        routers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Router'
+        routers_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - routers
+    RouterResponse:
+      type: object
+      properties:
+        router:
+          $ref: '#/components/schemas/Router'
+      required:
+        - router
+    CreateRouterRequest:
+      type: object
+      properties:
+        router:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            admin_state_up:
+              type: boolean
+            external_gateway_info:
+              $ref: '#/components/schemas/ExternalGatewayInfo'
+            distributed:
+              type: boolean
+              description: Admin only.
+            ha:
+              type: boolean
+              description: Admin only.
+            flavor_id:
+              type: string
+            availability_zone_hints:
+              type: array
+              items:
+                type: string
+            project_id:
+              type: string
+              description: Create on behalf of another project (admin).
+      required:
+        - router
+    UpdateRouterRequest:
+      type: object
+      properties:
+        router:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            admin_state_up:
+              type: boolean
+            external_gateway_info:
+              oneOf:
+                - $ref: '#/components/schemas/ExternalGatewayInfo'
+                - type: 'null'
+              description: Pass null to clear the gateway.
+            routes:
+              type: array
+              items:
+                $ref: '#/components/schemas/StaticRoute'
+              description: Replaces the whole route table; prefer the atomic extraroute actions.
+            distributed:
+              type: boolean
+              description: Admin only; the router must be admin_state_up=false.
+            ha:
+              type: boolean
+              description: Admin only; the router must be admin_state_up=false.
+      required:
+        - router
+    RouterRoutesRequest:
+      type: object
+      properties:
+        router:
+          type: object
+          properties:
+            routes:
+              type: array
+              items:
+                $ref: '#/components/schemas/StaticRoute'
+          required:
+            - routes
+      required:
+        - router
+    RouterInterfaceRequest:
+      type: object
+      description: Pass exactly one of subnet_id or port_id.
+      properties:
+        subnet_id:
+          type: string
+          description: Attach/detach by subnet; the gateway address of the subnet is used.
+        port_id:
+          type: string
+          description: Attach/detach an existing port.
+    RouterInterfaceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The router id.
+        network_id:
+          type: string
+        port_id:
+          type: string
+          description: The router interface port.
+        subnet_id:
+          type: string
+          description: First subnet of the interface.
+        subnet_ids:
+          type: array
+          items:
+            type: string
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - network_id
+        - port_id
+        - subnet_id
+        - subnet_ids
+    FloatingIpPortDetails:
+      type: object
+      description: Details of the associated port (fip-port-details extension).
+      properties:
+        name:
+          type: string
+        network_id:
+          type: string
+        mac_address:
+          type: string
+        admin_state_up:
+          type: boolean
+        status:
+          type: string
+        device_id:
+          type: string
+        device_owner:
+          type: string
+    FloatingIp:
+      type: object
+      properties:
+        id:
+          type: string
+        floating_ip_address:
+          type: string
+        floating_network_id:
+          type: string
+          description: The external network the address comes from.
+        router_id:
+          type:
+            - string
+            - 'null'
+          description: The router carrying the association; null when unassociated.
+        port_id:
+          type:
+            - string
+            - 'null'
+          description: The associated internal port; null when unassociated.
+        fixed_ip_address:
+          type:
+            - string
+            - 'null'
+          description: The internal address the floating IP maps to; null when unassociated.
+        status:
+          type: string
+          description: ACTIVE, DOWN, or ERROR.
+        description:
+          type: string
+        dns_domain:
+          type: string
+        dns_name:
+          type: string
+        qos_policy_id:
+          type:
+            - string
+            - 'null'
+        port_details:
+          oneOf:
+            - $ref: '#/components/schemas/FloatingIpPortDetails'
+            - type: 'null'
+        port_forwardings:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortForwarding'
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+        revision_number:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - floating_ip_address
+        - floating_network_id
+        - router_id
+        - port_id
+        - fixed_ip_address
+        - status
+        - project_id
+      example:
+        id: 2f245a7b-796b-4f26-9cf9-9e82d248fda7
+        floating_ip_address: 172.24.4.228
+        floating_network_id: ae34051f-aa6c-4c75-abf5-50dc9ac99ef3
+        router_id: f8a44de0-fc8e-45df-93c7-f79bf3b01c95
+        port_id: ce705c24-c1ef-408a-bda3-7bbd946164ab
+        fixed_ip_address: 10.0.0.4
+        status: ACTIVE
+        project_id: 4fd44f30292945e481c7b8a0c8908869
+    FloatingIpsListResponse:
+      type: object
+      properties:
+        floatingips:
+          type: array
+          items:
+            $ref: '#/components/schemas/FloatingIp'
+        floatingips_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - floatingips
+    FloatingIpResponse:
+      type: object
+      properties:
+        floatingip:
+          $ref: '#/components/schemas/FloatingIp'
+      required:
+        - floatingip
+    CreateFloatingIpRequest:
+      type: object
+      properties:
+        floatingip:
+          type: object
+          properties:
+            floating_network_id:
+              type: string
+            port_id:
+              type: string
+              description: Associate with this port immediately.
+            fixed_ip_address:
+              type: string
+              description: Required when the port has multiple fixed IPs.
+            floating_ip_address:
+              type: string
+              description: Request a specific address (policy-gated, admin by default).
+            subnet_id:
+              type: string
+              description: External subnet to allocate the address from.
+            description:
+              type: string
+            dns_domain:
+              type: string
+            dns_name:
+              type: string
+            qos_policy_id:
+              type: string
+            project_id:
+              type: string
+              description: Create on behalf of another project (admin).
+          required:
+            - floating_network_id
+      required:
+        - floatingip
+    UpdateFloatingIpRequest:
+      type: object
+      properties:
+        floatingip:
+          type: object
+          properties:
+            port_id:
+              type:
+                - string
+                - 'null'
+              description: Pass a port id to (re-)associate, or null to disassociate.
+            fixed_ip_address:
+              type: string
+            description:
+              type: string
+            qos_policy_id:
+              type:
+                - string
+                - 'null'
+      required:
+        - floatingip
+    PortForwarding:
+      type: object
+      properties:
+        id:
+          type: string
+        protocol:
+          type: string
+          enum:
+            - tcp
+            - udp
+            - sctp
+            - dccp
+            - icmp
+            - icmp6
+        internal_ip_address:
+          type: string
+          description: Fixed IP of the internal port traffic is forwarded to.
+        internal_port_id:
+          type: string
+        internal_port:
+          type: integer
+          description: Internal destination port; absent when a range is used.
+        external_port:
+          type: integer
+          description: Port on the floating IP; absent when a range is used.
+        internal_port_range:
+          type: string
+          description: Internal port range as "from:to"; absent for single-port forwardings.
+        external_port_range:
+          type: string
+          description: External port range as "from:to"; absent for single-port forwardings.
+        description:
+          type: string
+      required:
+        - id
+        - protocol
+        - internal_ip_address
+        - internal_port_id
+      example:
+        id: 725ade3c-9760-4880-8080-8fc2dbab9acc
+        protocol: tcp
+        internal_ip_address: 10.0.0.11
+        internal_port_id: 1238be08-a2a8-4b8d-addf-fb5e2250e480
+        internal_port: 25
+        external_port: 2230
+        description: ''
+    PortForwardingsListResponse:
+      type: object
+      properties:
+        port_forwardings:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortForwarding'
+        port_forwardings_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - port_forwardings
+    PortForwardingResponse:
+      type: object
+      properties:
+        port_forwarding:
+          $ref: '#/components/schemas/PortForwarding'
+      required:
+        - port_forwarding
+    CreatePortForwardingRequest:
+      type: object
+      properties:
+        port_forwarding:
+          type: object
+          properties:
+            protocol:
+              type: string
+              enum:
+                - tcp
+                - udp
+                - sctp
+                - dccp
+                - icmp
+                - icmp6
+            internal_ip_address:
+              type: string
+            internal_port_id:
+              type: string
+            internal_port:
+              type: integer
+              minimum: 1
+              maximum: 65535
+            external_port:
+              type: integer
+              minimum: 1
+              maximum: 65535
+            internal_port_range:
+              type: string
+              description: '"from:to" range; use with external_port_range instead of the single ports.'
+            external_port_range:
+              type: string
+              description: '"from:to" range; use with internal_port_range instead of the single ports.'
+            description:
+              type: string
+          required:
+            - protocol
+            - internal_ip_address
+            - internal_port_id
+      required:
+        - port_forwarding
+    UpdatePortForwardingRequest:
+      type: object
+      properties:
+        port_forwarding:
+          type: object
+          properties:
+            protocol:
+              type: string
+              enum:
+                - tcp
+                - udp
+                - sctp
+                - dccp
+                - icmp
+                - icmp6
+            internal_ip_address:
+              type: string
+            internal_port_id:
+              type: string
+            internal_port:
+              type: integer
+              minimum: 1
+              maximum: 65535
+            external_port:
+              type: integer
+              minimum: 1
+              maximum: 65535
+            internal_port_range:
+              type: string
+            external_port_range:
+              type: string
+            description:
+              type: string
+      required:
+        - port_forwarding
+    SecurityGroupRule:
+      type: object
+      properties:
+        id:
+          type: string
+        security_group_id:
+          type: string
+        direction:
+          type: string
+          enum:
+            - ingress
+            - egress
+        ethertype:
+          type: string
+          enum:
+            - IPv4
+            - IPv6
+        protocol:
+          type:
+            - string
+            - 'null'
+          description: IP protocol name (tcp, udp, icmp, …) or number; null matches any protocol.
+        port_range_min:
+          type:
+            - integer
+            - 'null'
+          description: Start of the port range, or the ICMP type; null matches any port.
+        port_range_max:
+          type:
+            - integer
+            - 'null'
+          description: End of the port range, or the ICMP code; null matches any port.
+        remote_ip_prefix:
+          type:
+            - string
+            - 'null'
+          description: CIDR the rule matches against; null for any.
+        remote_group_id:
+          type:
+            - string
+            - 'null'
+          description: Rule matches traffic from members of this security group.
+        remote_address_group_id:
+          type:
+            - string
+            - 'null'
+        normalized_cidr:
+          type:
+            - string
+            - 'null'
+          description: remote_ip_prefix with host bits cleared.
+        description:
+          type: string
+        belongs_to_default_sg:
+          type: boolean
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+        revision_number:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - security_group_id
+        - direction
+        - ethertype
+        - protocol
+        - port_range_min
+        - port_range_max
+        - remote_ip_prefix
+        - remote_group_id
+        - project_id
+      example:
+        id: 3c0e45ff-adaf-4124-b083-bf390e5482ff
+        security_group_id: 85cc3048-abc3-43cc-89b3-377341426ac5
+        direction: ingress
+        ethertype: IPv4
+        protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+        remote_ip_prefix: 0.0.0.0/0
+        remote_group_id: null
+        project_id: 4fd44f30292945e481c7b8a0c8908869
+    SecurityGroup:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        security_group_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityGroupRule'
+        stateful:
+          type: boolean
+          description: Stateful groups track connections; return traffic is allowed automatically.
+        shared:
+          type: boolean
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+        revision_number:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - description
+        - security_group_rules
+        - project_id
+    SecurityGroupsListResponse:
+      type: object
+      properties:
+        security_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityGroup'
+        security_groups_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - security_groups
+    SecurityGroupResponse:
+      type: object
+      properties:
+        security_group:
+          $ref: '#/components/schemas/SecurityGroup'
+      required:
+        - security_group
+    CreateSecurityGroupRequest:
+      type: object
+      properties:
+        security_group:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            stateful:
+              type: boolean
+            project_id:
+              type: string
+              description: Create on behalf of another project (admin).
+          required:
+            - name
+      required:
+        - security_group
+    UpdateSecurityGroupRequest:
+      type: object
+      properties:
+        security_group:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            stateful:
+              type: boolean
+              description: Changeable only while no ports use the group.
+      required:
+        - security_group
+    SecurityGroupRulesListResponse:
+      type: object
+      properties:
+        security_group_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityGroupRule'
+        security_group_rules_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - security_group_rules
+    SecurityGroupRuleResponse:
+      type: object
+      properties:
+        security_group_rule:
+          $ref: '#/components/schemas/SecurityGroupRule'
+      required:
+        - security_group_rule
+    CreateSecurityGroupRuleRequest:
+      type: object
+      properties:
+        security_group_rule:
+          type: object
+          properties:
+            security_group_id:
+              type: string
+            direction:
+              type: string
+              enum:
+                - ingress
+                - egress
+            ethertype:
+              type: string
+              enum:
+                - IPv4
+                - IPv6
+              description: Defaults to IPv4.
+            protocol:
+              type: string
+              description: IP protocol name (tcp, udp, icmp, …) or number; omit to match any.
+            port_range_min:
+              type: integer
+              description: Start of the port range, or the ICMP type.
+            port_range_max:
+              type: integer
+              description: End of the port range, or the ICMP code.
+            remote_ip_prefix:
+              type: string
+            remote_group_id:
+              type: string
+            remote_address_group_id:
+              type: string
+            description:
+              type: string
+          required:
+            - security_group_id
+            - direction
+      required:
+        - security_group_rule
+    SubnetPool:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        prefixes:
+          type: array
+          items:
+            type: string
+        default_prefixlen:
+          type: integer
+          description: Prefix length used when the allocation request names none.
+        min_prefixlen:
+          type: integer
+        max_prefixlen:
+          type: integer
+        ip_version:
+          type: integer
+          enum:
+            - 4
+            - 6
+        address_scope_id:
+          type:
+            - string
+            - 'null'
+        shared:
+          type: boolean
+        is_default:
+          type: boolean
+        default_quota:
+          type:
+            - integer
+            - 'null'
+          description: Per-project limit on allocated address space, in base-2 units.
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+        revision_number:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - prefixes
+        - ip_version
+        - shared
+        - project_id
+      example:
+        id: 03f761e6-eee0-43fc-a921-8acf64c14988
+        name: my-subnet-pool
+        prefixes:
+          - 10.10.0.0/16
+          - 10.11.0.0/16
+        default_prefixlen: 26
+        min_prefixlen: 24
+        max_prefixlen: 30
+        ip_version: 4
+        shared: false
+        is_default: false
+        project_id: 4fd44f30292945e481c7b8a0c8908869
+    SubnetPoolsListResponse:
+      type: object
+      properties:
+        subnetpools:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubnetPool'
+        subnetpools_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - subnetpools
+    SubnetPoolResponse:
+      type: object
+      properties:
+        subnetpool:
+          $ref: '#/components/schemas/SubnetPool'
+      required:
+        - subnetpool
+    CreateSubnetPoolRequest:
+      type: object
+      properties:
+        subnetpool:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            prefixes:
+              type: array
+              items:
+                type: string
+            default_prefixlen:
+              type: integer
+            min_prefixlen:
+              type: integer
+            max_prefixlen:
+              type: integer
+            address_scope_id:
+              type: string
+            shared:
+              type: boolean
+              description: Admin only.
+            is_default:
+              type: boolean
+              description: Admin only.
+            default_quota:
+              type: integer
+            project_id:
+              type: string
+              description: Create on behalf of another project (admin).
+          required:
+            - name
+            - prefixes
+      required:
+        - subnetpool
+    UpdateSubnetPoolRequest:
+      type: object
+      properties:
+        subnetpool:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            prefixes:
+              type: array
+              items:
+                type: string
+              description: May only grow; the new list must contain the existing prefixes.
+            default_prefixlen:
+              type: integer
+            min_prefixlen:
+              type: integer
+            max_prefixlen:
+              type: integer
+            address_scope_id:
+              type:
+                - string
+                - 'null'
+            is_default:
+              type: boolean
+              description: Admin only.
+            default_quota:
+              type: integer
+      required:
+        - subnetpool
+    AddressScope:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ip_version:
+          type: integer
+          enum:
+            - 4
+            - 6
+        shared:
+          type: boolean
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+      required:
+        - id
+        - name
+        - ip_version
+        - shared
+        - project_id
+    AddressScopesListResponse:
+      type: object
+      properties:
+        address_scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AddressScope'
+        address_scopes_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - address_scopes
+    AddressScopeResponse:
+      type: object
+      properties:
+        address_scope:
+          $ref: '#/components/schemas/AddressScope'
+      required:
+        - address_scope
+    CreateAddressScopeRequest:
+      type: object
+      properties:
+        address_scope:
+          type: object
+          properties:
+            name:
+              type: string
+            ip_version:
+              type: integer
+              enum:
+                - 4
+                - 6
+            shared:
+              type: boolean
+              description: Admin only.
+            project_id:
+              type: string
+              description: Create on behalf of another project (admin).
+          required:
+            - ip_version
+      required:
+        - address_scope
+    UpdateAddressScopeRequest:
+      type: object
+      properties:
+        address_scope:
+          type: object
+          properties:
+            name:
+              type: string
+            shared:
+              type: boolean
+              description: Un-sharing requires that no other project uses the scope.
+      required:
+        - address_scope
+    RbacPolicy:
+      type: object
+      properties:
+        id:
+          type: string
+        object_type:
+          type: string
+          description: network, security_group, subnetpool, address_scope, address_group, or qos_policy.
+        object_id:
+          type: string
+        action:
+          type: string
+          description: access_as_shared, access_as_external, or access_as_readonly.
+        target_tenant:
+          type: string
+          description: Project granted access, or `*` for all projects.
+        target_project_id:
+          type: string
+          description: Alias of target_tenant on newer deployments.
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+      required:
+        - id
+        - object_type
+        - object_id
+        - action
+        - target_tenant
+        - project_id
+      example:
+        id: 2cf7523a-93b5-4e69-9360-6c6bf986bb7c
+        object_type: network
+        object_id: d32019d3-bc6e-4319-9c1d-6722fc136a22
+        action: access_as_shared
+        target_tenant: b87b2fc13e0248a4a031d38e06dc191d
+        project_id: 4fd44f30292945e481c7b8a0c8908869
+    RbacPoliciesListResponse:
+      type: object
+      properties:
+        rbac_policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/RbacPolicy'
+        rbac_policies_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - rbac_policies
+    RbacPolicyResponse:
+      type: object
+      properties:
+        rbac_policy:
+          $ref: '#/components/schemas/RbacPolicy'
+      required:
+        - rbac_policy
+    CreateRbacPolicyRequest:
+      type: object
+      properties:
+        rbac_policy:
+          type: object
+          properties:
+            object_type:
+              type: string
+            object_id:
+              type: string
+            action:
+              type: string
+            target_tenant:
+              type: string
+              description: Project to grant access to, or `*` for all projects.
+          required:
+            - object_type
+            - object_id
+            - action
+            - target_tenant
+      required:
+        - rbac_policy
+    UpdateRbacPolicyRequest:
+      type: object
+      properties:
+        rbac_policy:
+          type: object
+          properties:
+            target_tenant:
+              type: string
+          required:
+            - target_tenant
+      required:
+        - rbac_policy
+    Quota:
+      type: object
+      properties:
+        network:
+          type: integer
+        subnet:
+          type: integer
+        port:
+          type: integer
+        router:
+          type: integer
+        floatingip:
+          type: integer
+        security_group:
+          type: integer
+        security_group_rule:
+          type: integer
+        rbac_policy:
+          type: integer
+        subnetpool:
+          type: integer
+      example:
+        network: 100
+        subnet: 100
+        port: 500
+        router: 10
+        floatingip: 50
+        security_group: 10
+        security_group_rule: 100
+        rbac_policy: 10
+        subnetpool: -1
+    QuotasListResponse:
+      type: object
+      properties:
+        quotas:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Quota'
+              - type: object
+                properties:
+                  project_id:
+                    type: string
+                  tenant_id:
+                    type: string
+                    description: Legacy alias of project_id.
+                required:
+                  - project_id
+      required:
+        - quotas
+    QuotaResponse:
+      type: object
+      properties:
+        quota:
+          $ref: '#/components/schemas/Quota'
+      required:
+        - quota
+    UpdateQuotaRequest:
+      type: object
+      properties:
+        quota:
+          $ref: '#/components/schemas/Quota'
+      required:
+        - quota
+    QuotaDetail:
+      type: object
+      properties:
+        limit:
+          type: integer
+        used:
+          type: integer
+        reserved:
+          type: integer
+      required:
+        - limit
+        - used
+        - reserved
+    QuotaDetails:
+      type: object
+      properties:
+        network:
+          $ref: '#/components/schemas/QuotaDetail'
+        subnet:
+          $ref: '#/components/schemas/QuotaDetail'
+        port:
+          $ref: '#/components/schemas/QuotaDetail'
+        router:
+          $ref: '#/components/schemas/QuotaDetail'
+        floatingip:
+          $ref: '#/components/schemas/QuotaDetail'
+        security_group:
+          $ref: '#/components/schemas/QuotaDetail'
+        security_group_rule:
+          $ref: '#/components/schemas/QuotaDetail'
+        rbac_policy:
+          $ref: '#/components/schemas/QuotaDetail'
+        subnetpool:
+          $ref: '#/components/schemas/QuotaDetail'
+    QuotaDetailsResponse:
+      type: object
+      properties:
+        quota:
+          $ref: '#/components/schemas/QuotaDetails'
+      required:
+        - quota
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+        agent_type:
+          type: string
+          description: DHCP agent, L3 agent, Open vSwitch agent, OVN Controller Gateway agent, …
+        binary:
+          type: string
+          description: Agent executable, e.g. neutron-dhcp-agent.
+        host:
+          type: string
+        topic:
+          type: string
+          description: Message queue topic the agent listens on.
+        alive:
+          type: boolean
+        admin_state_up:
+          type: boolean
+        availability_zone:
+          type:
+            - string
+            - 'null'
+        configurations:
+          type: object
+          description: Agent-type-specific configuration report.
+        description:
+          type:
+            - string
+            - 'null'
+        heartbeat_timestamp:
+          type: string
+          description: Time of the last heartbeat.
+        started_at:
+          type: string
+        created_at:
+          type: string
+        resources_synced:
+          type:
+            - boolean
+            - 'null'
+          description: Placement sync state; null for agents that do not sync resources.
+      required:
+        - id
+        - agent_type
+        - binary
+        - host
+        - alive
+        - admin_state_up
+        - configurations
+      example:
+        id: 04c62b91-b799-48b7-9cd5-2982db6df9c6
+        agent_type: DHCP agent
+        binary: neutron-dhcp-agent
+        host: network-node-1
+        topic: dhcp_agent
+        alive: true
+        admin_state_up: true
+        availability_zone: nova
+        configurations:
+          networks: 2
+          ports: 10
+          subnets: 4
+    AgentsListResponse:
+      type: object
+      properties:
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Agent'
+      required:
+        - agents
+    AgentResponse:
+      type: object
+      properties:
+        agent:
+          $ref: '#/components/schemas/Agent'
+      required:
+        - agent
+    UpdateAgentRequest:
+      type: object
+      properties:
+        agent:
+          type: object
+          properties:
+            admin_state_up:
+              type: boolean
+            description:
+              type:
+                - string
+                - 'null'
+      required:
+        - agent
+    AvailabilityZone:
+      type: object
+      properties:
+        name:
+          type: string
+        resource:
+          type: string
+          enum:
+            - network
+            - router
+          description: Resource type the zone entry applies to.
+        state:
+          type: string
+          enum:
+            - available
+            - unavailable
+      required:
+        - name
+        - resource
+        - state
+      example:
+        name: nova
+        resource: network
+        state: available
+    AvailabilityZonesListResponse:
+      type: object
+      properties:
+        availability_zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilityZone'
+      required:
+        - availability_zones
+    SubnetIpAvailability:
+      type: object
+      properties:
+        subnet_id:
+          type: string
+        subnet_name:
+          type: string
+        ip_version:
+          type: integer
+          enum:
+            - 4
+            - 6
+        cidr:
+          type: string
+        total_ips:
+          type: integer
+        used_ips:
+          type: integer
+      required:
+        - subnet_id
+        - subnet_name
+        - ip_version
+        - cidr
+        - total_ips
+        - used_ips
+    NetworkIpAvailability:
+      type: object
+      properties:
+        network_id:
+          type: string
+        network_name:
+          type: string
+        project_id:
+          type: string
+        tenant_id:
+          type: string
+          description: Legacy alias of project_id.
+        total_ips:
+          type: integer
+        used_ips:
+          type: integer
+        subnet_ip_availability:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubnetIpAvailability'
+      required:
+        - network_id
+        - network_name
+        - project_id
+        - total_ips
+        - used_ips
+        - subnet_ip_availability
+    NetworkIpAvailabilitiesListResponse:
+      type: object
+      properties:
+        network_ip_availabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkIpAvailability'
+      required:
+        - network_ip_availabilities
+    NetworkIpAvailabilityResponse:
+      type: object
+      properties:
+        network_ip_availability:
+          $ref: '#/components/schemas/NetworkIpAvailability'
+      required:
+        - network_ip_availability
+    Extension:
+      type: object
+      properties:
+        alias:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        updated:
+          type: string
+          description: Introduction timestamp of the extension.
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+      required:
+        - alias
+        - name
+        - description
+        - updated
+      example:
+        alias: standard-attr-tag
+        name: Tag support for resources with standard attribute
+        description: 'Enables to set tag on resources with standard attribute.'
+        updated: '2017-01-01T00:00:00-00:00'
+        links: []
+    ExtensionsListResponse:
+      type: object
+      properties:
+        extensions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Extension'
+      required:
+        - extensions
+    ExtensionResponse:
+      type: object
+      properties:
+        extension:
+          $ref: '#/components/schemas/Extension'
+      required:
+        - extension
+  responses:
+    Fault:
+      description: Neutron error (4xx/5xx) in the NeutronError envelope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Fault'

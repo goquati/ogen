@@ -236,11 +236,13 @@ internal sealed interface ComponentName {
         val rawClassName
             get() = names.lastOrNull() ?: error("Unnamed schema has no last name")
 
-        fun updateLast(block: (String) -> String) = if (this == Unnamed)
+        fun updateLast(block: (String) -> String) = if (isUnnamed)
             error("cannot update unnamed schema")
         else Schema(
             names.dropLast(1) + block(names.last())
         )
+
+        val isUnnamed get() = names.isEmpty()
 
         fun toRefOrNull() = names.singleOrNull()?.let { RefString.Schema.parse("#/components/schemas/$it") }
 

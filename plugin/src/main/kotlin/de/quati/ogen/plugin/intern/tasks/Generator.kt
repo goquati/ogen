@@ -11,12 +11,13 @@ import de.quati.ogen.plugin.intern.codegen.util.syncServerSpringV4Utils
 import de.quati.ogen.plugin.intern.codegen.util.syncUtils
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
-import org.gradle.api.file.Directory
-import org.gradle.api.logging.Logger
+import org.slf4j.Logger
+import java.nio.file.Path
+
 
 internal class Generator(
     private val logger: Logger,
-    private val rootOutputDir: Directory
+    private val rootOutputDir: Path
 ) {
     fun generate(
         configs: SpecConfigs

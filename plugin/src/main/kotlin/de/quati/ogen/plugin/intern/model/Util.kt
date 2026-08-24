@@ -66,10 +66,12 @@ private fun io.swagger.v3.oas.models.responses.ApiResponse.parse(
 
 context(_: SpecInfoContext)
 private fun io.swagger.v3.oas.models.parameters.Parameter.parse(
-    name: ComponentName.Parameter,
+    name: ComponentName.Parameter?,
 ): Endpoint.Parameter {
     if (`$ref` != null)
         return Endpoint.Parameter.Ref(RefString.Parameter.parse(`$ref`!!))
+    if (name == null)
+        error("Parameter name and ref is null")
     val paramName = this@parse.name!!
     val schema = schema.parse(name = name.schemaName)
     val type = Endpoint.Parameter.Type.entries.firstOrNull { it.name.equals(`in`, ignoreCase = true) }
@@ -102,7 +104,10 @@ private fun parse(path: String, data: PathItem): List<Endpoint> {
             parameters = buildList {
                 data.parameters?.also(::addAll)
                 operation.parameters?.also(::addAll)
-            }.map { it.parse(operationName.toParameterSchemaName(it.name)) },
+            }.map { p ->
+                val name = p.name?.let { operationName.toParameterSchemaName(it) }
+                p.parse(name)
+            },
             requestBody = operation.requestBody.parse(name = operationName.toRequestName()),
             responses = operation.responses?.entries?.associate { (key, value) ->
                 val code = HttpCode.parse(key)
@@ -282,15 +287,19 @@ internal fun io.swagger.v3.oas.models.media.Schema<*>.parse(name: ComponentName.
         null -> toUnknown(name = name)
 
         "object" -> run {
-            val additionalProps = additionalProperties ?: return@run Component.Schema.Obj(
-                isNullable = isNullable(),
-                required = required?.toSet() ?: emptySet(),
-                properties = properties?.mapValues {
-                    it.value.parse(name = name + it.key.toCamelCase(capitalized = true))
-                } ?: emptyMap(),
-                name = name,
-                typeWithFormat = toTypeWithFormatOrNull()
-            )
+            val props = properties?.mapValues {
+                it.value.parse(name = name + it.key.toCamelCase(capitalized = true))
+            } ?: emptyMap()
+            val additionalProps = additionalProperties ?: return@run if (props.isEmpty())
+                toUnknown(name = name)
+            else
+                Component.Schema.Obj(
+                    isNullable = isNullable(),
+                    required = required?.toSet() ?: emptySet(),
+                    properties = props,
+                    name = name,
+                    typeWithFormat = toTypeWithFormatOrNull()
+                )
             if (additionalProps == true)
                 return@run toUnknown(name = name)
             if (!(properties?.isEmpty() ?: true))

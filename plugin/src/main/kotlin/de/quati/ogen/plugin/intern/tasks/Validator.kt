@@ -11,9 +11,16 @@ import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import org.gradle.api.GradleException
-import org.gradle.api.logging.Logger
+import org.slf4j.Logger
 import org.openapitools.codegen.validations.oas.OpenApiEvaluator
 import org.openapitools.codegen.validations.oas.RuleConfiguration
+
+private fun Logger.lifecycle(message: String) {
+    if (this is org.gradle.api.logging.Logger)
+        this.lifecycle(message)
+    else
+        info(message)
+}
 
 internal class Validator(
     private val logger: Logger,

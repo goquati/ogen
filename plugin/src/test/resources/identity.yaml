@@ -1,0 +1,317 @@
+openapi: 3.1.0
+info:
+  title: OpenStack Identity API
+  description: |-
+    This is a reference for the OpenStack Identity API which is provided by the
+    Keystone project. To learn more about the OpenStack Identity API concepts,
+    please refer to the [API guide](https://docs.openstack.org/api-guide/identity/index.html).
+
+    This document is scoped to project discovery: listing the projects
+    available to an authenticated user, and (admin) listing all projects in
+    the deployment. It does not cover authentication (token issuance), users,
+    domains, roles, or credentials.
+
+    Every request is assumed to carry a valid Keystone token in the
+    `X-Auth-Token` header. The header is intentionally not declared as a
+    per-operation parameter; inject it as a constant in the HTTP client layer.
+  version: '3'
+servers:
+  - url: 'https://{host}/v3'
+    description: Keystone endpoint.
+    variables:
+      host:
+        default: identity.example.com
+tags:
+  - name: projects
+    description: Projects — list projects available to the caller, and list/show projects (admin).
+security:
+  - keystoneAuth: [ ]
+paths:
+  /identity/auth/projects:
+    get:
+      operationId: listAvailableProjects
+      tags:
+        - projects
+      summary: List available projects
+      description: >-
+        Lists the projects that the token used to make this request can be
+        rescoped to. This reflects the caller's role assignments, not the full
+        set of projects in the deployment; it is the endpoint a client should
+        use to populate a project switcher.
+      responses:
+        '200':
+          description: The projects available to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /identity/projects:
+    get:
+      operationId: listProjects
+      tags:
+        - projects
+      summary: List projects
+      description: >-
+        Lists all projects in the deployment (admin only). Unlike
+        `/auth/projects`, this is not filtered by the caller's role
+        assignments.
+      parameters:
+        - $ref: '#/components/parameters/ProjectFilterName'
+        - $ref: '#/components/parameters/ProjectFilterDomainId'
+        - $ref: '#/components/parameters/ProjectFilterParentId'
+        - $ref: '#/components/parameters/ProjectFilterEnabled'
+      responses:
+        '200':
+          description: The projects.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectsListResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+    post:
+      operationId: createProject
+      tags:
+        - projects
+      summary: Create project
+      description: Creates a new project (admin only).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreateRequest'
+      responses:
+        '201':
+          description: The created project.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+  /identity/projects/{project_id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdParam'
+    get:
+      operationId: getProject
+      tags:
+        - projects
+      summary: Show project details
+      description: Shows details for a project.
+      responses:
+        '200':
+          description: The project.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        default:
+          $ref: '#/components/responses/Fault'
+components:
+  securitySchemes:
+    keystoneAuth:
+      type: apiKey
+      in: header
+      name: X-Auth-Token
+      description: A valid Keystone authentication token.
+  parameters:
+    ProjectIdParam:
+      name: project_id
+      in: path
+      required: true
+      description: The id of the project.
+      schema:
+        type: string
+    ProjectFilterName:
+      name: name
+      in: query
+      required: false
+      description: Filter by project name.
+      schema:
+        type: string
+    ProjectFilterDomainId:
+      name: domain_id
+      in: query
+      required: false
+      description: Filter by the id of the owning domain.
+      schema:
+        type: string
+    ProjectFilterParentId:
+      name: parent_id
+      in: query
+      required: false
+      description: Filter by the id of the parent project.
+      schema:
+        type: string
+    ProjectFilterEnabled:
+      name: enabled
+      in: query
+      required: false
+      description: Filter by enabled state.
+      schema:
+        type: boolean
+  schemas:
+    Link:
+      type: object
+      properties:
+        self:
+          type: string
+      required:
+        - self
+      example:
+        self: https://identity.example.com/v3/projects/6e0f6d0e-3f4a-4a54-8f3a-9a2f6d2b7f11
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The project's UUID.
+        name:
+          type: string
+        description:
+          type: string
+        domain_id:
+          type: string
+          description: The id of the domain the project belongs to.
+        parent_id:
+          type: string
+          description: The id of the parent project, or null for a top-level project.
+        is_domain:
+          type: boolean
+          description: Whether this project also acts as a domain.
+        enabled:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        options:
+          type: object
+          description: Project options, e.g. immutable.
+          additionalProperties: true
+        links:
+          $ref: '#/components/schemas/Link'
+      required:
+        - id
+        - name
+        - domain_id
+        - enabled
+      example:
+        id: 6e0f6d0e-3f4a-4a54-8f3a-9a2f6d2b7f11
+        name: my-project
+        description: Example project.
+        domain_id: default
+        parent_id: default
+        is_domain: false
+        enabled: true
+        tags: [ ]
+        links:
+          self: https://identity.example.com/v3/projects/6e0f6d0e-3f4a-4a54-8f3a-9a2f6d2b7f11
+    ProjectCreate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        domain_id:
+          type: string
+          description: The id of the domain the project belongs to.
+        parent_id:
+          type: string
+          description: The id of the parent project.
+        is_domain:
+          type: boolean
+          description: Whether this project also acts as a domain.
+        enabled:
+          type: boolean
+          default: true
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - domain_id
+      example:
+        name: my-project
+        description: Example project.
+        domain_id: default
+        enabled: true
+    ProjectCreateRequest:
+      type: object
+      properties:
+        project:
+          $ref: '#/components/schemas/ProjectCreate'
+      required:
+        - project
+    ProjectsListResponse:
+      type: object
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+        links:
+          type: object
+          properties:
+            self:
+              type: string
+            next:
+              type:
+                - string
+                - 'null'
+            previous:
+              type:
+                - string
+                - 'null'
+          required:
+            - self
+            - next
+            - previous
+      required:
+        - projects
+        - links
+    ProjectResponse:
+      type: object
+      properties:
+        project:
+          $ref: '#/components/schemas/Project'
+      required:
+        - project
+    FaultBody:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        title:
+          type: string
+      required:
+        - code
+        - message
+        - title
+    Fault:
+      type: object
+      description: Keystone error envelope.
+      properties:
+        error:
+          $ref: '#/components/schemas/FaultBody'
+      required:
+        - error
+      example:
+        error:
+          code: 404
+          title: Not Found
+          message: Could not find project.
+  responses:
+    Fault:
+      description: Keystone error (4xx/5xx).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Fault'

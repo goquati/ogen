@@ -26,7 +26,7 @@ public class OgenPlugin : Plugin<Project> {
             task.doLast {
                 val configs = configBuilder.build()
                 Generator(
-                    rootOutputDir = genDir.get(),
+                    rootOutputDir = genDir.get().asFile.toPath(),
                     logger = it.logger,
                 ).generate(configs = configs)
             }

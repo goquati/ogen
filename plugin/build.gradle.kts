@@ -23,6 +23,8 @@ dependencies {
     implementation(libs.swagger.parser)
     implementation(libs.swagger.generator)
     compileOnly(kotlin("gradle-plugin"))
+
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 }
 
 kotlin {
@@ -37,6 +39,10 @@ kotlin {
     }
 }
 
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
+
 gradlePlugin {
     website = gitRepo
     vcsUrl = "$gitRepo.git"
@@ -45,7 +51,17 @@ gradlePlugin {
         id = groupStr
         implementationClass = "$groupStr.plugin.OgenPlugin"
         displayName = "ogen: OpenAPI generator for Kotlin"
-        description = "Idiomatic OpenAPI generator for Kotlin and KMP, supporting kotlinx.serialization, OpenAPI 3.0/3.1, and Spring Boot."
-        tags = listOf("openapi", "kotlin", "kmp", "multiplatform", "kotlinx-serialization", "generator", "spring-boot", "ktor")
+        description =
+            "Idiomatic OpenAPI generator for Kotlin and KMP, supporting kotlinx.serialization, OpenAPI 3.0/3.1, and Spring Boot."
+        tags = listOf(
+            "openapi",
+            "kotlin",
+            "kmp",
+            "multiplatform",
+            "kotlinx-serialization",
+            "generator",
+            "spring-boot",
+            "ktor"
+        )
     }
 }
