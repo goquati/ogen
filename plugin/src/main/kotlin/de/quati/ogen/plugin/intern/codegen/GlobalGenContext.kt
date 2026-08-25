@@ -6,6 +6,7 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import de.quati.kotlin.util.poet.dsl.buildObject
+import de.quati.kotlin.util.poet.makeDifferent
 import de.quati.ogen.plugin.intern.model.Type
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 
@@ -21,6 +22,7 @@ internal class GlobalGenContext(
     fun buildSerializerTypeSpec() = serializerTypeSpecBuilder.build()
     private val serializers = mutableMapOf<Type, String>()
 
+    context(_: CodeGenContext)
     fun registerSerializer(
         register: Boolean,
         type: Type,
@@ -31,7 +33,7 @@ internal class GlobalGenContext(
             return serializerClassName(it)
         }
 
-        val name = type.prettyName()
+        val name = type.prettyName().makeDifferent(serializers.values, separator = "")
         val typeName = serializerClassName(name)
         if (!register) return typeName
         serializerTypeSpecBuilder.addType(buildObject(name) {
