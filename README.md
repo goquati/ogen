@@ -21,7 +21,7 @@ Apply the plugin in your `build.gradle.kts`:
 plugins {
     kotlin("jvm") // or kotlin("multiplatform")
     kotlin("plugin.serialization")
-    id("de.quati.ogen") version "0.8.2"
+    id("de.quati.ogen") version "0.8.3"
 }
 ```
 
