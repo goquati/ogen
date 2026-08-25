@@ -86,7 +86,11 @@ context(c: CodeGenContext, config: GeneratorConfig.ClientKtor, funNameResolver: 
 private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
     val funName = funNameResolver.resolve(endpoint.operationName.name)
     val funNamePrepare = funNameResolver.resolve("prepare" + funName.replaceFirstChar(Char::titlecaseChar))
-    val parameters = endpoint.parameters.map { it.toStringableParameter }
+    val parameters = run {
+        val paramNameResolver = NameConflictResolver(separator = "")
+        endpoint.parameters.map { it.toStringableParameter }
+            .map { it.copy(prettyName = paramNameResolver.resolve(it.prettyName)) }
+    }
     val reservedNames = parameters.map { it.prettyName }.toSet()
     val blockName = "block".makeDifferent(reservedNames)
     val (responseBodyInfo, responseStreamBodyInfo) = endpoint.responseResolved.let { responseBody ->

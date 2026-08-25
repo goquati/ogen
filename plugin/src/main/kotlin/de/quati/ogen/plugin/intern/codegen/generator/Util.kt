@@ -19,26 +19,30 @@ import io.swagger.v3.oas.models.security.SecurityScheme
 import kotlin.collections.plus
 import kotlin.collections.toMutableSet
 
-internal class NameConflictResolver(forbidden: Iterable<String> = emptySet()) { // TODO move to quati util
+internal class NameConflictResolver(
+    forbidden: Iterable<String> = emptySet(),
+    private val separator: String = "_",
+) { // TODO move to quati util
     private val forbidden: MutableSet<String> = (kotlinKeywords + forbidden).toMutableSet()
 
-    fun resolve(name: String): String = name.makeDifferent(forbidden).also {
+    fun resolve(name: String): String = name.makeDifferent(forbidden, separator = separator).also {
         forbidden += it
     }
 }
 
 internal val SecurityScheme.Type.prettyName get() = toString().replaceFirstChar(Char::titlecase)
 
-internal val PathItem.HttpMethod.ktorName get() = when (this) {
-    PathItem.HttpMethod.POST -> "Post"
-    PathItem.HttpMethod.GET -> "Get"
-    PathItem.HttpMethod.PUT -> "Put"
-    PathItem.HttpMethod.DELETE -> "Delete"
-    PathItem.HttpMethod.HEAD -> "Head"
-    PathItem.HttpMethod.OPTIONS -> "Options"
-    PathItem.HttpMethod.TRACE -> "Trace"
-    PathItem.HttpMethod.PATCH -> "Patch"
-}
+internal val PathItem.HttpMethod.ktorName
+    get() = when (this) {
+        PathItem.HttpMethod.POST -> "Post"
+        PathItem.HttpMethod.GET -> "Get"
+        PathItem.HttpMethod.PUT -> "Put"
+        PathItem.HttpMethod.DELETE -> "Delete"
+        PathItem.HttpMethod.HEAD -> "Head"
+        PathItem.HttpMethod.OPTIONS -> "Options"
+        PathItem.HttpMethod.TRACE -> "Trace"
+        PathItem.HttpMethod.PATCH -> "Patch"
+    }
 
 context(c: CodeGenContext)
 internal fun Endpoint.generateOperationContextTypeSpec(
@@ -128,7 +132,7 @@ internal fun Endpoint.generateOperationContextTypeSpec(
 
 context(c: CodeGenContext)
 internal fun securityRequirementListCodeBlock(security: Security) = buildCodeBlock {
-    if (security.data.isEmpty()){
+    if (security.data.isEmpty()) {
         add("emptyList()")
         return@buildCodeBlock
     }

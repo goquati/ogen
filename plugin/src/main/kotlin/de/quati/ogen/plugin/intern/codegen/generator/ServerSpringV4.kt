@@ -61,7 +61,7 @@ private fun TypeSpec.Builder.createController(
 
     addAnnotation(Poet.Spring.restController)
     for (endpoint in endpoints) {
-        val paramNameResolver = NameConflictResolver()
+        val paramNameResolver = NameConflictResolver(separator = "")
         val requestBody = endpoint.requestBodyResolved
         val responseBody = endpoint.responseResolved
         addFunction(name = endpoint.operationName.name) {
