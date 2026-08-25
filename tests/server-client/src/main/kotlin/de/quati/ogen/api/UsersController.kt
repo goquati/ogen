@@ -135,6 +135,13 @@ class UsersController : UsersApi {
         addInputHeader(ctx.name, userId)
     }
 
+    override suspend fun patchUser(
+        ctx: AuthContext,
+        op: UsersApi.PatchUserContext,
+        userId: UserId,
+        listUserUpdateDto: Any
+    ) = TODO("Not yet implemented")
+
     override suspend fun getUserFile(
         ctx: AuthContext,
         op: UsersApi.GetUserFileContext,

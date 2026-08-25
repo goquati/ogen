@@ -100,6 +100,24 @@ paths:
           description: "user not found"
         '200':
           description: "updated user"
+    patch:
+      tags:
+        - users
+      summary: "Patch user"
+      operationId: patchUser
+      requestBody:
+        required: true
+        content:
+          application/openstack-images-v2.1-json-patch:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '404':
+          description: "user not found"
+        '200':
+          description: "updated user"
     delete:
       tags:
         - users

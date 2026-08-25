@@ -130,7 +130,11 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
             typeInfoName = "bodyType".takeIf { type == null }?.makeDifferent(reservedNames),
         )
     }
-    val paramNames = parameters.map { it.prettyName } + listOfNotNull(requestBodyInfo?.name, blockName)
+    val paramNames = parameters.map { it.prettyName } + listOfNotNull(
+        requestBodyInfo?.name,
+        requestBodyInfo?.typeInfoName,
+        blockName,
+    )
     val acceptParamName = "acceptContentType".makeDifferent(paramNames)
 
     fun FunSpec.Builder.addParams(block: FunSpec.Builder.() -> Unit) {
@@ -187,6 +191,9 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
             addCode("val stmt = $funNamePrepare(\n")
             paramNames.forEach { paramName ->
                 addCode("    $paramName = $paramName,\n")
+            }
+            requestBodyInfo?.typeInfoName?.also {
+                addCode("    $it = $it,\n")
             }
             addCode("    $acceptParamName = %L,\n", Poet.Ktor.contentTypeCodeBlock(info.contentType!!))
             addCode(")\n")
