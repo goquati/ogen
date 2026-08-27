@@ -19,13 +19,6 @@ import kotlin.io.path.relativeToOrNull
 import kotlin.io.path.writeText
 import kotlin.text.padStart
 
-private fun Logger.lifecycle(message: String) {
-    if (this is org.gradle.api.logging.Logger)
-        this.lifecycle(message)
-    else
-        info(message)
-}
-
 internal class DirectorySyncService(
     rootDir: Path,
     private val packageName: PackageName,
@@ -69,12 +62,12 @@ internal class DirectorySyncService(
         filesDeleted += filesToDelete
 
         fun Set<*>.printSize() = size.toString().padStart(3)
-        logger.lifecycle("package '$packageName' synced:")
-        logger.lifecycle("   #files unchanged = ${filesUnchanged.printSize()}")
-        logger.lifecycle("   #files created   = ${filesCreated.printSize()}")
-        logger.lifecycle("   #files updated   = ${filesUpdated.printSize()}")
-        logger.lifecycle("   #files deleted   = ${filesDeleted.printSize()}")
-        logger.lifecycle("")
+        logger.info("package '$packageName' synced:")
+        logger.info("   #files unchanged = ${filesUnchanged.printSize()}")
+        logger.info("   #files created   = ${filesCreated.printSize()}")
+        logger.info("   #files updated   = ${filesUpdated.printSize()}")
+        logger.info("   #files deleted   = ${filesDeleted.printSize()}")
+        logger.info("")
     }
 
     private fun checkFilePath(path: Path) {

@@ -15,13 +15,6 @@ import org.slf4j.Logger
 import org.openapitools.codegen.validations.oas.OpenApiEvaluator
 import org.openapitools.codegen.validations.oas.RuleConfiguration
 
-private fun Logger.lifecycle(message: String) {
-    if (this is org.gradle.api.logging.Logger)
-        this.lifecycle(message)
-    else
-        info(message)
-}
-
 internal class Validator(
     private val logger: Logger,
 ) {
@@ -41,7 +34,7 @@ internal class Validator(
             logger: Logger,
         ) {
             val validatorConfig = config.validatorConfig ?: return
-            logger.lifecycle("Validating spec ${config.inputConfig}")
+            logger.info("Validating spec ${config.inputConfig}")
 
             val parseResult = config.parseResult
             val messages = parseResult.messages.toSet()
@@ -53,10 +46,10 @@ internal class Validator(
             val validationResult = evaluator.validate(spec)
 
             if (validationResult.warnings.isNotEmpty()) {
-                logger.lifecycle("\nSpec has issues or recommendations.\nIssues:\n")
+                logger.info("\nSpec has issues or recommendations.\nIssues:\n")
 
                 validationResult.warnings.forEach {
-                    logger.lifecycle("\t${it.message}\n")
+                    logger.info("\t${it.message}\n")
                     logger.debug("WARNING: ${it.message}|${it.details}")
                 }
             }
@@ -91,7 +84,7 @@ internal class Validator(
             }
 
             logger.debug("No error validations from swagger-parser or internal validations.")
-            logger.lifecycle("Spec is valid.\n")
+            logger.info("Spec is valid.\n")
         }
 
         fun getNamingConventionErrors(
