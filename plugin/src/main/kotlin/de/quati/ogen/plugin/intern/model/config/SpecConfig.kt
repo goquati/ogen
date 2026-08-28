@@ -3,7 +3,7 @@ package de.quati.ogen.plugin.intern.model.config
 import de.quati.ogen.plugin.intern.buildMergedSpec
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.GlobalGenContext
-import de.quati.ogen.plugin.intern.model.parse
+import de.quati.ogen.plugin.intern.parsing.parse
 import io.swagger.parser.OpenAPIParser
 import io.swagger.v3.parser.core.models.ParseOptions
 
