@@ -1,5 +1,6 @@
 package de.quati.ogen.plugin.intern.model.config
 
+import de.quati.ogen.plugin.EndpointInfo
 import de.quati.ogen.plugin.intern.buildMergedSpec
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.GlobalGenContext
@@ -12,6 +13,7 @@ internal data class SpecConfig(
     val modelConfig: GeneratorConfig.Model,
     val generatorConfigs: List<GeneratorConfig>,
     val validatorConfig: ValidatorConfig?,
+    val operationIdGenerator: ((EndpointInfo) -> String?)?,
 ) {
     val parseResult by lazy {
         val path = when (inputConfig) {
@@ -30,7 +32,7 @@ internal data class SpecConfig(
     context(c: GlobalGenContext)
     fun toCodeGenContext() = CodeGenContext(
         specConfig = this,
-        spec = parseResult.parse(),
+        spec = parseResult.parse(config = this),
         globalGenContext = c,
     )
 }

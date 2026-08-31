@@ -3,11 +3,14 @@ package de.quati.ogen.plugin.intern.parsing
 import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.Spec
 import de.quati.ogen.plugin.intern.model.SpecSecurityContext
+import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
 import de.quati.ogen.plugin.intern.parsing.helper.SchemaLocation
+import de.quati.ogen.plugin.intern.parsing.helper.longestCommonPrefix
+import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.parser.core.models.SwaggerParseResult
 
-internal fun SwaggerParseResult.parse(): Spec {
+internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
     val raw = openAPI!!
     val version = if (isOpenapi31)
         Spec.Version.V3_1
@@ -23,6 +26,8 @@ internal fun SwaggerParseResult.parse(): Spec {
         version = version,
         defaultSecurity = defaultSecurity,
         securityRequirementObjects = securityRequirementObjects,
+        operationIdGenerator = config.operationIdGenerator,
+        tagPathPrefixes = raw.paths.getTagPathPrefixes(),
     )
 
     val spec = with(parserContext) {
@@ -66,3 +71,12 @@ private fun io.swagger.v3.oas.models.Components.parse() = Spec.Components(
         name to obj.parse(name = name)
     } ?: emptyMap(),
 )
+
+private fun Paths.getTagPathPrefixes() = flatMap { (path, pathItem) ->
+    pathItem.readOperations().map { op ->
+        val tag = op.parseTag()
+        tag to path!!
+    }
+}.groupingBy { it.first }.fold(
+    initialValueSelector = { _, v -> v.second }
+) { _, a, b -> longestCommonPrefix(a, b.second) }

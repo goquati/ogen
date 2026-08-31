@@ -1,3 +1,4 @@
+import de.quati.ogen.plugin.EndpointInfo
 import de.quati.ogen.plugin.SpecsConfigBuilder
 import de.quati.ogen.plugin.intern.tasks.Generator
 import org.slf4j.LoggerFactory
@@ -18,7 +19,10 @@ class TestGeneration {
             }
         }
 
-        private fun testClientGenSpec(spec: String) {
+        private fun testClientGenSpec(
+            spec: String,
+            operationGenerationId: ((EndpointInfo) -> String?)? = null,
+        ) {
             val group = "de.quati.ogen.test"
             val configs = SpecsConfigBuilder().apply {
                 utilPackageName("$group.gen.util")
@@ -26,6 +30,9 @@ class TestGeneration {
                     specFile(TestGeneration::class.java.getResource("$spec.yaml")!!.path)
                     model {}
                     clientKtor {}
+                    operationGenerationId?.also { gen ->
+                        operationIdGenerator { gen(it) }
+                    }
                 }
             }.build()
 
@@ -61,5 +68,17 @@ class TestGeneration {
     @Test
     fun testClientGenSpecStorage() {
         testClientGenSpec("storage")
+    }
+
+    @Test
+    fun testClientKeycloak() {
+        testClientGenSpec("keycloak-26.0.8") { info ->
+            info.relativePath
+                .replace("{", "")
+                .replace("}", "")
+                .replace("/", "_")
+                .replace(":", "_")
+                .let {  "${it}_${info.method.name.lowercase()}" }
+        }
     }
 }

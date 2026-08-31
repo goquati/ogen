@@ -5,8 +5,12 @@ import de.quati.ogen.plugin.intern.model.ContentMediaType
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Discriminator
 import de.quati.ogen.plugin.intern.model.RefString
+import de.quati.ogen.plugin.intern.model.Tag
 import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
 import de.quati.ogen.plugin.intern.parsing.helper.SchemaLocation
+import io.swagger.v3.oas.models.Operation
+
+internal fun Operation.parseTag()  = Tag.parse(tags?.firstOrNull() ?: "base")
 
 context(_: ParserContext)
 internal fun io.swagger.v3.oas.models.media.MediaType.parse(

@@ -6,6 +6,7 @@ import de.quati.ogen.plugin.intern.model.OperationName
 import de.quati.ogen.plugin.intern.model.Spec
 import de.quati.ogen.plugin.intern.model.Tag
 import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
+import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.PathItem
 
 
@@ -14,16 +15,19 @@ internal fun io.swagger.v3.oas.models.Paths.parse() = Spec.Endpoints(
     paths = flatMap { (path, pathItem) -> parse(path, pathItem) }
 )
 
+
 context(s: ParserContext)
 private fun parse(path: String, data: PathItem): List<Endpoint> {
     return data.readOperationsMap().map { (method, operation) ->
+        val tag = operation.parseTag()
         val operationName = operation.operationId
             ?.let(OperationName::parse)
+            ?: s.generateOperationId(path = path, method = method, tag = tag)
             ?: OperationName.parsePath(path = path, method = method)
         Endpoint(
             method = method,
             path = path,
-            tag = Tag.parse(operation.tags?.firstOrNull() ?: "base"),
+            tag = tag,
             operationName = operationName,
             deprecated = operation.deprecated ?: false,
             security = operation.security?.parse() ?: s.defaultSecurity,

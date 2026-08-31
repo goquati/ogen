@@ -3,6 +3,7 @@ package de.quati.ogen.plugin.intern.model
 import com.squareup.kotlinpoet.TypeName
 import de.quati.kotlin.util.poet.makeDifferent
 import de.quati.kotlin.util.poet.toCamelCase
+import de.quati.ogen.plugin.EndpointInfo
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.ComponentsContext
 import io.swagger.v3.oas.models.PathItem
