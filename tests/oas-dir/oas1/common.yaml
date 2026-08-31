@@ -1,13 +1,16 @@
 openapi: 3.0.4
 info:
   title: ogen test
+  description: Shared schemas reused across the oas1 domain specs.
   version: 1.0.0
 paths: {}
 components:
   schemas:
     TenantId:
+      description: Unique identifier of a tenant.
       type: string
       format: uuid
     UserId:
+      description: Unique identifier of a user.
       type: string
       format: uuid

@@ -1,32 +1,39 @@
 openapi: 3.0.4
 info:
   title: test spec
+  description: Sample user-management API used to exercise the generated Spring server and Ktor client.
   version: 1.0.0
 paths:
   /api/v1/users:
     get:
       tags:
         - users
+      summary: List users
+      description: Returns users, optionally filtered by tenant, verification status, search term, locale or email.
       operationId: getUsers
       parameters:
         - $ref: "#/components/parameters/TenantIdQuery"
         - name: isEmailVerified
           in: query
+          description: Only return users whose email verification status matches this value.
           required: false
           schema:
             type: boolean
         - name: search
           in: query
+          description: Case-insensitive substring match against the user's name.
           required: false
           schema:
             type: string
         - name: locale
           in: query
+          description: Only return users with this locale.
           required: false
           schema:
             $ref: "#/components/schemas/Locale"
         - name: email
           in: query
+          description: Only return the user with this exact email address.
           required: false
           schema:
             type: string
@@ -48,6 +55,8 @@ paths:
     post:
       tags:
         - users
+      summary: Create user
+      description: Creates a new user.
       operationId: createUser
       requestBody:
         required: true
@@ -88,6 +97,7 @@ paths:
       tags:
         - users
       summary: "Update user"
+      description: Replaces the updatable fields of an existing user.
       operationId: updateUser
       requestBody:
         required: true
@@ -104,6 +114,7 @@ paths:
       tags:
         - users
       summary: "Patch user"
+      description: Applies a JSON Patch document describing partial updates to an existing user.
       operationId: patchUser
       requestBody:
         required: true
@@ -122,6 +133,7 @@ paths:
       tags:
         - users
       summary: "Delete user"
+      description: Permanently deletes a user.
       operationId: deleteUser
       responses:
         '404':
@@ -134,16 +146,20 @@ paths:
       - $ref: "#/components/parameters/UserIdPath"
       - name: fileId
         in: path
+        description: ID of the file to download.
         required: true
         schema:
           type: string
     get:
       tags:
         - users
+      summary: Download user file
+      description: Downloads a file previously attached to the user.
       operationId: getUserFile
       parameters:
         - name: X-Request-ID
           in: header
+          description: Optional client-supplied correlation ID for tracing this request.
           required: false
           schema:
             type: string
@@ -155,6 +171,7 @@ paths:
           description: "get file"
           headers:
             X-File-Type:
+              description: MIME type of the returned file.
               schema:
                 type: string
           content:
@@ -169,6 +186,8 @@ paths:
     post:
       tags:
         - users
+      summary: Request password change
+      description: Triggers the password-change flow for the given user.
       operationId: setPasswordChangeAction
       responses:
         '201':
@@ -180,16 +199,20 @@ paths:
     post:
       tags:
         - users
+      summary: Request email change
+      description: Sends a confirmation link to the given new email address.
       operationId: createEmailChangeRequest
       parameters:
         - name: email
           in: query
+          description: New email address to confirm.
           required: true
           schema:
             type: string
             format: email
         - name: locale
           in: query
+          description: Locale to use for the confirmation email; defaults to the user's current locale if omitted.
           required: false
           schema:
             $ref: "#/components/schemas/Locale"
@@ -201,12 +224,15 @@ paths:
     get:
       tags:
         - debug
+      summary: Debug info
+      description: Unauthenticated diagnostic endpoint retained for backwards compatibility; do not use for new integrations.
       operationId: debugInfo
       security: [ ]
       deprecated: true
       parameters:
         - name: debug-session
           in: cookie
+          description: Opaque debug session token, if one has been assigned.
           schema:
             type: string
       responses:
@@ -222,12 +248,14 @@ components:
     UserIdPath:
       name: userId
       in: path
+      description: ID of the user.
       required: true
       schema:
         $ref: "#/components/schemas/UserId"
     TenantIdQuery:
       name: tenantId
       in: query
+      description: Only return users belonging to this tenant.
       required: false
       schema:
         $ref: "#/components/schemas/TenantId"
@@ -242,17 +270,21 @@ components:
       bearerFormat: JWT
   schemas:
     UserId:
+      description: Unique identifier of a user.
       type: string
       format: uuid
     TenantId:
+      description: Unique identifier of a tenant.
       type: string
       format: uuid
     Locale:
+      description: Supported UI locale.
       type: string
       enum:
         - en
         - de
     User:
+      description: A registered user.
       type: object
       required:
         - id
@@ -266,23 +298,29 @@ components:
         id:
           $ref: "#/components/schemas/UserId"
         firstName:
+          description: Given name of the user, if provided.
           type: string
           nullable: true
         lastName:
+          description: Family name of the user, if provided.
           type: string
           nullable: true
         email:
+          description: Email address of the user.
           type: string
           format: email
         isEmailVerified:
+          description: Whether the user's email address has been verified.
           type: boolean
         locale:
           $ref: "#/components/schemas/Locale"
         tenants:
+          description: IDs of the tenants this user belongs to.
           type: array
           items:
             $ref: "#/components/schemas/TenantId"
     UserCreate:
+      description: Payload for creating a new user.
       type: object
       required:
         - email
@@ -290,31 +328,40 @@ components:
         - tenants
       properties:
         firstName:
+          description: Given name of the user, if provided.
           type: string
           nullable: true
         lastName:
+          description: Family name of the user, if provided.
           type: string
           nullable: true
         email:
+          description: Email address of the new user.
           type: string
           format: email
         locale:
+          description: Initial locale of the user; defaults to the server default if omitted.
           allOf:
             - $ref: "#/components/schemas/Locale"
           nullable: true
         isEmailVerified:
+          description: Whether the email address should be marked as already verified.
           type: boolean
         tenants:
+          description: IDs of the tenants the new user should belong to.
           type: array
           items:
             $ref: "#/components/schemas/TenantId"
     UserUpdate:
+      description: Payload for updating an existing user; only present fields are changed.
       type: object
       properties:
         firstName:
+          description: Given name of the user, if provided.
           type: string
           nullable: true
         lastName:
+          description: Family name of the user, if provided.
           type: string
           nullable: true
         locale:

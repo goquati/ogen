@@ -1,6 +1,7 @@
 openapi: 3.0.4
 info:
   title: ogen test
+  description: Order domain spec, merged into the oas2 spec directory.
   version: 1.0.0
 
 paths:
@@ -8,6 +9,8 @@ paths:
     get:
       tags:
         - orders
+      summary: List orders
+      description: Returns all orders.
       operationId: getOrders
       responses:
         '200':
@@ -20,6 +23,7 @@ paths:
 components:
   schemas:
     Order:
+      description: A customer order.
       type: object
       required:
         - id
@@ -28,5 +32,6 @@ components:
         id:
           $ref: '../common.yaml#/components/schemas/OrderId'
         name:
+          description: Display name of the order.
           type: string
           nullable: true

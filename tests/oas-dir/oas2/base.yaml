@@ -1,6 +1,7 @@
 openapi: "3.0.4"
 info:
   title: "MergedSpec"
+  description: "Base document the oas2 domain specs are merged into."
   version: "1.0.0"
 security:
   - jwt: [ ]

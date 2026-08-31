@@ -1,6 +1,7 @@
 openapi: 3.0.4
 info:
   title: ogen test
+  description: Tenant domain spec, merged into the oas1 spec directory.
   version: 1.0.0
 
 paths:
@@ -8,6 +9,8 @@ paths:
     get:
       tags:
         - tenants
+      summary: List tenants
+      description: Returns all publicly visible tenants.
       operationId: getTenants
       responses:
         '200':
@@ -20,6 +23,7 @@ paths:
 components:
   schemas:
     Tenant:
+      description: An organizational tenant.
       type: object
       required:
         - id
@@ -28,5 +32,6 @@ components:
         id:
           $ref: '../common.yaml#/components/schemas/TenantId'
         name:
+          description: Display name of the tenant.
           type: string
           nullable: true

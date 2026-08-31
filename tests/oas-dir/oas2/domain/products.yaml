@@ -1,6 +1,7 @@
 openapi: 3.0.4
 info:
   title: ogen test
+  description: Product domain spec, merged into the oas2 spec directory.
   version: 1.0.0
 
 paths:
@@ -8,6 +9,8 @@ paths:
     get:
       tags:
         - products
+      summary: List products
+      description: Returns all products.
       operationId: getProducts
       responses:
         '200':
@@ -20,6 +23,7 @@ paths:
 components:
   schemas:
     Product:
+      description: A sellable product.
       type: object
       required:
         - id
@@ -28,5 +32,6 @@ components:
         id:
           $ref: '../common.yaml#/components/schemas/ProductId'
         name:
+          description: Display name of the product.
           type: string
           nullable: true

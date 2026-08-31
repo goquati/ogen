@@ -1,18 +1,22 @@
 openapi: 3.0.4
 info:
   title: ogen test
+  description: Shared schemas and security scheme reused across the oas2 domain specs.
   version: 1.0.0
 paths: {}
 components:
   securitySchemes:
     jwt:
+      description: Bearer JWT issued by the auth service.
       type: http
       scheme: bearer
       bearerFormat: JWT
   schemas:
     ProductId:
+      description: Unique identifier of a product.
       type: string
       format: uuid
     OrderId:
+      description: Unique identifier of an order.
       type: string
       format: uuid

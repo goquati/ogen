@@ -55,6 +55,37 @@ private data class ResponseBodyInfo(
     val contentType: String?,
 )
 
+context(_: CodeGenContext)
+private fun Endpoint.kdocCodeBlock(
+    parameters: List<Endpoint.StringableParameter>,
+    requestBodyInfo: RequestBodyInfo?,
+    includeReturn: Boolean,
+): CodeBlock? {
+    val paramDocs = buildList {
+        parameters.forEach { param -> param.description?.also { add(param.prettyName to it) } }
+        requestBodyInfo?.also { info -> info.body.description?.also { add(info.name to it) } }
+    }
+    val returnDoc = if (includeReturn) responseResolved.data.entries
+        .firstOrNull { it.key.isSuccess }?.value?.description
+        ?: responseResolved.data.values.singleOrNull()?.description
+    else null
+
+    val sections = buildList {
+        summary?.also { add(listOf(it)) }
+        description?.also { add(listOf(it)) }
+        if (paramDocs.isNotEmpty())
+            add(paramDocs.map { (name, desc) -> "@param $name $desc" })
+        returnDoc?.also { add(listOf("@return $it")) }
+    }
+    if (sections.isEmpty()) return null
+    return buildCodeBlock {
+        sections.forEachIndexed { index, lines ->
+            if (index > 0) addStatement("")
+            lines.forEach { addStatement("%L", it) }
+        }
+    }
+}
+
 context(c: CodeGenContext, config: GeneratorConfig.ClientKtor)
 private fun FileSpec.Builder.addController(
     controllerName: String,
@@ -166,8 +197,12 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
         ) { defaultValue("{}") }
     }
 
+    val kdocWithReturn = endpoint.kdocCodeBlock(parameters, requestBodyInfo, includeReturn = true)
+    val kdocWithoutReturn = endpoint.kdocCodeBlock(parameters, requestBodyInfo, includeReturn = false)
+
     responseBodyInfo?.also { info ->
         addFunction(funName) {
+            kdocWithReturn?.also { addKdoc(it) }
             addParams {}
             addModifiers(KModifier.SUSPEND)
             returns(Poet.Lib.Client.Ktor.httpResponseTyped.parameterizedBy(info.typeName))
@@ -185,6 +220,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
     }
     responseStreamBodyInfo?.also { info ->
         addFunction(funNameResolver.resolve(funName + "AsFlow")) {
+            kdocWithReturn?.also { addKdoc(it) }
             addParams {}
             addModifiers(KModifier.SUSPEND)
             returns(Poet.flow.parameterizedBy(info.typeName))
@@ -202,6 +238,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
     }
 
     addFunction(name = funNamePrepare) {
+        kdocWithoutReturn?.also { addKdoc(it) }
         addParams {
             addParameter(acceptParamName, Poet.Ktor.contentType.copy(nullable = true)) {
                 defaultValue("null")

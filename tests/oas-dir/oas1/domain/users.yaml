@@ -1,6 +1,7 @@
 openapi: 3.0.4
 info:
   title: ogen test
+  description: User domain spec, merged into the oas1 spec directory.
   version: 1.0.0
 
 paths:
@@ -8,6 +9,8 @@ paths:
     get:
       tags:
         - users
+      summary: List users
+      description: Returns all publicly visible users.
       operationId: getUsers
       responses:
         '200':
@@ -20,6 +23,7 @@ paths:
 components:
   schemas:
     User:
+      description: A registered user.
       type: object
       required:
         - id
@@ -28,5 +32,6 @@ components:
         id:
           $ref: '../common.yaml#/components/schemas/UserId'
         name:
+          description: Display name of the user.
           type: string
           nullable: true

@@ -71,6 +71,7 @@ internal data class Endpoint(
         val nullable: Boolean,
         val type: TypeName,
         val inType: Parameter.Type,
+        val description: String?,
         val toStringCodeBlock: CodeBlock,
     )
 
@@ -109,6 +110,7 @@ internal data class Endpoint(
                     inType = o.type,
                     type = if (toStringCodeBlock == null) String::class.asClassName()
                     else o.schema.getTypeName(withFlow = false).poet,
+                    description = o.description,
                     toStringCodeBlock = toStringCodeBlock ?: CodeBlock.of(".toString()")
                 )
             }

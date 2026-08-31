@@ -1,6 +1,7 @@
 openapi: 3.0.4
 info:
   title: ogen test
+  description: Fixture spec exercising model generation edge cases (unions, discriminators, maps, recursion).
   version: 1.0.0
 
 paths:
@@ -8,6 +9,8 @@ paths:
     get:
       tags:
         - dummy
+      summary: Dummy endpoint
+      description: Placeholder endpoint kept only so the spec has at least one path.
       operationId: dummy
       responses:
         '200':
@@ -16,28 +19,35 @@ paths:
 components:
   schemas:
     BigDecimal:
+      description: Arbitrary-precision decimal number.
       type: number
       format: big-decimal
     TenantId:
+      description: Unique identifier of a tenant.
       type: string
       format: uuid
     UserId:
+      description: Unique identifier of a user.
       type: string
       format: uuid
     UserName:
+      description: Display name of a user.
       type: string
     Role:
+      description: Role a user holds within a tenant.
       type: string
       enum:
         - admin
         - member
     Locale:
+      description: Supported UI locale.
       type: string
       enum:
         - en
         - de
 
     User:
+      description: A registered user.
       type: object
       required:
         - id
@@ -52,28 +62,34 @@ components:
         id:
           $ref: "#/components/schemas/UserId"
         name:
+          description: Optional display name; absent means no name has been set.
           oneOf:
             - $ref: "#/components/schemas/UserName"
           nullable: true
         email:
+          description: Email address of the user.
           type: string
           format: email
         height:
           $ref: "#/components/schemas/BigDecimal"
         weight:
+          description: Optional body weight.
           oneOf:
             - $ref: "#/components/schemas/BigDecimal"
           nullable: true
         verified:
+          description: Whether the user's email address has been verified.
           type: boolean
         locale:
           $ref: "#/components/schemas/Locale"
         friends:
+          description: IDs of the user's friends.
           type: array
           items:
             $ref: "#/components/schemas/UserId"
 
     Tenant:
+      description: An organizational tenant, optionally nested under a parent tenant.
       type: object
       required:
         - id
@@ -85,16 +101,20 @@ components:
         id:
           $ref: "#/components/schemas/TenantId"
         createdAt:
+          description: Timestamp the tenant was created.
           type: string
           format: date-time
         parentId:
+          description: ID of the parent tenant, if this tenant is nested.
           oneOf:
             - $ref: "#/components/schemas/TenantId"
           nullable: true
         name:
+          description: Display name of the tenant.
           type: string
           nullable: true
         members:
+          description: Users belonging to this tenant.
           type: array
           items:
             type: object
@@ -107,43 +127,54 @@ components:
               id:
                 $ref: "#/components/schemas/UserId"
               name:
+                description: Optional display name of the member.
                 oneOf:
                   - $ref: "#/components/schemas/UserName"
                 nullable: true
               email:
+                description: Email address of the member.
                 type: string
                 format: email
               roles:
+                description: Roles assigned to the member within this tenant.
                 type: array
                 items:
                   $ref: '#/components/schemas/Role'
 
     OneOfDiscriminator:
+      description: Union of two object variants distinguished by an implicit discriminator (no explicit mapping).
       oneOf:
         - $ref: '#/components/schemas/OneOfDiscriminator1'
         - $ref: '#/components/schemas/OneOfDiscriminator2'
       discriminator:
         propertyName: objectType
     OneOfDiscriminator1:
+      description: First variant of OneOfDiscriminator.
       type: object
       required:
         - objectType
       properties:
         objectType:
+          description: Discriminator value identifying this variant.
           type: string
         bar:
+          description: Sample field unique to this variant.
           type: string
     OneOfDiscriminator2:
+      description: Second variant of OneOfDiscriminator.
       type: object
       required:
         - objectType
       properties:
         objectType:
+          description: Discriminator value identifying this variant.
           type: string
         foo:
+          description: Sample field unique to this variant.
           type: string
 
     OneOfMapping:
+      description: Union of two object variants distinguished by an explicit discriminator mapping.
       oneOf:
         - $ref: '#/components/schemas/OneOfMapping1'
         - $ref: '#/components/schemas/OneOfMapping2'
@@ -153,30 +184,38 @@ components:
           obj1: '#/components/schemas/OneOfMapping1'
           obj2: '#/components/schemas/OneOfMapping2'
     OneOfMapping1:
+      description: First variant of OneOfMapping, mapped to discriminator value "obj1".
       type: object
       required:
         - objectType
       properties:
         objectType:
+          description: Discriminator value identifying this variant.
           type: string
         bar:
+          description: Sample field unique to this variant.
           type: string
     OneOfMapping2:
+      description: Second variant of OneOfMapping, mapped to discriminator value "obj2".
       type: object
       required:
         - objectType
       properties:
         objectType:
+          description: Discriminator value identifying this variant.
           type: string
         foo:
+          description: Sample field unique to this variant.
           type: string
 
     AllOfRef:
+      description: Composition of two referenced object schemas.
       allOf:
         - $ref: '#/components/schemas/AllOfRef1'
         - $ref: '#/components/schemas/AllOfRef2'
 
     AllOfMixed1:
+      description: Composition of a referenced schema and an inline object schema.
       allOf:
         - $ref: '#/components/schemas/AllOfRef1'
         - type: object
@@ -184,11 +223,14 @@ components:
             - quati1
           properties:
             quati1:
+              description: Sample required field added by the inline part of the composition.
               type: string
             quati2:
+              description: Sample optional field added by the inline part of the composition.
               type: string
 
     AllOfMixed2:
+      description: Composition of an already-composed schema and an inline object schema.
       allOf:
         - $ref: '#/components/schemas/AllOfRef'
         - type: object
@@ -196,16 +238,20 @@ components:
             - quati1
           properties:
             quati1:
+              description: Sample required field added by the inline part of the composition.
               type: string
             quati2:
+              description: Sample optional field added by the inline part of the composition.
               type: string
 
     AnyOfRef:
+      description: Union of two referenced object schemas that may overlap.
       anyOf:
         - $ref: '#/components/schemas/AllOfRef1'
         - $ref: '#/components/schemas/AllOfRef2'
 
     AnyOfMixed1:
+      description: Union of a referenced schema and an inline object schema.
       anyOf:
         - $ref: '#/components/schemas/AllOfRef1'
         - type: object
@@ -213,11 +259,14 @@ components:
             - quati1
           properties:
             quati1:
+              description: Sample required field added by the inline part of the union.
               type: string
             quati2:
+              description: Sample optional field added by the inline part of the union.
               type: string
 
     AnyOfMixed2:
+      description: Union of an already-composed schema and an inline object schema.
       anyOf:
         - $ref: '#/components/schemas/AllOfRef'
         - type: object
@@ -225,108 +274,136 @@ components:
             - quati1
           properties:
             quati1:
+              description: Sample required field added by the inline part of the union.
               type: string
             quati2:
+              description: Sample optional field added by the inline part of the union.
               type: string
 
     AllOfRef1:
+      description: Object schema used as a building block for allOf/anyOf composition tests.
       type: object
       required:
         - bar1
         - bar2
       properties:
         bar1:
+          description: Required, non-nullable sample field.
           type: string
         bar2:
+          description: Required, nullable sample field.
           type: string
           nullable: true
         bar3:
+          description: Optional, non-nullable sample field.
           type: string
         bar4:
+          description: Optional, nullable sample field.
           type: string
           nullable: true
     AllOfRef2:
+      description: Second object schema used as a building block for allOf/anyOf composition tests.
       type: object
       required:
         - foo1
         - foo2
       properties:
         foo1:
+          description: Required, non-nullable sample field.
           type: string
         foo2:
+          description: Required, nullable sample field.
           type: string
           nullable: true
         foo3:
+          description: Optional, non-nullable sample field.
           type: string
         foo4:
+          description: Optional, nullable sample field.
           type: string
           nullable: true
 
     OneOfPrimitive:
+      description: Union of primitive types with no discriminator.
       oneOf:
         - type: string
         - type: integer
         - type: boolean
 
     OneOfMixed:
+      description: Union mixing a referenced object schema with primitive types.
       oneOf:
         - $ref: '#/components/schemas/AllOfRef1'
         - type: string
         - type: integer
 
     AnyOfPrimitive:
+      description: Union of primitive types combined with anyOf.
       anyOf:
         - type: string
         - type: integer
 
     NestedUnion:
+      description: Union composed of two other union schemas.
       oneOf:
         - $ref: '#/components/schemas/OneOfPrimitive'
         - $ref: '#/components/schemas/AnyOfPrimitive'
 
     AdditionalPropertiesObject:
+      description: Object with one known property plus arbitrary additional integer-valued properties.
       type: object
       properties:
         knownProperty:
+          description: Explicitly declared property.
           type: string
       additionalProperties:
         type: integer
 
     AdditionalPropertiesAnyObject:
+      description: Object accepting arbitrary additional properties of any type.
       type: object
       additionalProperties: true
 
     ArrayOfUnions:
+      description: Array whose items are a union type.
       type: array
       items:
         $ref: '#/components/schemas/OneOfPrimitive'
 
     RecursiveObject:
+      description: Object that references itself through an optional parent field.
       type: object
       properties:
         name:
+          description: Name of this node.
           type: string
         parent:
+          description: Optional parent node.
           oneOf:
             - $ref: '#/components/schemas/RecursiveObject'
           nullable: true
 
     MapRef:
+      description: Map whose values are a referenced union type.
       type: object
       additionalProperties:
         $ref: '#/components/schemas/OneOfPrimitive'
 
     MapPrimitive:
+      description: Map whose values are a primitive type.
       type: object
       additionalProperties:
         type: integer
 
     MapInnerObject:
+      description: Map whose values are an inline object type.
       type: object
       additionalProperties:
         type: object
         properties:
           foo:
+            description: Sample string field of the map value.
             type: string
           bar:
+            description: Sample integer field of the map value.
             type: integer
