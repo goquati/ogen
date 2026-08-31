@@ -2,9 +2,9 @@ package de.quati.ogen
 
 import de.quati.ogen.gen.server.DebugApi
 import de.quati.ogen.gen.server.UsersApi
-import de.quati.ogen.gen.util.OperationContext
-import de.quati.ogen.gen.util.SecurityRequirement
-import de.quati.ogen.gen.util.SecurityRequirementObject
+import de.quati.ogen.core.OperationContext
+import de.quati.ogen.core.SecurityRequirement
+import de.quati.ogen.core.SecurityRequirementObject
 import io.kotest.matchers.shouldBe
 import org.springframework.http.HttpMethod
 import org.springframework.boot.test.context.SpringBootTest

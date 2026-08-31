@@ -31,7 +31,7 @@ internal fun TypeWithNullability.serializerCreateCode(): CodeBlock = when (val t
 
     is Type.NonPrimitiveType.Option -> CodeBlock.of(
         "%T(%L)",
-        c.utilConfig.optionSerializer,
+        Poet.Lib.Core.optionSerializer,
         type.innerType.serializerCreateCode(),
     )
 

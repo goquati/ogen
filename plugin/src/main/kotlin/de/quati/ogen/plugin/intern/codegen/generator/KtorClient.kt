@@ -62,14 +62,14 @@ private fun FileSpec.Builder.addController(
 ) = addClass(name = controllerName) {
     val className = config.packageName.className(controllerName)
     primaryConstructor {
-        addConstructorProperty("client", c.utilConfig.clientKtor.httpClientOgen)
+        addConstructorProperty("client", Poet.Lib.Client.Ktor.httpClientOgen)
     }
     addCompanionObject {
         addProperty(
             name = controllerName.replaceFirstChar(Char::lowercaseChar),
             type = className
         ) {
-            receiver(c.utilConfig.clientKtor.httpClientOgen)
+            receiver(Poet.Lib.Client.Ktor.httpClientOgen)
             getter {
                 addCode("return %T(this)", className)
             }
@@ -170,7 +170,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
         addFunction(funName) {
             addParams {}
             addModifiers(KModifier.SUSPEND)
-            returns(c.utilConfig.clientKtor.httpResponseTyped.parameterizedBy(info.typeName))
+            returns(Poet.Lib.Client.Ktor.httpResponseTyped.parameterizedBy(info.typeName))
             addCode("val stmt = $funNamePrepare(\n")
             paramNames.forEach { paramName ->
                 addCode("    $paramName = $paramName,\n")
@@ -180,7 +180,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
                 info.contentType?.let { Poet.Ktor.contentTypeCodeBlock(it) } ?: "null",
             )
             addCode(")\n")
-            addCode("return stmt.execute().%T<%T>()", c.utilConfig.clientKtor.toTyped, info.typeName)
+            addCode("return stmt.execute().%T<%T>()", Poet.Lib.Client.Ktor.toTyped, info.typeName)
         }
     }
     responseStreamBodyInfo?.also { info ->
@@ -215,7 +215,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
                 addStatement("this.method = %T.%L", Poet.Ktor.httpMethod, endpoint.method.ktorName)
                 addStatement(
                     "this.attributes[%T] = %L",
-                    c.utilConfig.clientKtor.ogenAuthAttr,
+                    Poet.Lib.Client.Ktor.ogenAuthAttr,
                     securityRequirementListCodeBlock(endpoint.security)
                 )
                 addPath(path = endpoint.path, params = parameters)

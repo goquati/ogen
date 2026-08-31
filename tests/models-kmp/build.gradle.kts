@@ -29,6 +29,7 @@ kotlin {
             implementation(libs.goquati.base)
             implementation(libs.kotlinx.coroutine.core)
             implementation(libs.bundles.kotlinx.serialization)
+            implementation("de.quati.ogen:core:1.0.0-SNAPSHOT")
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

@@ -10,6 +10,13 @@ plugins {
     id("de.quati.ogen")
 }
 
+dependencyManagement {
+    dependencies {
+        dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core:${libs.versions.kotlinx.coroutine.get()}")
+        dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:${libs.versions.kotlinx.coroutine.get()}")
+    }
+}
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -20,6 +27,7 @@ dependencies {
     implementation(libs.goquati.base)
     implementation(libs.bundles.kotlinx.coroutine)
     implementation(libs.bundles.kotlinx.serialization)
+    implementation("de.quati.ogen:client-ktor:1.0.0-SNAPSHOT")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(kotlin("test"))

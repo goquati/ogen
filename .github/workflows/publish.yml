@@ -51,6 +51,8 @@ jobs:
           VERSION="${{ inputs.version }}"
 
           sed -i 's/id("de\.quati\.ogen") version "[^"]*"/id("de.quati.ogen") version "'"$VERSION"'"/' README.md
+          sed -i 's/implementation("de\.quati\.ogen:core:[^"]*")/implementation("de.quati.ogen:core:'"$VERSION"'")/' README.md
+          sed -i 's/implementation("de\.quati\.ogen:client-ktor:[^"]*")/implementation("de.quati.ogen:client-ktor:'"$VERSION"'")/' README.md
 
       - name: Commit changes
         shell: bash
@@ -114,6 +116,23 @@ jobs:
             ./gradlew publishPlugins
           else
             ./gradlew publishPlugins --dry-run
+          fi
+
+      - name: Publish library
+        env:
+          GIT_TAG_VERSION: ${{ inputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_TOKEN }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.MAVEN_SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MAVEN_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_SIGNING_PASSWORD }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          cd ./lib
+          if [ "$DRY_RUN" = "false" ]; then
+            ./gradlew publish
+          else
+            ./gradlew publishToMavenLocal
           fi
 
   release:

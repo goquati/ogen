@@ -141,7 +141,13 @@ internal fun Component.Schema.NonInline.toTypeSpecData(): SchemaTypeSpecData? {
     return when (this) {
         is Component.Schema.EnumString -> SchemaTypeSpecData.Enum(this)
         is Component.Schema.Composed -> toObjOrNull()?.toTypeSpecData()
-            ?: SchemaTypeSpecData.ValueClass(Component.Schema.Unknown.Value(name = name, typeWithFormat = typeWithFormat))
+            ?: SchemaTypeSpecData.ValueClass(
+                Component.Schema.Unknown.Value(
+                    name = name,
+                    typeWithFormat = typeWithFormat
+                )
+            )
+
         is Component.Schema.SealedInterface -> SchemaTypeSpecData.SealedInterface(this)
         is Component.Schema.Obj -> SchemaTypeSpecData.DataClass(this)
         is Component.Schema.Value -> SchemaTypeSpecData.ValueClass(this)
@@ -186,7 +192,7 @@ private fun Component.Schema.Value.generateValueClassTypeSpec(): TypeSpec = buil
                 Poet.kSerializer.parameterizedBy(this@generateValueClassTypeSpec.name.typename),
                 delegate = CodeBlock.of(
                     "%T(inner = %T, unwrap = %T::$valueName, wrap = ::%T)",
-                    c.utilConfig.valueSerializer,
+                    Poet.Lib.Core.valueSerializer,
                     innerSerializer,
                     this@generateValueClassTypeSpec.name.typename,
                     this@generateValueClassTypeSpec.name.typename,
@@ -206,7 +212,10 @@ private fun Component.Schema.Value.generateValueClassTypeSpec(): TypeSpec = buil
     addFunction("toString") {
         addModifiers(KModifier.OVERRIDE)
         returns(String::class)
-        addStatement("return %N.toString()", valueName)
+        if (type == Type.PrimitiveType.String)
+            addStatement("return %N", valueName)
+        else
+            addStatement("return %N.toString()", valueName)
     }
 
     this@generateValueClassTypeSpec.toInnerTypeSpec()?.also {

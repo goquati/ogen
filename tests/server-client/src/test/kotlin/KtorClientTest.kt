@@ -8,8 +8,8 @@ import de.quati.ogen.gen.model.TenantIdDto
 import de.quati.ogen.gen.model.UserCreateDto
 import de.quati.ogen.gen.model.UserDto
 import de.quati.ogen.gen.model.UserUpdateDto
-import de.quati.ogen.gen.util.client.ktor.HttpClientOgen
-import de.quati.ogen.gen.util.client.ktor.getOgenAuthNotes
+import de.quati.ogen.client.ktor.HttpClientOgen
+import de.quati.ogen.client.ktor.getOgenAuthNotes
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO

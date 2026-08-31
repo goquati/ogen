@@ -20,6 +20,7 @@ dependencies {
     implementation(libs.goquati.base)
     implementation(libs.bundles.kotlinx.coroutine)
     implementation(libs.bundles.kotlinx.serialization)
+    implementation("de.quati.ogen:client-ktor:1.0.0-SNAPSHOT")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(kotlin("test"))

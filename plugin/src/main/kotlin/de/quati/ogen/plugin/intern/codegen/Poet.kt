@@ -3,6 +3,7 @@ package de.quati.ogen.plugin.intern.codegen
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.TypeName
+import de.quati.kotlin.util.poet.PackageName
 import de.quati.kotlin.util.poet.dsl.buildAnnotationSpec
 import de.quati.ogen.plugin.intern.model.Endpoint
 
@@ -82,6 +83,31 @@ internal object Poet {
         val httpStatement = ClassName("io.ktor.client.statement", "HttpStatement")
         val bodyAsChannel = ClassName("io.ktor.client.statement", "bodyAsChannel")
         val readLine = ClassName("io.ktor.utils.io", "readLine")
+    }
+
+    object Lib {
+
+        object Core {
+            private val packageName get() = PackageName("de.quati.ogen.core")
+
+            val securityRequirementObject get() = packageName.className("SecurityRequirementObject")
+            val securityRequirement get() = packageName.className("SecurityRequirement")
+
+            val optionSerializer = packageName.className("OptionSerializer")
+            val valueSerializer = packageName.className("ValueSerializer")
+            val operationContext = packageName.className("OperationContext")
+        }
+
+        object Client {
+            object Ktor {
+                private val packageName get() = PackageName("de.quati.ogen.client.ktor")
+
+                val httpResponseTyped = packageName.className("HttpResponseTyped")
+                val httpClientOgen = packageName.className("HttpClientOgen")
+                val toTyped = (packageName + "HttpResponseTyped" + "Companion").className("toTyped")
+                val ogenAuthAttr = packageName.className("ogenAuthAttr")
+            }
+        }
     }
 
     object Spring {

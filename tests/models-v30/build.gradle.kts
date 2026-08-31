@@ -11,6 +11,7 @@ dependencies {
     implementation(libs.goquati.base)
     implementation(libs.bundles.kotlinx.coroutine)
     implementation(libs.bundles.kotlinx.serialization)
+    implementation("de.quati.ogen:core:1.0.0-SNAPSHOT")
 
     testImplementation(kotlin("test"))
     testImplementation(libs.kotest)

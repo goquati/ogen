@@ -12,6 +12,7 @@ import de.quati.kotlin.util.poet.dsl.initializer
 import de.quati.kotlin.util.poet.kotlinKeywords
 import de.quati.kotlin.util.poet.makeDifferent
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
+import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.model.Endpoint
 import de.quati.ogen.plugin.intern.model.Security
 import io.swagger.v3.oas.models.PathItem
@@ -48,11 +49,11 @@ context(c: CodeGenContext)
 internal fun Endpoint.generateOperationContextTypeSpec(
     block: TypeSpec.Builder.() -> Unit = {},
 ) = buildObject(name = operationNameContextName) {
-    addSuperinterface(c.utilConfig.operationContext)
+    addSuperinterface(Poet.Lib.Core.operationContext)
     addModifiers(KModifier.DATA)
     val request = requestBodyResolved
     val response = responseResolved
-    val bodyTypeName = c.utilConfig.operationContext.nestedClass("Body")
+    val bodyTypeName = Poet.Lib.Core.operationContext.nestedClass("Body")
 
     addProperty(name = "name", type = String::class.asClassName()) {
         addModifiers(KModifier.OVERRIDE)
@@ -72,7 +73,7 @@ internal fun Endpoint.generateOperationContextTypeSpec(
     }
     addProperty(
         name = "security",
-        type = List::class.asClassName().parameterizedBy(c.utilConfig.securityRequirement)
+        type = List::class.asClassName().parameterizedBy(Poet.Lib.Core.securityRequirement)
     ) {
         addModifiers(KModifier.OVERRIDE)
         initializer(securityRequirementListCodeBlock(security))
@@ -141,13 +142,13 @@ internal fun securityRequirementListCodeBlock(security: Security) = buildCodeBlo
     security.data.forEach { set ->
         add(
             "%T(listOf(",
-            c.utilConfig.securityRequirement,
+            Poet.Lib.Core.securityRequirement,
         )
         set.forEachIndexed { i1, v ->
             add(
                 "%L%T.%L(name = %S)",
                 if (i1 == 0) "" else ", ",
-                c.utilConfig.securityRequirementObject,
+                Poet.Lib.Core.securityRequirementObject,
                 v.type.prettyName,
                 v.name,
             )

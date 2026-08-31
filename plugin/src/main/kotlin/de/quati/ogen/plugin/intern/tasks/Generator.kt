@@ -5,10 +5,8 @@ import de.quati.ogen.plugin.intern.DirectorySyncService
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.GlobalGenContext
 import de.quati.ogen.plugin.intern.codegen.generator.sync
-import de.quati.ogen.plugin.intern.codegen.util.syncClientKtorUtils
 import de.quati.ogen.plugin.intern.codegen.util.syncModelUtils
 import de.quati.ogen.plugin.intern.codegen.util.syncServerSpringV4Utils
-import de.quati.ogen.plugin.intern.codegen.util.syncUtils
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import org.slf4j.Logger
@@ -32,10 +30,8 @@ internal class Generator(
                 }
             }
 
-            syncUtils()
             syncModelUtils()
             syncServerSpringV4Utils()
-            syncClientKtorUtils()
         }
     }
 
