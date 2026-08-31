@@ -4,9 +4,9 @@ import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Endpoint
 import de.quati.ogen.plugin.intern.model.RefString
-import de.quati.ogen.plugin.intern.model.SpecInfoContext
+import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
 
-context(_: SpecInfoContext)
+context(_: ParserContext)
 internal fun io.swagger.v3.oas.models.parameters.RequestBody?.parse(
     name: ComponentName.RequestBody
 ): Endpoint.RequestBody {

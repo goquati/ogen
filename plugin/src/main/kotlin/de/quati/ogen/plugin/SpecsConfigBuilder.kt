@@ -191,7 +191,8 @@ public open class SpecsConfigBuilder {
                 clazz: String,
                 serializerObject: String? = null,
             ): ModelConfig = apply {
-                val name = ComponentName.Schema.parse(schema)
+                require(schema.isNotBlank()) { "schema must not be blank" }
+                val name = ComponentName.Schema.Nested.parse(schema.split('.'))
                 schemaMappings[name] = parseCustomType(clazz = clazz, serializerObject = serializerObject)
             }
 

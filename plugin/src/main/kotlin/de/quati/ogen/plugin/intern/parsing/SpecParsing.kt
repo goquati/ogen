@@ -1,10 +1,10 @@
 package de.quati.ogen.plugin.intern.parsing
 
 import de.quati.ogen.plugin.intern.model.ComponentName
-import de.quati.ogen.plugin.intern.model.Security
 import de.quati.ogen.plugin.intern.model.Spec
-import de.quati.ogen.plugin.intern.model.SpecInfoContext
 import de.quati.ogen.plugin.intern.model.SpecSecurityContext
+import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
+import de.quati.ogen.plugin.intern.parsing.helper.SchemaLocation
 import io.swagger.v3.parser.core.models.SwaggerParseResult
 
 internal fun SwaggerParseResult.parse(): Spec {
@@ -19,12 +19,21 @@ internal fun SwaggerParseResult.parse(): Spec {
         override val securityRequirementObjects = securityRequirementObjects
     }.run { raw.security.parse() }
 
-    val infoContext = object : SpecInfoContext {
-        override val version: Spec.Version = version
-        override val defaultSecurity: Security = defaultSecurity
-        override val securityRequirementObjects = securityRequirementObjects
-    }
-    return with(infoContext) {
+    val parserContext = ParserContext(
+        version = version,
+        defaultSecurity = defaultSecurity,
+        securityRequirementObjects = securityRequirementObjects,
+    )
+
+    val spec = with(parserContext) {
+        raw.components.schemas?.entries?.forEach { (name, obj) ->
+            val name = ComponentName.Schema.Root.parse(name)
+            val location = SchemaLocation.Root(
+                type = SchemaLocation.Root.Type.COMPONENTS_SCHEMA,
+                name = name,
+            )
+            obj.parse(location = location)
+        }
         val components = raw.components.parse()
         val paths = raw.paths.parse()
         Spec(
@@ -34,14 +43,16 @@ internal fun SwaggerParseResult.parse(): Spec {
             security = defaultSecurity,
         )
     }
+    return spec.copy(
+        components = spec.components.copy(
+            schemas = parserContext.getSchemas(),
+        ),
+    )
 }
 
-context(_: SpecInfoContext)
+context(_: ParserContext)
 private fun io.swagger.v3.oas.models.Components.parse() = Spec.Components(
-    schemas = schemas?.entries?.associate { (name, obj) ->
-        val name = ComponentName.Schema.parse(name)
-        name to obj.parse(name = name)
-    } ?: emptyMap(),
+    schemas = emptyMap(), // ParserContext includes the actual schemas
     parameters = parameters?.entries?.associate { (name, obj) ->
         val name = ComponentName.Parameter.parse(name)
         name to obj.parse(name = name)

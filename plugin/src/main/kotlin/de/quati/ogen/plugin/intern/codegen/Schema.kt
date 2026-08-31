@@ -23,10 +23,13 @@ import de.quati.ogen.plugin.intern.model.Type
 context(c: CodeGenContext)
 private fun Component.Schema.getMappingOrNull(): Type.NonPrimitiveType.Custom? {
     if (this is Component.Schema.Ref) {
-        c.schemaMappings[ref.schemaName]?.also { return it }
-        return requireNotNull(c.refToSchema[ref]).getMappingOrNull()
+        c.schemaMappings[name]?.also { return it }
+        return requireNotNull(c.allSchemas[name]).getMappingOrNull()
     }
-    c.schemaMappings[name]?.also { return it }
+    when (this) {
+        is Component.Schema.Inline -> Unit
+        is Component.Schema.NonInline -> c.schemaMappings[name]?.also { return it }
+    }
     c.typeMappings[typeWithFormat]?.also { return it }
     return null
 }
@@ -37,70 +40,61 @@ internal fun Component.Schema.getTypeName(
 ): Type {
     getMappingOrNull()?.also { return it }
     return when (this) {
-        is Component.Schema.Array -> items.getTypeName(withFlow = false).let { itemTypeData ->
-            when (withFlow) {
-                true -> Type.NonPrimitiveType.Flow(itemTypeData)
-                false -> Type.NonPrimitiveType.List(itemTypeData)
-            }
-        }
-
-        is Component.Schema.Unknown -> Type.PrimitiveType.JsonElement
-
-        is Component.Schema.PrimitivType -> when (type) {
-            Component.Schema.PrimitivType.Type.STRING -> when (typeWithFormat.format) {
-                "uuid" -> Type.PrimitiveType.Uuid
-                else -> Type.PrimitiveType.String
-            }
-
-            Component.Schema.PrimitivType.Type.INTEGER -> when (format) {
-                "int32" -> Type.PrimitiveType.Int
-                "int64" -> Type.PrimitiveType.Long
-                else -> Type.PrimitiveType.Int
-            }
-
-            Component.Schema.PrimitivType.Type.NUMBER -> when (format) {
-                "float" -> Type.PrimitiveType.Float
-                "double" -> Type.PrimitiveType.Double
-                else -> Type.PrimitiveType.Double
-            }
-
-            Component.Schema.PrimitivType.Type.BOOLEAN -> Type.PrimitiveType.Boolean
-        }
-
-        is Component.Schema.MapS -> Type.NonPrimitiveType.Map(
-            keyType = Type.PrimitiveType.String,
-            valueType = valueSchema.getTypeName(withFlow = withFlow),
-        )
-
-        Component.Schema.Null -> Type.PrimitiveType.JsonNull
-
-        is Component.Schema.Ref -> Type.NonPrimitiveType.SerializableObject(
-            packageName = c.packageModel,
-            simpleNames = ref.schemaName.classNameSimpleNames
-        )
-
-        is Component.Schema.Composed,
-        is Component.Schema.SealedInterface,
-        is Component.Schema.Obj,
-        is Component.Schema.EnumString -> Type.NonPrimitiveType.SerializableObject(
+        is Component.Schema.NonInline -> Type.NonPrimitiveType.SerializableObject(
             packageName = c.packageModel,
             simpleNames = name.classNameSimpleNames
         )
+
+        is Component.Schema.Inline -> when (this) {
+            is Component.Schema.Array.Inline -> items.getTypeName(withFlow = false).let { itemTypeData ->
+                when (withFlow) {
+                    true -> Type.NonPrimitiveType.Flow(itemTypeData)
+                    false -> Type.NonPrimitiveType.List(itemTypeData)
+                }
+            }
+
+            is Component.Schema.MapS.Inline -> Type.NonPrimitiveType.Map(
+                keyType = Type.PrimitiveType.String,
+                valueType = valueSchema.getTypeName(withFlow = withFlow),
+            )
+
+            is Component.Schema.Primitiv.Inline -> when (type) {
+                Component.Schema.Primitiv.Type.STRING -> when (typeWithFormat.format) {
+                    "uuid" -> Type.PrimitiveType.Uuid
+                    else -> Type.PrimitiveType.String
+                }
+
+                Component.Schema.Primitiv.Type.INTEGER -> when (format) {
+                    "int32" -> Type.PrimitiveType.Int
+                    "int64" -> Type.PrimitiveType.Long
+                    else -> Type.PrimitiveType.Int
+                }
+
+                Component.Schema.Primitiv.Type.NUMBER -> when (format) {
+                    "float" -> Type.PrimitiveType.Float
+                    "double" -> Type.PrimitiveType.Double
+                    else -> Type.PrimitiveType.Double
+                }
+
+                Component.Schema.Primitiv.Type.BOOLEAN -> Type.PrimitiveType.Boolean
+            }
+
+            is Component.Schema.Ref -> Type.NonPrimitiveType.SerializableObject(
+                packageName = c.packageModel,
+                simpleNames = name.classNameSimpleNames
+            )
+
+            is Component.Schema.Unknown.Inline -> Type.PrimitiveType.JsonElement
+            Component.Schema.Null -> Type.PrimitiveType.JsonNull
+        }
     }
 }
-
-
-context(c: CodeGenContext)
-private fun Component.Schema.Composed.toObjOrUnknown(): Component.Schema =
-    toObjOrNull() ?: Component.Schema.Unknown(name = name, typeWithFormat = typeWithFormat)
 
 context(c: CodeGenContext)
 private fun Component.Schema.Composed.toObjOrNull(): Component.Schema.Obj? {
     val innerSchemas = schemas.map { schema ->
         when (schema) {
-            is Component.Schema.Obj -> schema
-            is Component.Schema.Composed -> schema.toObjOrNull()
-            is Component.Schema.Ref -> when (val refSchema = c.refToSchema[schema.ref]) {
+            is Component.Schema.Ref -> when (val refSchema = c.allSchemas[schema.name]) {
                 is Component.Schema.Obj -> refSchema
                 is Component.Schema.Composed -> refSchema.toObjOrNull()
                 else -> null
@@ -131,7 +125,7 @@ internal sealed interface SchemaTypeSpecData {
     data class Enum(override val schema: Component.Schema.EnumString) : SchemaTypeSpecData
     data class SealedInterface(override val schema: Component.Schema.SealedInterface) : SchemaTypeSpecData
     data class DataClass(override val schema: Component.Schema.Obj) : SchemaTypeSpecData
-    data class ValueClass(override val schema: Component.Schema) : SchemaTypeSpecData
+    data class ValueClass(override val schema: Component.Schema.Value) : SchemaTypeSpecData
 }
 
 context(_: CodeGenContext)
@@ -143,73 +137,64 @@ internal fun SchemaTypeSpecData.toTypeSpec(): TypeSpec? = when (this) {
 }
 
 context(c: CodeGenContext)
-internal fun Component.Schema.toTypeSpecData(): SchemaTypeSpecData? {
+internal fun Component.Schema.NonInline.toTypeSpecData(): SchemaTypeSpecData? {
     return when (this) {
-        is Component.Schema.Ref -> null
         is Component.Schema.EnumString -> SchemaTypeSpecData.Enum(this)
-        is Component.Schema.Composed -> toObjOrUnknown().toTypeSpecData()
+        is Component.Schema.Composed -> toObjOrNull()?.toTypeSpecData()
+            ?: SchemaTypeSpecData.ValueClass(Component.Schema.Unknown.Value(name = name, typeWithFormat = typeWithFormat))
         is Component.Schema.SealedInterface -> SchemaTypeSpecData.SealedInterface(this)
         is Component.Schema.Obj -> SchemaTypeSpecData.DataClass(this)
-        is Component.Schema.Unknown,
-        is Component.Schema.Null,
-        is Component.Schema.MapS,
-        is Component.Schema.Array,
-        is Component.Schema.PrimitivType -> SchemaTypeSpecData.ValueClass(this)
+        is Component.Schema.Value -> SchemaTypeSpecData.ValueClass(this)
     }
 }
 
 context(_: CodeGenContext)
-internal fun Component.Schema.toTypeSpec(): TypeSpec? {
+internal fun Component.Schema.NonInline.toTypeSpec(): TypeSpec? {
     getMappingOrNull()?.also { return null }
     return toTypeSpecData()?.toTypeSpec()
 }
 
 context(_: CodeGenContext)
-internal fun Component.Schema.toInnerTypeSpec(): TypeSpec? {
+internal fun Component.Schema.NonInline.toInnerTypeSpec(): TypeSpec? { // TODO why?
     getMappingOrNull()?.also { return null }
     return when (this) {
         is Component.Schema.EnumString -> generateEnumTypeSpec()
-        is Component.Schema.Composed -> toObjOrUnknown().toInnerTypeSpec()
+        is Component.Schema.Composed -> toObjOrNull()?.toInnerTypeSpec()
         is Component.Schema.SealedInterface -> generateSealedInterfaceTypeSpec()
         is Component.Schema.Obj -> generateDataClassTypeSpec()
-        is Component.Schema.Array -> items.toInnerTypeSpec()
-        is Component.Schema.MapS -> valueSchema.toInnerTypeSpec()
-        is Component.Schema.Unknown,
-        is Component.Schema.Null,
-        is Component.Schema.Ref,
-        is Component.Schema.PrimitivType -> null
+        is Component.Schema.Array.Value,
+        is Component.Schema.MapS.Value,
+        is Component.Schema.Primitiv.Value,
+        is Component.Schema.Unknown.Value -> null
     }
 }
 
 context(c: CodeGenContext)
-private fun Component.Schema.generateValueClassTypeSpec(): TypeSpec = buildValueClass(name.prettyClassName) {
-    val type = getTypeName(withFlow = false)
+private fun Component.Schema.Value.generateValueClassTypeSpec(): TypeSpec = buildValueClass(name.prettyClassName) {
+    val type = toInline().getTypeName(withFlow = false)
     val valueName = "value"
-    val discInfo = c.discriminatorInfoMap[name]
+    val discInfo = c.discriminatorInfoMap[this@generateValueClassTypeSpec.name]
     if (discInfo != null) {
         addAnnotation(Poet.serialName(discInfo.elementName))
         addAnnotation(Poet.experimentalSerializationApi)
         discInfo.interfaces.forEach { addSuperinterface(it.name.typename) }
     }
-    this@generateValueClassTypeSpec.toInnerTypeSpec()?.also {
-        this@buildValueClass.addType(it)
-    }
     val valueSerializer = type.getSerializerTypeName(register = true)?.let { innerSerializer ->
         val serializerName = "Serializer"
         val serializerTypeSpec = buildObject(serializerName) {
             addSuperinterface(
-                Poet.kSerializer.parameterizedBy(name.typename),
+                Poet.kSerializer.parameterizedBy(this@generateValueClassTypeSpec.name.typename),
                 delegate = CodeBlock.of(
                     "%T(inner = %T, unwrap = %T::$valueName, wrap = ::%T)",
                     c.utilConfig.valueSerializer,
                     innerSerializer,
-                    name.typename,
-                    name.typename,
+                    this@generateValueClassTypeSpec.name.typename,
+                    this@generateValueClassTypeSpec.name.typename,
                 )
             )
         }
         addType(serializerTypeSpec)
-        name.typename.nestedClass(serializerName)
+        this@generateValueClassTypeSpec.name.typename.nestedClass(serializerName)
     }
     addAnnotation(Poet.serializable(valueSerializer))
     primaryConstructor {
@@ -223,19 +208,33 @@ private fun Component.Schema.generateValueClassTypeSpec(): TypeSpec = buildValue
         returns(String::class)
         addStatement("return %N.toString()", valueName)
     }
+
+    this@generateValueClassTypeSpec.toInnerTypeSpec()?.also {
+        addType(it)
+    }
+    c.childSchemas[this@generateValueClassTypeSpec.name]?.forEach { childSchema -> // TODO recursive
+        childSchema.toInnerTypeSpec()?.also {
+            addType(it)
+        }
+    }
 }
 
 
-context(_: CodeGenContext)
+context(c: CodeGenContext)
 private fun Component.Schema.SealedInterface.generateSealedInterfaceTypeSpec(): TypeSpec =
     TypeSpec.interfaceBuilder(name.prettyClassName).apply {
         addModifiers(KModifier.SEALED)
         addAnnotation(Poet.serializable())
         addAnnotation(Poet.experimentalSerializationApi)
         addAnnotation(Poet.jsonClassDiscriminator(this@generateSealedInterfaceTypeSpec.discriminatorName))
+        c.childSchemas[name]?.forEach { childSchema -> // TODO recursive
+            childSchema.toInnerTypeSpec()?.also {
+                addType(it)
+            }
+        }
     }.build()
 
-context(_: CodeGenContext)
+context(c: CodeGenContext)
 private fun Component.Schema.EnumString.generateEnumTypeSpec(
 ): TypeSpec = TypeSpec.enumBuilder(name.prettyClassName).apply {
     addAnnotation(Poet.serializable())
@@ -282,6 +281,11 @@ private fun Component.Schema.EnumString.generateEnumTypeSpec(
             )
         }
     }
+    c.childSchemas[name]?.forEach { childSchema -> // TODO recursive
+        childSchema.toInnerTypeSpec()?.also {
+            addType(it)
+        }
+    }
 }.build()
 
 context(c: CodeGenContext)
@@ -309,10 +313,6 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(
                     else
                         Type.NonPrimitiveType.Option(it).nullable(false)
                 }
-
-            prop.toInnerTypeSpec()?.also {
-                this@apply.addType(it)
-            }
             addParameter(prettyFieldName, propType.poet) {
                 if (!isRequired)
                     defaultValue("%T", Poet.option.nestedClass("Undefined"))
@@ -325,6 +325,11 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(
                 if (prettyFieldName != fieldName)
                     addAnnotation(Poet.serialName(fieldName))
             }
+        }
+    }
+    c.childSchemas[name]?.forEach { childSchema -> // TODO recursive
+        childSchema.toInnerTypeSpec()?.also {
+            addType(it)
         }
     }
 }.build()

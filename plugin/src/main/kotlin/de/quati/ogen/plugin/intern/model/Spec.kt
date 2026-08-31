@@ -20,7 +20,7 @@ internal data class Spec(
     }
 
     data class Components(
-        override val schemas: Map<ComponentName.Schema, Component.Schema>,
+        override val schemas: Map<ComponentName.Schema, Component.Schema.NonInline>,
         override val parameters: Map<ComponentName.Parameter, Endpoint.Parameter>,
         override val requestBody: Map<ComponentName.RequestBody, Endpoint.RequestBody>,
         override val response: Map<ComponentName.Response, Endpoint.Response>,

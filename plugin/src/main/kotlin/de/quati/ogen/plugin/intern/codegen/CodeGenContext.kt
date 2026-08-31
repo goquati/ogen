@@ -6,10 +6,8 @@ import de.quati.kotlin.util.poet.PackageName
 import de.quati.ogen.plugin.intern.model.Component
 import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.ElementDiscriminatorInfo
-import de.quati.ogen.plugin.intern.model.RefString
 import de.quati.ogen.plugin.intern.model.Spec
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
-import de.quati.ogen.plugin.intern.model.flatten
 
 
 internal class CodeGenContext(
@@ -24,30 +22,26 @@ internal class CodeGenContext(
     val schemaPostfix = specConfig.modelConfig.postfix
 
     val discriminatorInfoMap: Map<ComponentName.Schema, ElementDiscriminatorInfo>
-    val refToSchema: Map<RefString, Component.Schema>
-    val enumSchemas: Set<Component.Schema.EnumString>
+    val allSchemas = spec.components.schemas
+    val childSchemas = allSchemas.values.groupByNotNull { it.name.getParent() }
+    val enumSchemas = allSchemas.values.filterIsInstance<Component.Schema.EnumString>().toSet()
 
     init {
         val invalidSealedInterfaces = mutableSetOf<Component.Schema.SealedInterface>()
-        val allSchemas = spec.components.schemas.flatMap { it.value.flatten() }
-        enumSchemas = allSchemas.filterIsInstance<Component.Schema.EnumString>().toSet()
-
-        refToSchema = allSchemas
-            .groupByNotNull { it.name.toRefOrNull() }
-            .mapValues { (name, schemas) -> schemas.singleOrNull() ?: error("Duplicate schema name '$name'") }
-
-        discriminatorInfoMap = allSchemas
+        discriminatorInfoMap = allSchemas.values
             .filterIsInstance<Component.Schema.SealedInterface>()
             .flatMap { si -> si.schemas.map { it.value to si } }
             .groupBy({ it.first }, { it.second })
             .entries.associateNotNull { (refSchema, interfaces) ->
                 val discriminator = interfaces.map { it.discriminatorName }.distinct().singleOrNull()
-                val name = interfaces.mapNotNull { it.findChildSchema(refSchema.name) }.distinct().singleOrNull()
+                val name = interfaces.mapNotNull {
+                    it.schemas.entries.firstOrNull { (_, schema) -> schema.ref == refSchema.ref }?.key
+                }.distinct().singleOrNull()
                 if (name == null || discriminator == null) {
                     invalidSealedInterfaces.addAll(interfaces)
                     return@associateNotNull null
                 }
-                refSchema.ref.schemaName to ElementDiscriminatorInfo(
+                refSchema.name to ElementDiscriminatorInfo(
                     discriminatorName = discriminator,
                     elementName = name,
                     interfaces = interfaces,

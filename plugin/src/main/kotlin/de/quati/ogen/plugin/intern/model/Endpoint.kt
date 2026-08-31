@@ -121,14 +121,14 @@ internal data class Endpoint(
                 is Component.Schema.Unknown -> null
 
                 is Component.Schema.EnumString -> CodeBlock.of(".value")
-                is Component.Schema.PrimitivType -> when (getTypeName(withFlow = false)) {
+                is Component.Schema.Primitiv -> when (getTypeName(withFlow = false)) {
                     de.quati.ogen.plugin.intern.model.Type.PrimitiveType.String -> CodeBlock.of("")
                     else -> CodeBlock.of(".toString()")
                 }
 
                 is Component.Schema.Ref -> run {
                     if (!followRef) null
-                    else when (val typeSpecData = c.refToSchema[this.ref]?.toTypeSpecData()!!) {
+                    else when (val typeSpecData = c.allSchemas[this.name]?.toTypeSpecData()!!) {
                         is SchemaTypeSpecData.DataClass, is SchemaTypeSpecData.SealedInterface -> null
                         is SchemaTypeSpecData.Enum -> CodeBlock.of(".value")
                         is SchemaTypeSpecData.ValueClass -> CodeBlock.of(

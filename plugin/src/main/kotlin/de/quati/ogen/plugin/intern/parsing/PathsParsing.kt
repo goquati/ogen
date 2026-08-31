@@ -4,17 +4,17 @@ import de.quati.ogen.plugin.intern.model.Endpoint
 import de.quati.ogen.plugin.intern.model.HttpCode
 import de.quati.ogen.plugin.intern.model.OperationName
 import de.quati.ogen.plugin.intern.model.Spec
-import de.quati.ogen.plugin.intern.model.SpecInfoContext
 import de.quati.ogen.plugin.intern.model.Tag
+import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
 import io.swagger.v3.oas.models.PathItem
 
 
-context(_: SpecInfoContext)
+context(_: ParserContext)
 internal fun io.swagger.v3.oas.models.Paths.parse() = Spec.Endpoints(
     paths = flatMap { (path, pathItem) -> parse(path, pathItem) }
 )
 
-context(s: SpecInfoContext)
+context(s: ParserContext)
 private fun parse(path: String, data: PathItem): List<Endpoint> {
     return data.readOperationsMap().map { (method, operation) ->
         val operationName = operation.operationId

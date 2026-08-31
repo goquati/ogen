@@ -5,14 +5,20 @@ import de.quati.ogen.plugin.intern.model.ContentMediaType
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Discriminator
 import de.quati.ogen.plugin.intern.model.RefString
-import de.quati.ogen.plugin.intern.model.SpecInfoContext
+import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
+import de.quati.ogen.plugin.intern.parsing.helper.SchemaLocation
 
-context(_: SpecInfoContext)
+context(_: ParserContext)
 internal fun io.swagger.v3.oas.models.media.MediaType.parse(
     contentType: ContentType,
-    name: ComponentName.Schema,
+    name: ComponentName.Schema.Root,
 ): ContentMediaType {
-    val schema = schema?.parse(name = name)
+    val schema = schema?.parse(
+        location = SchemaLocation.Root(
+            name = name,
+            type = SchemaLocation.Root.Type.PATH_BODY,
+        )
+    )
     return ContentMediaType(
         contentType = contentType,
         schema = schema,

@@ -1,6 +1,7 @@
 package de.quati.ogen.plugin.intern.model
 
 import com.squareup.kotlinpoet.TypeName
+import de.quati.kotlin.util.poet.makeDifferent
 import de.quati.kotlin.util.poet.toCamelCase
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.ComponentsContext
@@ -103,7 +104,7 @@ internal sealed interface RefString {
 
     @JvmInline
     value class Schema private constructor(override val value: String) : RefString {
-        val schemaName get() = ComponentName.Schema.parse(value.substringAfterLast("/"))
+        val schemaName get() = ComponentName.Schema.Root.parse(value.substringAfterLast("/"))
 
         companion object {
             fun parse(value: String) = Schema(value)
@@ -175,7 +176,7 @@ internal sealed interface ComponentName {
     @JvmInline
     value class Parameter private constructor(val name: String) : ComponentName {
         override fun toString() = name
-        val schemaName get() = Schema.parse(name)
+        val schemaName get() = Schema.Root.parse(name)
 
         companion object {
             fun parse(value: String) = Parameter(value.toCamelCase(capitalized = true))
@@ -185,7 +186,7 @@ internal sealed interface ComponentName {
     @JvmInline
     value class RequestBody private constructor(val name: String) : ComponentName {
         override fun toString() = name
-        val schemaName get() = Schema.parse(name + "Body")
+        val schemaName get() = Schema.Root.parse(name + "Body")
 
         companion object {
             fun parse(value: String) = RequestBody(value.toCamelCase(capitalized = true))
@@ -195,7 +196,7 @@ internal sealed interface ComponentName {
     @JvmInline
     value class Response private constructor(val name: String) : ComponentName {
         override fun toString() = name
-        val schemaName get() = Schema.parse(name + "Body")
+        val schemaName get() = Schema.Root.parse(name + "Body")
 
         companion object {
             fun parse(value: String) = Response(value.toCamelCase(capitalized = true))
@@ -211,55 +212,78 @@ internal sealed interface ComponentName {
         }
     }
 
-    @JvmInline
-    value class Schema private constructor(private val names: List<String>) : ComponentName {
-        override fun toString(): String = if (this == Unnamed)
-            "Unnamed"
-        else
-            names.joinToString(separator = ".")
+    sealed interface Schema : ComponentName {
+        val name: String
+        val names: List<String>
 
-        operator fun plus(name: String) = if (this == Unnamed)
-            Unnamed
-        else
-            Schema(names + name)
+        operator fun plus(value: String) = Nested.toNested(this, value)
+        fun updateLast(block: (String) -> String): Schema
 
         context(c: CodeGenContext)
-        val fileName
-            get() = names.firstOrNull()?.let { it + c.schemaPostfix }
-                ?: error("Unnamed schema has no file name")
+        val fileName get() = names.first() + c.schemaPostfix
 
         context(c: CodeGenContext)
-        val prettyClassName
-            get() = names.lastOrNull()?.let { it + c.schemaPostfix }
-                ?: error("Unnamed schema has no last name")
+        val prettyClassName get() = names.last() + c.schemaPostfix
 
-        val rawClassName
-            get() = names.lastOrNull() ?: error("Unnamed schema has no last name")
-
-        fun updateLast(block: (String) -> String) = if (isUnnamed)
-            error("cannot update unnamed schema")
-        else Schema(
-            names.dropLast(1) + block(names.last())
-        )
-
-        val isUnnamed get() = names.isEmpty()
-
-        fun toRefOrNull() = names.singleOrNull()?.let { RefString.Schema.parse("#/components/schemas/$it") }
+        val rawClassName get() = names.last()
 
         context(c: CodeGenContext)
         val classNameSimpleNames get() = names.map { it + c.schemaPostfix }
 
         context(c: CodeGenContext)
-        val typename
-            get() = if (this == Unnamed)
-                error("Unnamed schema has no typename")
-            else
-                c.packageModel.className(classNameSimpleNames)
+        val typename get() = c.packageModel.className(classNameSimpleNames)
 
-        companion object {
-            val Unnamed = Schema(emptyList())
+        fun makeDifferent(blackList: Iterable<Schema>): Schema
+        fun toRef(): RefString.Schema?
+        fun getParent(): Schema?
 
-            fun parse(value: String) = Schema(listOf(value.toCamelCase(capitalized = true)))
+        @JvmInline
+        value class Root private constructor(override val name: String) : Schema {
+            override val names: List<String> get() = listOf(name)
+            override fun toString() = name
+            override fun plus(value: String) = Nested.toNested(this, value)
+            override fun updateLast(block: (String) -> String) = parse(block(name))
+            override fun makeDifferent(blackList: Iterable<Schema>) = name.makeDifferent(
+                blackList = blackList.map { it.name },
+                separator = "",
+            ).let(Root::parse)
+
+            override fun toRef() = RefString.Schema.parse("#/components/schemas/$name")
+            override fun getParent() = null
+
+            companion object {
+                fun parse(value: String) = Root(value.toCamelCase(capitalized = true))
+            }
+        }
+
+        @JvmInline
+        value class Nested private constructor(override val names: List<String>) : Schema {
+            override fun toString() = names.joinToString(separator = ".")
+            override val name: String get() = names.joinToString(separator = ".")
+            override fun updateLast(block: (String) -> String) = Nested(
+                names.dropLast(1) + block(names.last())
+            )
+
+            override fun makeDifferent(blackList: Iterable<Schema>) = name.makeDifferent(
+                blackList = blackList.map { it.name },
+                separator = "",
+            ).split('.').let(::Nested)
+
+            override fun toRef() = null
+            override fun getParent(): Schema = names.dropLast(1).let { parentNames ->
+                parentNames.singleOrNull()?.let(Root::parse) ?: Nested(parentNames)
+            }
+
+            companion object {
+                fun parse(names: List<String>): Schema {
+                    require(names.isNotEmpty()) { "names must not be empty" }
+                    names.singleOrNull()?.also { return Root.parse(it) }
+                    return Nested(names)
+                }
+
+                fun toNested(base: Schema, name: String) =
+                    Nested(base.names + name.toCamelCase(capitalized = true))
+            }
         }
     }
 }
