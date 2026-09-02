@@ -109,12 +109,18 @@ private fun FileSpec.Builder.addController(
 
     with(NameConflictResolver()) {
         for (endpoint in endpoints)
-            addEndpoint(endpoint)
+            addEndpoint(
+                controllerName = controllerName,
+                endpoint = endpoint,
+            )
     }
 }
 
 context(c: CodeGenContext, config: GeneratorConfig.ClientKtor, funNameResolver: NameConflictResolver)
-private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
+private fun TypeSpec.Builder.addEndpoint(
+    controllerName: String,
+    endpoint: Endpoint,
+) {
     val funName = funNameResolver.resolve(endpoint.operationName.name)
     val funNamePrepare = funNameResolver.resolve("prepare" + funName.replaceFirstChar(Char::titlecaseChar))
     val parameters = run {
@@ -233,7 +239,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
             }
             addCode("    $acceptParamName = %L,\n", Poet.Ktor.contentTypeCodeBlock(info.contentType!!))
             addCode(")\n")
-            addCode("return client.bodyAsFlow<%T>(stmt)", info.typeName)
+            addCode("return this@$controllerName.client.bodyAsFlow<%T>(stmt)", info.typeName)
         }
     }
 
@@ -247,7 +253,7 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
         addModifiers(KModifier.SUSPEND)
         returns(Poet.Ktor.httpStatement)
         addCode {
-            add("return client.httpClient.%T {\n", Poet.Ktor.Request.prepareRequest)
+            add("return this@$controllerName.client.httpClient.%T {\n", Poet.Ktor.Request.prepareRequest)
             indent {
                 addStatement("this.method = %T.%L", Poet.Ktor.httpMethod, endpoint.method.ktorName)
                 addStatement(
@@ -255,14 +261,18 @@ private fun TypeSpec.Builder.addEndpoint(endpoint: Endpoint) {
                     Poet.Lib.Client.Ktor.ogenAuthAttr,
                     securityRequirementListCodeBlock(endpoint.security)
                 )
-                addPath(path = endpoint.path, params = parameters)
+                addPath(
+                    controllerName = controllerName,
+                    path = endpoint.path,
+                    params = parameters,
+                )
                 parameters.forEach { param ->
                     addParam(param)
                 }
                 addStatement("%L?.also { this.%T(it) }", acceptParamName, Poet.Ktor.Request.accept)
                 if (requestBodyInfo != null)
                     addRequestBody(requestBodyInfo)
-                addStatement("client.baseModifier(this)")
+                addStatement("this@$controllerName.client.baseModifier(this)")
                 addStatement("$blockName(this)")
             }
             add("}")
@@ -288,8 +298,12 @@ private fun CodeBlock.Builder.addParam(param: Endpoint.StringableParameter) {
 }
 
 context(_: CodeGenContext, _: GeneratorConfig.ClientKtor)
-private fun CodeBlock.Builder.addPath(path: String, params: List<Endpoint.StringableParameter>) {
-    add("client.buildUrl(\n")
+private fun CodeBlock.Builder.addPath(
+    controllerName: String,
+    path: String,
+    params: List<Endpoint.StringableParameter>,
+) {
+    add("this@$controllerName.client.buildUrl(\n")
     indent {
         add("path = %S,\n", path)
         add("params = %L,\n", params.filter { it.inType == Endpoint.Parameter.Type.PATH }.toParameterMapCodeBlock())
