@@ -59,7 +59,7 @@ class KtorClientTest {
     @LocalServerPort
     private var port: Int = 0
 
-    fun createClient(user: User?) = HttpClientOgen(
+    fun createClient(user: User?) = HttpClientOgen.Base(
         httpClient = HttpClient(CIO) {
             install(Auth) {
                 if (user != null)

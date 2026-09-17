@@ -239,7 +239,11 @@ private fun TypeSpec.Builder.addEndpoint(
             }
             addCode("    $acceptParamName = %L,\n", Poet.Ktor.contentTypeCodeBlock(info.contentType!!))
             addCode(")\n")
-            addCode("return this@$controllerName.client.bodyAsFlow<%T>(stmt)", info.typeName)
+            addCode(
+                "return this@$controllerName.client.%T<%T>(stmt)",
+                Poet.Lib.Client.Ktor.bodyAsFlow,
+                info.typeName,
+            )
         }
     }
 

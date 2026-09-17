@@ -104,6 +104,7 @@ internal object Poet {
 
                 val httpResponseTyped = packageName.className("HttpResponseTyped")
                 val httpClientOgen = packageName.className("HttpClientOgen")
+                val bodyAsFlow = packageName.className("bodyAsFlow")
                 val toTyped = (packageName + "HttpResponseTyped" + "Companion").className("toTyped")
                 val ogenAuthAttr = packageName.className("ogenAuthAttr")
             }
