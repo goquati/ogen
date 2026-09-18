@@ -34,8 +34,4 @@ public interface HttpClientOgen {
         }
         appendPathSegments(segments, encodeSlash = true)
     }
-
-    public suspend fun <T> use(block: suspend (HttpClientOgen) -> T): T = httpClient.use {
-        block(this)
-    }
 }

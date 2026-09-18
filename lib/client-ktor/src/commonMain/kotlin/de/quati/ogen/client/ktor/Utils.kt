@@ -15,6 +15,12 @@ public val ogenAuthAttr: AttributeKey<List<SecurityRequirement>> = AttributeKey(
 public fun HttpRequestBuilder.getOgenAuthNotes(): List<SecurityRequirement> =
     attributes.getOrNull(ogenAuthAttr) ?: emptyList()
 
+public suspend fun <T, CLIENT : HttpClientOgen> CLIENT.use(
+    block: suspend (CLIENT) -> T,
+): T = httpClient.use {
+    block(this)
+}
+
 public inline fun <reified T> HttpClientOgen.bodyAsFlow(stmt: HttpStatement): Flow<T> = flow {
     val res = stmt.execute()
     val channel = res.bodyAsChannel()
