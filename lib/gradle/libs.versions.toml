@@ -1,8 +1,8 @@
 [versions]
-kotlin = "2.4.10"
+kotlin = "2.4.20"
 quati-util = "2.6.0"
 kotlinx-serialization = "1.11.0"
-ktor = "3.5.2"
+ktor = "3.6.0"
 
 [libraries]
 quati-base = { module = "de.quati:kotlin-util", version.ref = "quati-util" }
@@ -13,4 +13,4 @@ ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-publish = { id = "com.vanniktech.maven.publish", version = "0.28.0" }
+publish = { id = "com.vanniktech.maven.publish", version = "0.37.0" }
