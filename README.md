@@ -21,10 +21,10 @@ Apply the plugin in your `build.gradle.kts`:
 plugins {
     kotlin("jvm") // or kotlin("multiplatform")
     kotlin("plugin.serialization")
-    id("de.quati.ogen") version "0.11.0"
+    id("de.quati.ogen") version "0.12.0"
 
-    implementation("de.quati.ogen:core:0.11.0")
-    implementation("de.quati.ogen:client-ktor:0.11.0") // Optional: only for generate Ktor clients required
+    implementation("de.quati.ogen:core:0.12.0")
+    implementation("de.quati.ogen:client-ktor:0.12.0") // Optional: only for generate Ktor clients required
 }
 ```
 
