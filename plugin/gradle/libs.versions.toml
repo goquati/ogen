@@ -11,4 +11,4 @@ swagger-generator = { module = "org.openapitools:openapi-generator", version = "
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-gradlePluginPublish = { id = "com.gradle.plugin-publish", version = "1.2.1" }
+gradlePluginPublish = { id = "com.gradle.plugin-publish", version = "2.2.1" }
