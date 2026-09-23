@@ -45,9 +45,17 @@ private fun getResponseTypeName(
     contentType: ContentType?
 ) = when (contentType) {
     null -> Unit::class.asClassName()
-    is ContentType.Unknown -> Any::class.asClassName()
+    is ContentType.Unknown, is ContentType.Multipart -> Any::class.asClassName()
     is ContentType.Json -> typeName
 }
+
+context(_: CodeGenContext)
+private val Endpoint.Part.springTypeName: TypeName
+    get() = when (file) {
+        Endpoint.Part.File.ONE -> Poet.Spring.WebFlux.filePart
+        Endpoint.Part.File.MANY -> List::class.asClassName().parameterizedBy(Poet.Spring.WebFlux.filePart)
+        Endpoint.Part.File.NONE -> schema.getTypeName(withFlow = false).poet
+    }
 
 private fun TypeName?.toSpringResponseEntity() =
     Poet.Spring.responseEntity.parameterizedBy(this ?: Unit::class.asClassName())
@@ -63,6 +71,7 @@ private fun TypeSpec.Builder.createController(
     for (endpoint in endpoints) {
         val paramNameResolver = NameConflictResolver(separator = "")
         val requestBody = endpoint.requestBodyResolved
+        val requestBodyParts = requestBody?.parts ?: emptyList()
         val responseBody = endpoint.responseResolved
         addFunction(name = endpoint.operationName.name) {
             addModifiers(KModifier.ABSTRACT, KModifier.SUSPEND)
@@ -104,17 +113,32 @@ private fun TypeSpec.Builder.createController(
                         addMember("required = %L", parameter.required)
                     }
                 }
-            if (requestBody != null)
-                addParameter(
+            when {
+                requestBody == null -> Unit
+
+                requestBodyParts.isNotEmpty() -> requestBodyParts.forEach { part ->
+                    addParameter(
+                        name = paramNameResolver.resolve(part.prettyName),
+                        type = part.springTypeName.copy(nullable = !part.required),
+                    ) {
+                        addAnnotation(Poet.Spring.requestPart) {
+                            addMember("value = %S", part.name)
+                            addMember("required = %L", part.required)
+                        }
+                    }
+                }
+
+                else -> addParameter(
                     name = paramNameResolver.resolve(requestBody.prettyBodyName),
                     type = when (requestBody.contentType) {
                         null -> Any::class.asClassName()
-                        is ContentType.Unknown -> Any::class.asClassName()
+                        is ContentType.Unknown, is ContentType.Multipart -> Any::class.asClassName()
                         is ContentType.Json -> requestBody.typeName
                     },
                 ) {
                     addAnnotation(Poet.Spring.requestBody)
                 }
+            }
 
             if (config.addOperationContext)
                 operationContexts += endpoint.generateOperationContextTypeSpec {

@@ -221,6 +221,60 @@ class SpringBootServerTest {
     }
 
     @Test
+    fun `test uploadUserFile`() {
+        val userId = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3"
+        val op = Operation(HttpMethod.POST, "/api/v1/users/$userId/files")
+        client.doMultipartRequest(
+            op = op,
+            user = User.USER,
+            parts = mapOf("name" to "report", "description" to "q3"),
+            fileName = "notes.txt",
+            fileContent = "file content",
+            expectedStatus = 201,
+            expectedInput = "testUser|$userId|notes.txt|report|q3|file content",
+            expectedBodyData = """{"fileId":"notes.txt","name":"report","size":12}""",
+        )
+        client.doMultipartRequest(
+            op = op,
+            user = User.USER,
+            parts = mapOf("name" to "report"),
+            fileName = "notes.txt",
+            fileContent = "file content",
+            expectedStatus = 201,
+            expectedInput = "testUser|$userId|notes.txt|report|null|file content",
+        )
+        client.doMultipartRequest(
+            op = op,
+            user = User.USER,
+            parts = emptyMap(),
+            fileName = "notes.txt",
+            fileContent = "file content",
+            expectedStatus = 400, // name is required
+        )
+        client.doMultipartRequest(
+            op = op,
+            user = User.USER,
+            parts = mapOf("name" to "report"),
+            fileName = null,
+            fileContent = null,
+            expectedStatus = 400, // file is required
+        )
+    }
+
+    @Test
+    fun `test uploadUserAvatar`() {
+        val userId = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3"
+        client.doMultipartRequest(
+            op = Operation(HttpMethod.POST, "/api/v1/users/$userId/avatar"),
+            user = User.USER,
+            parts = emptyMap(),
+            fileName = "avatar.png",
+            fileContent = "image bytes",
+            expectedStatus = 415, // a multipart body that is not an object keeps its @RequestBody Any
+        )
+    }
+
+    @Test
     fun `test getUserFile`() {
         val userId = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3"
         val fileId = "file123"

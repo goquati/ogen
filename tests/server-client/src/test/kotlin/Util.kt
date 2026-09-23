@@ -2,8 +2,11 @@ package de.quati.ogen
 
 import de.quati.ogen.client.ktor.HttpResponseTyped
 import io.kotest.matchers.shouldBe
+import org.springframework.core.io.ByteArrayResource
 import org.springframework.http.HttpMethod
+import org.springframework.http.client.MultipartBodyBuilder
 import org.springframework.test.web.reactive.server.WebTestClient
+import org.springframework.web.reactive.function.BodyInserters
 
 
 data class BodyData<T>(
@@ -100,6 +103,37 @@ private fun WebTestClient.doRequest(
         if (expectedNoBody == true)
             (it?.size ?: 0) shouldBe 0
     }
+    ?.let { if (it.isEmpty()) null else it.decodeToString() }.let { bodyResult ->
+        if (expectedBodyData != null) bodyResult shouldBe expectedBodyData
+    }
+
+
+fun WebTestClient.doMultipartRequest(
+    op: Operation,
+    user: User?,
+    parts: Map<String, String>,
+    fileName: String?,
+    fileContent: String?,
+    expectedStatus: Int,
+    expectedInput: String? = null,
+    expectedBodyData: String? = null,
+): Unit = method(op.method).uri(op.url)
+    .apply {
+        if (user != null) headers { it.setBasicAuth(user.userName, user.password) }
+        body(
+            BodyInserters.fromMultipartData(MultipartBodyBuilder().apply {
+                parts.forEach { (name, value) -> part(name, value) }
+                if (fileName != null && fileContent != null)
+                    part("file", ByteArrayResource(fileContent.toByteArray())).filename(fileName)
+            }.build())
+        )
+    }
+    .exchange()
+    .expectStatus().isEqualTo(expectedStatus)
+    .apply {
+        if (expectedInput != null) expectHeader().valueEquals("input-data", expectedInput)
+    }
+    .returnResult().responseBodyContent
     ?.let { if (it.isEmpty()) null else it.decodeToString() }.let { bodyResult ->
         if (expectedBodyData != null) bodyResult shouldBe expectedBodyData
     }

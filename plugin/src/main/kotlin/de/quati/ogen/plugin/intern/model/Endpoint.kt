@@ -172,6 +172,36 @@ internal data class Endpoint(
         val contentType get() = mediaType?.contentType
         val typeName get() = (type?.poet ?: Any::class.asClassName()).copy(nullable = !data.required)
         val prettyBodyName get() = type?.prettyName(capitalized = false) ?: "body"
+
+        context(c: CodeGenContext)
+        val parts: List<Part>
+            get() {
+                if (contentType !is ContentType.Multipart) return emptyList()
+                val schema = mediaType?.schema?.let {
+                    if (it is Component.Schema.Ref) c.allSchemas[it.name] else it
+                }
+                val obj = schema as? Component.Schema.Obj ?: return emptyList()
+                return obj.properties.map { (name, propertySchema) ->
+                    Part(name = name, schema = propertySchema, required = name in obj.required)
+                }
+            }
+    }
+
+    data class Part(
+        val name: String,
+        val schema: Component.Schema,
+        val required: Boolean,
+    ) {
+        val prettyName get() = name.toCamelCase(capitalized = false)
+
+        val file
+            get() = when {
+                schema.isBinary -> File.ONE
+                (schema as? Component.Schema.Array)?.items?.isBinary == true -> File.MANY
+                else -> File.NONE
+            }
+
+        enum class File { NONE, ONE, MANY }
     }
 
     class ResponseResolved(
@@ -204,3 +234,9 @@ internal data class Endpoint(
             }
     }
 }
+
+private val Component.Schema.isBinary
+    get() = when (this) {
+        is Component.Schema.Primitiv -> type == Component.Schema.Primitiv.Type.STRING && format == "binary"
+        else -> false
+    }

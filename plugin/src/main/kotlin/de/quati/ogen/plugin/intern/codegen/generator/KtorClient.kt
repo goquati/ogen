@@ -134,7 +134,7 @@ private fun TypeSpec.Builder.addEndpoint(
         val contentType = responseBody.successMediaType?.contentType
         val typeName = when (contentType) {
             null -> Unit::class.asClassName()
-            is ContentType.Unknown -> Any::class.asClassName()
+            is ContentType.Unknown, is ContentType.Multipart -> Any::class.asClassName()
             is ContentType.Json -> responseBody.getSchemaSuccessTypeName(withFlow = false)
         }
         val contentTypeStream = contentType?.values
@@ -157,7 +157,7 @@ private fun TypeSpec.Builder.addEndpoint(
     val requestBodyInfo = endpoint.requestBodyResolved?.let { body ->
         val name = body.prettyBodyName.makeDifferent(reservedNames)
         val type = when (body.contentType) {
-            null, is ContentType.Unknown -> null
+            null, is ContentType.Unknown, is ContentType.Multipart -> null
             is ContentType.Json -> body.typeName
         }
         RequestBodyInfo(
