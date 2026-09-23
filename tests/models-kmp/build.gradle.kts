@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.gradle.api.tasks.testing.Test
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -20,9 +21,16 @@ kotlin {
         browser()
         nodejs()
     }
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+        nodejs()
+        d8()
+    }
     iosX64()
     iosArm64()
     macosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
         commonMain.dependencies {

@@ -1,4 +1,5 @@
 import com.vanniktech.maven.publish.SonatypeHost
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
@@ -57,9 +58,17 @@ subprojects {
             browser()
             nodejs()
         }
+        @OptIn(ExperimentalWasmDsl::class)
+        wasmJs {
+            browser()
+            nodejs()
+            d8()
+        }
+
         iosX64()
         iosArm64()
         macosArm64()
+        iosSimulatorArm64()
 
         compilerOptions {
             allWarningsAsErrors = true

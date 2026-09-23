@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.4.10"
 spring-boot = "4.1.1"
-quati-util = "2.4.0"
+quati-util = "2.5.0"
 kotlinx-coroutine = "1.11.0"
 kotlinx-serialization = "1.11.0"
 ktor = "3.5.2"
