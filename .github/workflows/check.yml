@@ -19,5 +19,8 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Check
-        run: cd ./tests && ./gradlew :check
+      - name: Check plugin
+        run: cd ./plugin && ./gradlew check
+
+      - name: Check tests
+        run: cd ./tests && ./gradlew check
