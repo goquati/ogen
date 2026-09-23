@@ -1,15 +1,15 @@
 [versions]
-kotlin = "2.4.10"
+kotlin = "2.4.20"
 spring-boot = "4.1.1"
-quati-util = "2.5.0"
+quati-util = "2.6.0"
 kotlinx-coroutine = "1.11.0"
 kotlinx-serialization = "1.11.0"
-ktor = "3.5.2"
+ktor = "3.6.0"
 
 [libraries]
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
-kotest = { module = "io.kotest:kotest-assertions-core", version = "6.0.7" }
+kotest = { module = "io.kotest:kotest-assertions-core", version = "6.2.5" }
 
 goquati-base = { module = "de.quati:kotlin-util", version.ref = "quati-util" }
 

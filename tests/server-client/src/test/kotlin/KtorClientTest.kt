@@ -7,7 +7,9 @@ import de.quati.ogen.gen.model.LocaleDto
 import de.quati.ogen.gen.model.TenantIdDto
 import de.quati.ogen.gen.model.UserCreateDto
 import de.quati.ogen.gen.model.UserDto
+import de.quati.ogen.gen.model.UserFileDto
 import de.quati.ogen.gen.model.UserUpdateDto
+import de.quati.ogen.client.ktor.FileUpload
 import de.quati.ogen.client.ktor.HttpClientOgen
 import de.quati.ogen.client.ktor.getOgenAuthNotes
 import io.kotest.matchers.shouldBe
@@ -190,6 +192,38 @@ class KtorClientTest {
         ).check(
             expectedInput = "testUser|Some(value=Foo)|Some(value=Bar)|foo@bar.com|Some(value=false)|Some(value=en)|[75897dbc-8dea-4d14-82c6-dd0ee2243cb3, 9df36116-ca51-45eb-9e2e-713d348f855a]",
             expectedBody = expectedBody
+        )
+    }
+
+    @Test
+    fun `test uploadUserFile`(): TestResult = runTest {
+        val userId = UserId(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3"))
+
+        clientUser.usersApi.uploadUserFile(
+            userId = userId,
+            file = FileUpload(fileName = "notes.txt", content = "file content".encodeToByteArray()),
+            name = "report",
+            description = "q3",
+        ).check(
+            expectedInput = "testUser|$userId|notes.txt|report|q3|file content",
+            expectedBody = BodyData(
+                status = 201,
+                type = "application/json",
+                content = UserFileDto(fileId = "notes.txt", name = "report", size = 12),
+            )
+        )
+
+        clientUser.usersApi.uploadUserFile(
+            userId = userId,
+            file = FileUpload(fileName = "notes.txt", content = "file content".encodeToByteArray()),
+            name = "report",
+        ).check(
+            expectedInput = "testUser|$userId|notes.txt|report|null|file content",
+            expectedBody = BodyData(
+                status = 201,
+                type = "application/json",
+                content = UserFileDto(fileId = "notes.txt", name = "report", size = 12),
+            )
         )
     }
 

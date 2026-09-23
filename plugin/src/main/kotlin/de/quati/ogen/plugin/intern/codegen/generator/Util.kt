@@ -9,27 +9,13 @@ import de.quati.kotlin.util.poet.dsl.addProperty
 import de.quati.kotlin.util.poet.dsl.buildObject
 import de.quati.kotlin.util.poet.dsl.indent
 import de.quati.kotlin.util.poet.dsl.initializer
-import de.quati.kotlin.util.poet.kotlinKeywords
-import de.quati.kotlin.util.poet.makeDifferent
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.model.Endpoint
 import de.quati.ogen.plugin.intern.model.Security
 import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.oas.models.security.SecurityScheme
-import kotlin.collections.plus
-import kotlin.collections.toMutableSet
 
-internal class NameConflictResolver(
-    forbidden: Iterable<String> = emptySet(),
-    private val separator: String = "_",
-) { // TODO move to quati util
-    private val forbidden: MutableSet<String> = (kotlinKeywords + forbidden).toMutableSet()
-
-    fun resolve(name: String): String = name.makeDifferent(forbidden, separator = separator).also {
-        forbidden += it
-    }
-}
 
 internal val SecurityScheme.Type.prettyName get() = toString().replaceFirstChar(Char::titlecase)
 
@@ -131,7 +117,7 @@ internal fun Endpoint.generateOperationContextTypeSpec(
 }
 
 
-context(c: CodeGenContext)
+context(_: CodeGenContext)
 internal fun securityRequirementListCodeBlock(security: Security) = buildCodeBlock {
     if (security.data.isEmpty()) {
         add("emptyList()")
