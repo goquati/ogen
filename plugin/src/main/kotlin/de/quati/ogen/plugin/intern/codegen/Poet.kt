@@ -118,6 +118,7 @@ internal object Poet {
         val requestMethod = ClassName("org.springframework.web.bind.annotation", "RequestMethod")
         val requestMapping = ClassName("org.springframework.web.bind.annotation", "RequestMapping")
         val requestBody = ClassName("org.springframework.web.bind.annotation", "RequestBody")
+        val requestPart = ClassName("org.springframework.web.bind.annotation", "RequestPart")
         val responseEntity = ClassName("org.springframework.http", "ResponseEntity")
         val httpStatusCode = ClassName("org.springframework.http", "HttpStatus")
         fun annotationClassName(type: Endpoint.Parameter.Type) = when (type) {
@@ -130,6 +131,8 @@ internal object Poet {
         object WebFlux {
             val webFluxConfigurer =
                 ClassName("org.springframework.web.reactive.config", "WebFluxConfigurer")
+
+            val filePart = ClassName("org.springframework.http.codec.multipart", "FilePart")
         }
     }
 }

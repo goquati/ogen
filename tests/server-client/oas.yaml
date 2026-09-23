@@ -141,6 +141,60 @@ paths:
         '200':
           description: "delete user"
 
+  /api/v1/users/{userId}/files:
+    parameters:
+      - $ref: "#/components/parameters/UserIdPath"
+    post:
+      tags:
+        - users
+      summary: Upload user file
+      description: Uploads a file and attaches it to the user.
+      operationId: uploadUserFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - name
+              properties:
+                file:
+                  type: string
+                  format: binary
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: "uploaded file"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserFile"
+
+  /api/v1/users/{userId}/avatar:
+    parameters:
+      - $ref: "#/components/parameters/UserIdPath"
+    post:
+      tags:
+        - users
+      summary: Upload user avatar
+      description: Uploads an avatar sent as a bare binary multipart body.
+      operationId: uploadUserAvatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: "uploaded avatar"
+
   /api/v1/users/{userId}/files/{fileId}:
     parameters:
       - $ref: "#/components/parameters/UserIdPath"
@@ -269,6 +323,21 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    UserFile:
+      type: object
+      required:
+        - fileId
+        - name
+        - size
+      properties:
+        fileId:
+          type: string
+        name:
+          type: string
+        size:
+          type: integer
+          format: int32
+
     UserId:
       description: Unique identifier of a user.
       type: string

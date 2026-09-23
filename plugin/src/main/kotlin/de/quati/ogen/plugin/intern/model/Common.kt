@@ -49,6 +49,15 @@ internal sealed interface ContentType {
     }
 
     @JvmInline
+    value class Multipart(override val values: Set<String>) : ContentType {
+        constructor(value: String) : this(setOf(value))
+
+        override fun toString() = values.toString()
+        override val preferredType
+            get() = "multipart/form-data".takeIf { it in values } ?: values.first()
+    }
+
+    @JvmInline
     value class Unknown(override val values: Set<String>) : ContentType {
         constructor(value: String) : this(setOf(value))
 
@@ -58,6 +67,7 @@ internal sealed interface ContentType {
 
     operator fun plus(other: ContentType) = when {
         this is Json && other is Json -> Json(values + other.values)
+        this is Multipart && other is Multipart -> Multipart(values + other.values)
         else -> Unknown(values + other.values)
     }
 
@@ -69,6 +79,7 @@ internal sealed interface ContentType {
             if (value == "application/x-ndjson") return Json(value)
             if (value.startsWith("application/") && value.endsWith("+json"))
                 return Json(value)
+            if (value == "multipart/form-data") return Multipart(value)
             return Unknown(value)
         }
     }

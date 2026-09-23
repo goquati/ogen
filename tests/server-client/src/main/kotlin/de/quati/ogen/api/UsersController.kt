@@ -6,10 +6,14 @@ import de.quati.ogen.gen.model.LocaleDto
 import de.quati.ogen.gen.model.TenantIdDto
 import de.quati.ogen.gen.model.UserCreateDto
 import de.quati.ogen.gen.model.UserDto
+import de.quati.ogen.gen.model.UserFileDto
 import de.quati.ogen.gen.model.UserUpdateDto
 import de.quati.ogen.gen.server.UsersApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.reactive.awaitSingle
+import org.springframework.core.io.buffer.DataBufferUtils
 import org.springframework.http.HttpStatus
+import org.springframework.http.codec.multipart.FilePart
 import org.springframework.stereotype.Service
 import kotlin.uuid.Uuid
 
@@ -78,6 +82,35 @@ class UsersController : UsersApi {
                 userCreateDto.tenants,
             )
         }
+    }
+
+    override suspend fun uploadUserFile(
+        ctx: AuthContext,
+        op: UsersApi.UploadUserFileContext,
+        userId: UserId,
+        file1: FilePart,
+        name: String,
+        description: String?
+    ) = DataBufferUtils.join(file1.content()).awaitSingle().let { buffer ->
+        val content = buffer.asInputStream(true).use { it.readBytes() }
+        UserFileDto(
+            fileId = file1.filename(),
+            name = name,
+            size = content.size,
+        ).let {
+            op.createResponse201(it) {
+                addInputHeader(ctx.name, userId, file1.filename(), name, description, content.decodeToString())
+            }
+        }
+    }
+
+    override suspend fun uploadUserAvatar(
+        ctx: AuthContext,
+        op: UsersApi.UploadUserAvatarContext,
+        userId: UserId,
+        string: Any
+    ) = op.createResponse201 {
+        addInputHeader(ctx.name, userId)
     }
 
     override suspend fun getUser(
