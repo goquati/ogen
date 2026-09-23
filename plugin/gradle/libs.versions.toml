@@ -1,11 +1,11 @@
 [versions]
 kotlin = "2.2.0"
-goquati = "2.1.0"
+quati-util = "2.6.0"
 
 [libraries]
 poet = { module = "com.squareup:kotlinpoet", version.ref = "kotlin" }
-goquati-base = { module = "de.quati:kotlin-util", version.ref = "goquati" }
-goquati-poet = { module = "de.quati:kotlin-util-poet", version.ref = "goquati" }
+goquati-base = { module = "de.quati:kotlin-util", version.ref = "quati-util" }
+goquati-poet = { module = "de.quati:kotlin-util-poet", version.ref = "quati-util" }
 swagger-parser = { module = "io.swagger.parser.v3:swagger-parser", version = "2.1.37" }
 swagger-generator = { module = "org.openapitools:openapi-generator", version = "7.18.0" }
 

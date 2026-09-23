@@ -20,11 +20,12 @@ import de.quati.kotlin.util.poet.dsl.addProperty
 import de.quati.kotlin.util.poet.dsl.getter
 import de.quati.kotlin.util.poet.dsl.indent
 import de.quati.kotlin.util.poet.dsl.primaryConstructor
+import de.quati.kotlin.util.poet.dsl.addConstructorProperty
 import de.quati.kotlin.util.poet.makeDifferent
+import de.quati.kotlin.util.poet.NameConflictResolver
 import de.quati.ogen.plugin.intern.DirectorySyncService
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.Poet
-import de.quati.ogen.plugin.intern.codegen.addConstructorProperty
 import de.quati.ogen.plugin.intern.codegen.toParameterMapCodeBlock
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Endpoint
