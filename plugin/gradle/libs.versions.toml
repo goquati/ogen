@@ -1,5 +1,5 @@
 [versions]
-kotlin = "2.4.0"
+kotlin = "2.4.20"
 kotlinpoet = "2.4.0"
 quati-util = "2.6.0"
 
