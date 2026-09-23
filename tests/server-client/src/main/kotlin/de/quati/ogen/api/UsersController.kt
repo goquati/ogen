@@ -88,18 +88,18 @@ class UsersController : UsersApi {
         ctx: AuthContext,
         op: UsersApi.UploadUserFileContext,
         userId: UserId,
-        file1: FilePart,
+        file: FilePart,
         name: String,
         description: String?
-    ) = DataBufferUtils.join(file1.content()).awaitSingle().let { buffer ->
+    ) = DataBufferUtils.join(file.content()).awaitSingle().let { buffer ->
         val content = buffer.asInputStream(true).use { it.readBytes() }
         UserFileDto(
-            fileId = file1.filename(),
+            fileId = file.filename(),
             name = name,
             size = content.size,
         ).let {
             op.createResponse201(it) {
-                addInputHeader(ctx.name, userId, file1.filename(), name, description, content.decodeToString())
+                addInputHeader(ctx.name, userId, file.filename(), name, description, content.decodeToString())
             }
         }
     }

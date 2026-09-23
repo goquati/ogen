@@ -12,6 +12,7 @@ import de.quati.kotlin.util.poet.dsl.addFunction
 import de.quati.kotlin.util.poet.dsl.addInterface
 import de.quati.kotlin.util.poet.dsl.addParameter
 import de.quati.kotlin.util.poet.dsl.addStringArrayMember
+import de.quati.kotlin.util.poet.NameConflictResolver
 import de.quati.kotlin.util.takeIfNotEmpty
 import de.quati.ogen.plugin.intern.DirectorySyncService
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
