@@ -25,6 +25,7 @@ import de.quati.ogen.plugin.intern.DirectorySyncService
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.codegen.addConstructorProperty
+import de.quati.ogen.plugin.intern.codegen.getTypeName
 import de.quati.ogen.plugin.intern.codegen.toParameterMapCodeBlock
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Endpoint
@@ -46,6 +47,27 @@ private data class RequestBodyInfo(
     val typeInfoName: String?,
     val typeName: TypeName,
     val body: Endpoint.RequestBodyResolved,
+)
+
+private data class PartInfo(
+    val name: String,
+    val prettyName: String,
+    val typeName: TypeName,
+    val required: Boolean,
+    val file: Endpoint.Part.File,
+)
+
+context(_: CodeGenContext)
+private fun Endpoint.Part.toPartInfo(reservedNames: Set<String>) = PartInfo(
+    name = name,
+    prettyName = prettyName.makeDifferent(reservedNames),
+    typeName = when (file) {
+        Endpoint.Part.File.ONE -> Poet.Lib.Client.Ktor.fileUpload
+        Endpoint.Part.File.MANY -> List::class.asClassName().parameterizedBy(Poet.Lib.Client.Ktor.fileUpload)
+        Endpoint.Part.File.NONE -> schema.getTypeName(withFlow = false).poet
+    },
+    required = required,
+    file = file,
 )
 
 private val streamContentTypes = setOf("application/x-ndjson")
@@ -154,7 +176,12 @@ private fun TypeSpec.Builder.addEndpoint(
             ) else null
         info to streamInfo
     }
-    val requestBodyInfo = endpoint.requestBodyResolved?.let { body ->
+    val requestBodyParts = run {
+        val parts = endpoint.requestBodyResolved?.parts ?: emptyList()
+        val taken = reservedNames.toMutableSet()
+        parts.map { part -> part.toPartInfo(taken).also { taken += it.prettyName } }
+    }
+    val requestBodyInfo = endpoint.requestBodyResolved?.takeIf { requestBodyParts.isEmpty() }?.let { body ->
         val name = body.prettyBodyName.makeDifferent(reservedNames)
         val type = when (body.contentType) {
             null, is ContentType.Unknown, is ContentType.Multipart -> null
@@ -167,7 +194,7 @@ private fun TypeSpec.Builder.addEndpoint(
             typeInfoName = "bodyType".takeIf { type == null }?.makeDifferent(reservedNames),
         )
     }
-    val paramNames = parameters.map { it.prettyName } + listOfNotNull(
+    val paramNames = parameters.map { it.prettyName } + requestBodyParts.map { it.prettyName } + listOfNotNull(
         requestBodyInfo?.name,
         requestBodyInfo?.typeInfoName,
         blockName,
@@ -181,6 +208,14 @@ private fun TypeSpec.Builder.addEndpoint(
                 type = param.type.copy(nullable = param.nullable),
             ) {
                 if (param.nullable) defaultValue("null")
+            }
+        }
+        requestBodyParts.forEach { part ->
+            addParameter(
+                name = part.prettyName,
+                type = part.typeName.copy(nullable = !part.required),
+            ) {
+                if (!part.required) defaultValue("null")
             }
         }
         requestBodyInfo?.also { bodyInfo ->
@@ -274,6 +309,8 @@ private fun TypeSpec.Builder.addEndpoint(
                     addParam(param)
                 }
                 addStatement("%L?.also { this.%T(it) }", acceptParamName, Poet.Ktor.Request.accept)
+                if (requestBodyParts.isNotEmpty())
+                    addMultipartRequestBody(requestBodyParts)
                 if (requestBodyInfo != null)
                     addRequestBody(requestBodyInfo)
                 addStatement("this@$controllerName.client.baseModifier(this)")
@@ -313,6 +350,56 @@ private fun CodeBlock.Builder.addPath(
         add("params = %L,\n", params.filter { it.inType == Endpoint.Parameter.Type.PATH }.toParameterMapCodeBlock())
     }
     add(").also(this::%T)\n", Poet.Ktor.Request.url)
+}
+
+context(_: CodeGenContext)
+private fun CodeBlock.Builder.addMultipartRequestBody(parts: List<PartInfo>) {
+    addStatement(
+        "this.%T(%T(%T {",
+        Poet.Ktor.Request.setBody,
+        Poet.Ktor.Request.multiPartFormDataContent,
+        Poet.Ktor.Request.formData,
+    )
+    indent {
+        parts.forEach { part -> addPart(part) }
+    }
+    addStatement("}))")
+}
+
+context(_: CodeGenContext)
+private fun CodeBlock.Builder.addPart(part: PartInfo) {
+    val access = part.prettyName
+    when (part.file) {
+        Endpoint.Part.File.NONE -> {
+            if (!part.required) add("if (%L != null) ", part.prettyName)
+            val isString = part.typeName.copy(nullable = false) == String::class.asClassName()
+            addStatement("append(%S, %L%L)", part.name, access, if (isString) "" else ".toString()")
+        }
+
+        Endpoint.Part.File.ONE -> {
+            if (!part.required) add("if (%L != null) ", part.prettyName)
+            addFileAppend(wireName = part.name, access = access)
+        }
+
+        Endpoint.Part.File.MANY -> {
+            addStatement("%L%L.forEach { file ->", part.prettyName, if (part.required) "" else "?")
+            indent { addFileAppend(wireName = part.name, access = "file") }
+            addStatement("}")
+        }
+    }
+}
+
+private fun CodeBlock.Builder.addFileAppend(wireName: String, access: String) {
+    addStatement("append(%S, %L.content, %T.build {", wireName, access, Poet.Ktor.headers)
+    indent {
+        addStatement(
+            "append(%T.ContentDisposition, %P)",
+            Poet.Ktor.httpHeaders,
+            "filename=\"\${$access.fileName}\"",
+        )
+        addStatement("%L.contentType?.also { append(%T.ContentType, it) }", access, Poet.Ktor.httpHeaders)
+    }
+    addStatement("})")
 }
 
 private fun CodeBlock.Builder.addRequestBody(info: RequestBodyInfo) {

@@ -54,6 +54,9 @@ internal object Poet {
             val prepareRequest = ClassName("io.ktor.client.request", "prepareRequest")
             val httpRequestBuilder = ClassName("io.ktor.client.request", "HttpRequestBuilder")
             val setBody = ClassName("io.ktor.client.request", "setBody")
+            val multiPartFormDataContent =
+                ClassName("io.ktor.client.request.forms", "MultiPartFormDataContent")
+            val formData = ClassName("io.ktor.client.request.forms", "formData")
         }
 
         object Call {
@@ -62,6 +65,8 @@ internal object Poet {
 
         val url = ClassName("io.ktor.http", "Url")
         val httpMethod = ClassName("io.ktor.http", "HttpMethod")
+        val headers = ClassName("io.ktor.http", "Headers")
+        val httpHeaders = ClassName("io.ktor.http", "HttpHeaders")
         val contentType = ClassName("io.ktor.http", "ContentType")
         fun contentTypeCodeBlock(type: String) = when (type) {
             "application/json" -> CodeBlock.of("%T.Application.Json", contentType)
@@ -103,6 +108,7 @@ internal object Poet {
                 private val packageName get() = PackageName("de.quati.ogen.client.ktor")
 
                 val httpResponseTyped = packageName.className("HttpResponseTyped")
+                val fileUpload = packageName.className("FileUpload")
                 val httpClientOgen = packageName.className("HttpClientOgen")
                 val bodyAsFlow = packageName.className("bodyAsFlow")
                 val toTyped = (packageName + "HttpResponseTyped" + "Companion").className("toTyped")
