@@ -2,6 +2,9 @@ name: Check
 
 on:
   pull_request:
+    paths-ignore:
+      - 'CHANGELOG.md'
+      - 'README.md'
   workflow_call:
 
 jobs:
@@ -19,5 +22,16 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Check
+        id: check
         run: cd ./tests && ./gradlew :check
+
+      - name: Upload test reports
+        if: ${{ always() && steps.check.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: tests/*/build/reports/tests/
