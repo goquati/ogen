@@ -5,3 +5,4 @@ rootProject.name = "lib"
 
 include(":core")
 include(":client-ktor")
+include(":server-spring")

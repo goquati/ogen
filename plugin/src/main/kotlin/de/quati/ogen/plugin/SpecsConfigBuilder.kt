@@ -144,6 +144,13 @@ public open class SpecsConfigBuilder {
             public var packageName: String? = rootPackageName?.let { "$it.server" }
             public var postfix: String = "Api"
             public var addOperationContext: Boolean = false
+
+            /**
+             * Controller functions return typed responses implementing `de.quati.ogen.server.spring.ApiResponse`
+             * (a sealed interface if an operation defines multiple responses) instead of `ResponseEntity`.
+             * Requires the `de.quati.ogen:server-spring` library.
+             */
+            public var apiResponse: Boolean = false
             private var contextIfAnySecurity: ClassName? = null
 
             public fun contextIfAnySecurity(type: String): ServerSpringV4Config =
@@ -153,6 +160,7 @@ public open class SpecsConfigBuilder {
                 packageName = packageName?.let(::PackageName) ?: error("packageName is required for server code"),
                 postfix = postfix,
                 addOperationContext = addOperationContext,
+                apiResponse = apiResponse,
                 contextIfAnySecurity = contextIfAnySecurity,
                 skipGeneration = false,
             )

@@ -3,12 +3,16 @@ kotlin = "2.4.20"
 quati-util = "2.6.0"
 kotlinx-serialization = "1.11.0"
 ktor = "3.6.0"
+spring = "7.0.9"
+spring-boot = "4.1.1"
 
 [libraries]
 quati-base = { module = "de.quati:kotlin-util", version.ref = "quati-util" }
 kotlinx-serialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+spring-webflux = { module = "org.springframework:spring-webflux", version.ref = "spring" }
+spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure", version.ref = "spring-boot" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

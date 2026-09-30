@@ -1,0 +1,62 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
+plugins {
+    alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.serialization)
+    alias(libs.plugins.spring)
+    alias(libs.plugins.springBoot)
+    alias(libs.plugins.springDependencyManagement)
+    id("de.quati.ogen")
+}
+
+dependencyManagement {
+    dependencies {
+        dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core:${libs.versions.kotlinx.coroutine.get()}")
+        dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:${libs.versions.kotlinx.coroutine.get()}")
+    }
+}
+
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
+
+    implementation(libs.goquati.base)
+    implementation(libs.bundles.kotlinx.coroutine)
+    implementation(libs.bundles.kotlinx.serialization)
+    implementation("de.quati.ogen:core:1.0.0-SNAPSHOT")
+    implementation("de.quati.ogen:server-spring:1.0.0-SNAPSHOT")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation(kotlin("test"))
+    testImplementation(libs.kotest)
+}
+
+kotlin {
+    jvmToolchain(21)
+    compilerOptions {
+        allWarningsAsErrors = true
+        jvmTarget.set(JvmTarget.JVM_21)
+        languageVersion.set(KotlinVersion.KOTLIN_2_2)
+        freeCompilerArgs.add("-Xcontext-parameters")
+        optIn.add("kotlin.uuid.ExperimentalUuidApi")
+        optIn.add("kotlinx.serialization.ExperimentalSerializationApi")
+    }
+}
+
+ogen {
+    utilPackageName("$group.gen.util")
+    add(packageName = "$group.gen") {
+        specFile("$projectDir/oas.yaml")
+        validator {
+            failOnWarnings = true
+        }
+        model {}
+        serverSpringV4 {
+            apiResponse = true
+        }
+    }
+}
+
+tasks.test {
+    useJUnitPlatform()
+}

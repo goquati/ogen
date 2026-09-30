@@ -1,0 +1,154 @@
+openapi: 3.0.4
+info:
+  title: api response test spec
+  description: Exercises the typed ApiResponse return values of the generated Spring server.
+  version: 1.0.0
+paths:
+  /api/users:
+    get:
+      tags:
+        - users
+      summary: List users
+      description: Returns all users.
+      operationId: getUsers
+      responses:
+        '200':
+          description: list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      tags:
+        - users
+      summary: Create user
+      description: Creates a new user.
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        '201':
+          description: created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /api/users/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        description: ID of the user.
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - users
+      summary: Get user
+      description: Returns a single user.
+      operationId: getUser
+      responses:
+        '200':
+          description: the user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        '401':
+          description: unauthorized
+        '404':
+          description: user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        5XX:
+          description: server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          description: unexpected response
+    put:
+      tags:
+        - users
+      summary: Update user
+      description: Updates a user.
+      operationId: updateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        '200':
+          description: user updated
+    delete:
+      tags:
+        - users
+      summary: Delete user
+      description: Deletes a user.
+      operationId: deleteUser
+      responses:
+        '204':
+          description: user deleted
+  /api/users/{userId}/avatar:
+    parameters:
+      - name: userId
+        in: path
+        description: ID of the user.
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - users
+      summary: Get user avatar
+      description: Returns the avatar image of a user.
+      operationId: getUserAvatar
+      responses:
+        '200':
+          description: avatar image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    User:
+      type: object
+      description: A user.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          description: ID of the user.
+        name:
+          type: string
+          description: Name of the user.
+    Error:
+      type: object
+      description: An error.
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Error message.

@@ -103,6 +103,14 @@ internal object Poet {
             val operationContext = packageName.className("OperationContext")
         }
 
+        object Server {
+            object Spring {
+                private val packageName get() = PackageName("de.quati.ogen.server.spring")
+
+                val apiResponse = packageName.className("ApiResponse")
+            }
+        }
+
         object Client {
             object Ktor {
                 private val packageName get() = PackageName("de.quati.ogen.client.ktor")
@@ -127,6 +135,9 @@ internal object Poet {
         val requestPart = ClassName("org.springframework.web.bind.annotation", "RequestPart")
         val responseEntity = ClassName("org.springframework.http", "ResponseEntity")
         val httpStatusCode = ClassName("org.springframework.http", "HttpStatus")
+        val httpStatusCodeInterface = ClassName("org.springframework.http", "HttpStatusCode")
+        val httpHeaders = ClassName("org.springframework.http", "HttpHeaders")
+        val mediaType = ClassName("org.springframework.http", "MediaType")
         fun annotationClassName(type: Endpoint.Parameter.Type) = when (type) {
             Endpoint.Parameter.Type.PATH -> "PathVariable"
             Endpoint.Parameter.Type.QUERY -> "RequestParam"

@@ -25,6 +25,7 @@ internal sealed interface GeneratorConfig {
         val postfix: String,
         val contextIfAnySecurity: ClassName?,
         val addOperationContext: Boolean,
+        val apiResponse: Boolean,
     ) : GeneratorConfig
 
     data class ClientKtor(

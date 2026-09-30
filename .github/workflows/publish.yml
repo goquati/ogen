@@ -53,6 +53,7 @@ jobs:
           sed -i 's/id("de\.quati\.ogen") version "[^"]*"/id("de.quati.ogen") version "'"$VERSION"'"/' README.md
           sed -i 's/implementation("de\.quati\.ogen:core:[^"]*")/implementation("de.quati.ogen:core:'"$VERSION"'")/' README.md
           sed -i 's/implementation("de\.quati\.ogen:client-ktor:[^"]*")/implementation("de.quati.ogen:client-ktor:'"$VERSION"'")/' README.md
+          sed -i 's/implementation("de\.quati\.ogen:server-spring:[^"]*")/implementation("de.quati.ogen:server-spring:'"$VERSION"'")/' README.md
 
       - name: Commit changes
         shell: bash

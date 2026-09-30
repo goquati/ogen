@@ -18,6 +18,7 @@ val githubProject = "ogen"
 enum class SubProjects(val projectName: String) {
     CORE("core"),
     CLIENT_KTOR("client-ktor"),
+    SERVER_SPRING("server-spring"),
 }
 
 tasks.matching { it.name.startsWith("publish") }.configureEach {
@@ -53,21 +54,23 @@ subprojects {
                 jvmTarget.set(JvmTarget.JVM_21)
             }
         }
-        js {
-            browser()
-            nodejs()
-        }
-        @OptIn(ExperimentalWasmDsl::class)
-        wasmJs {
-            browser()
-            nodejs()
-            d8()
-        }
+        if (projectType != SubProjects.SERVER_SPRING) {
+            js {
+                browser()
+                nodejs()
+            }
+            @OptIn(ExperimentalWasmDsl::class)
+            wasmJs {
+                browser()
+                nodejs()
+                d8()
+            }
 
-        iosX64()
-        iosArm64()
-        macosArm64()
-        iosSimulatorArm64()
+            iosX64()
+            iosArm64()
+            macosArm64()
+            iosSimulatorArm64()
+        }
 
         compilerOptions {
             allWarningsAsErrors = true
@@ -83,6 +86,7 @@ subprojects {
         val descriptionStr = when (projectType) {
             SubProjects.CORE -> "Shared runtime types for ogen-generated Kotlin code: Option/value/discriminator serializers, security requirement models, and operation context."
             SubProjects.CLIENT_KTOR -> "Ktor HTTP client runtime support for ogen-generated API clients."
+            SubProjects.SERVER_SPRING -> "Spring WebFlux runtime support for ogen-generated server interfaces."
         }
         coordinates(
             groupId = project.group as String,

@@ -25,6 +25,7 @@ plugins {
 
     implementation("de.quati.ogen:core:0.13.1")
     implementation("de.quati.ogen:client-ktor:0.13.1") // Optional: only for generate Ktor clients required
+    implementation("de.quati.ogen:server-spring:0.13.1") // Optional: only for Spring server with `apiResponse = true` required
 }
 ```
 
@@ -62,6 +63,8 @@ ogen {
             addOperationContext = true
             // Optional: If the operation has any security requirements, add the specified class as a parameter
             contextIfAnySecurity("com.example.api.AuthContext")
+            // Optional: Return typed ApiResponse classes instead of ResponseEntity (requires de.quati.ogen:server-spring)
+            apiResponse = true
         }
 
         // Optional: Generate Ktor Client
@@ -84,6 +87,38 @@ class WebConfig : WebFluxConfigurer {
     }
 }
 ```
+
+### Spring Boot Typed Responses
+
+With `apiResponse = true`, every controller function returns a generated response type implementing
+`de.quati.ogen.server.spring.ApiResponse` instead of a `ResponseEntity`. If an operation defines multiple responses,
+a sealed interface with one class per response is generated; for a single response it is a single class. Response
+classes are data classes, except for streamed (`Flow`) and untyped (e.g. binary) bodies, which only have identity
+equality.
+Every response class accepts optional `headers`; status ranges (`5XX`) and `default` responses take the `status` as
+parameter. Responses with a body also carry their content types from the spec, which are used for the
+content negotiation instead of the `produces` of the request mapping, so error responses can use a different content
+type (e.g. `application/json`) than the success response (e.g. `image/png`).
+
+```kotlin
+suspend fun getUser(userId: String): GetUserResponse
+
+sealed interface GetUserResponse : ApiResponse {
+    data class Ok(override val body: UserDto, override val headers: HttpHeaders = HttpHeaders.EMPTY) : GetUserResponse {
+        override val status: HttpStatusCode = HttpStatus.OK
+    }
+    data class Unauthorized(override val headers: HttpHeaders = HttpHeaders.EMPTY) : GetUserResponse {
+        override val status: HttpStatusCode = HttpStatus.UNAUTHORIZED
+    }
+    data class NotFound(override val body: ErrorDto, override val headers: HttpHeaders = HttpHeaders.EMPTY) : GetUserResponse {
+        override val status: HttpStatusCode = HttpStatus.NOT_FOUND
+    }
+}
+```
+
+The responses are written by `ApiResponseResultHandler` (a WebFlux `HandlerResultHandler`) from `server-spring`, which
+is registered by Spring Boot auto-configuration in reactive web applications. To customize it, define your own
+`ApiResponseResultHandler` bean; without Spring Boot, register it manually.
 
 ## Tasks
 
