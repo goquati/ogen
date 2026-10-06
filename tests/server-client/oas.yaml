@@ -175,6 +175,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserFile"
 
+  /api/v1/users/{userId}/attachments:
+    parameters:
+      - $ref: "#/components/parameters/UserIdPath"
+    post:
+      tags:
+        - users
+      summary: Upload user attachments
+      description: Uploads several files as parts of the same name.
+      operationId: uploadUserAttachments
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '201':
+          description: "uploaded attachments"
+
   /api/v1/users/{userId}/avatar:
     parameters:
       - $ref: "#/components/parameters/UserIdPath"
