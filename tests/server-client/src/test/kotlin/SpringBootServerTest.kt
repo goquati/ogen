@@ -262,6 +262,21 @@ class SpringBootServerTest {
     }
 
     @Test
+    fun `test uploadUserAttachments`() {
+        val userId = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3"
+        client.doMultipartRequest(
+            op = Operation(HttpMethod.POST, "/api/v1/users/$userId/attachments"),
+            user = User.USER,
+            parts = emptyMap(),
+            fileName = null,
+            fileContent = null,
+            files = listOf("a.txt" to "first", "b.txt" to "second"),
+            expectedStatus = 201,
+            expectedInput = "testUser|$userId|a.txt|b.txt",
+        )
+    }
+
+    @Test
     fun `test uploadUserAvatar`() {
         val userId = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3"
         client.doMultipartRequest(

@@ -114,6 +114,7 @@ fun WebTestClient.doMultipartRequest(
     parts: Map<String, String>,
     fileName: String?,
     fileContent: String?,
+    files: List<Pair<String, String>> = emptyList(),
     expectedStatus: Int,
     expectedInput: String? = null,
     expectedBodyData: String? = null,
@@ -125,6 +126,9 @@ fun WebTestClient.doMultipartRequest(
                 parts.forEach { (name, value) -> part(name, value) }
                 if (fileName != null && fileContent != null)
                     part("file", ByteArrayResource(fileContent.toByteArray())).filename(fileName)
+                files.forEach { (name, content) ->
+                    part("files", ByteArrayResource(content.toByteArray())).filename(name)
+                }
             }.build())
         )
     }

@@ -104,6 +104,15 @@ class UsersController : UsersApi {
         }
     }
 
+    override suspend fun uploadUserAttachments(
+        ctx: AuthContext,
+        op: UsersApi.UploadUserAttachmentsContext,
+        userId: UserId,
+        files: MutableList<FilePart>,
+    ) = op.createResponse201 {
+        addInputHeader(ctx.name, userId, *files.map { it.filename() }.toTypedArray())
+    }
+
     override suspend fun uploadUserAvatar(
         ctx: AuthContext,
         op: UsersApi.UploadUserAvatarContext,

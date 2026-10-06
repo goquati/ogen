@@ -229,6 +229,22 @@ class KtorClientTest {
     }
 
     @Test
+    fun `test uploadUserAttachments`(): TestResult = runTest {
+        val userId = UserId(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3"))
+
+        clientUser.usersApi.uploadUserAttachments(
+            userId = userId,
+            files = listOf(
+                FileUpload(fileName = "a.txt", content = "first".encodeToByteArray()),
+                FileUpload(fileName = "b.txt", content = "second".encodeToByteArray()),
+            ),
+        ).check(
+            expectedStatus = 201,
+            expectedInput = "testUser|$userId|a.txt|b.txt",
+        )
+    }
+
+    @Test
     fun `test getUser`(): TestResult = runTest {
         clientUser.usersApi.getUser(UserId("75897dbc-8dea-4d14-82c6-dd0ee2243cb3")).check(
             expectedInput = "testUser|75897dbc-8dea-4d14-82c6-dd0ee2243cb3",

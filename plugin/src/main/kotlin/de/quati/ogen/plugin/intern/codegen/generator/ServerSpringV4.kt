@@ -8,6 +8,7 @@ import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.LambdaTypeName
+import com.squareup.kotlinpoet.MUTABLE_LIST
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
@@ -61,7 +62,8 @@ context(_: CodeGenContext)
 private val Endpoint.Part.springTypeName: TypeName
     get() = when (file) {
         Endpoint.Part.File.ONE -> Poet.Spring.WebFlux.filePart
-        Endpoint.Part.File.MANY -> List::class.asClassName().parameterizedBy(Poet.Spring.WebFlux.filePart)
+        // invariant: a List<FilePart> override compiles to List<? extends FilePart>, which Spring can't bind (415)
+        Endpoint.Part.File.MANY -> MUTABLE_LIST.parameterizedBy(Poet.Spring.WebFlux.filePart)
         Endpoint.Part.File.NONE -> schema.getTypeName(withFlow = false).poet
     }
 
