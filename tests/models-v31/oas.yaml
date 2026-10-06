@@ -46,6 +46,28 @@ components:
         - en
         - de
 
+    ContentKind:
+      description: Enum values with punctuation, which must separate the words of the constant names.
+      type: string
+      enum:
+        - text/plain
+        - application/json
+
+    PunctuatedNames:
+      description: Property names with punctuation, which must separate the words of the Kotlin names.
+      type: object
+      required:
+        - binding:host_id
+        - router.external
+        - kind
+      properties:
+        binding:host_id:
+          type: string
+        router.external:
+          type: boolean
+        kind:
+          $ref: "#/components/schemas/ContentKind"
+
     User:
       description: A registered user.
       type: object

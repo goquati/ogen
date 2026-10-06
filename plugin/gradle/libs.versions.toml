@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.4.20"
 kotlinpoet = "2.4.0"
-quati-util = "2.6.0"
+quati-util = "2.6.1"
 
 [libraries]
 poet = { module = "com.squareup:kotlinpoet", version.ref = "kotlinpoet" }

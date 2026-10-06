@@ -293,6 +293,29 @@ paths:
         '200':
           description: "debug info"
 
+  /api/v1/public/debug/names:
+    get:
+      tags:
+        - debug
+      summary: Echo punctuated parameters
+      description: Echoes query parameters whose names contain punctuation, which must separate the words of their Kotlin names.
+      operationId: debugParameterNames
+      security: [ ]
+      parameters:
+        - name: filter[field]
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: scope.project.id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "the parameters, echoed"
+
 security:
   - user: [ ]
   - service: [ ]

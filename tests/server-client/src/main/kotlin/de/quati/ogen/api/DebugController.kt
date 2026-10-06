@@ -11,4 +11,12 @@ class DebugController : DebugApi {
     ) = op.createResponse200 {
         addInputHeader(debugSession)
     }
+
+    override suspend fun debugParameterNames(
+        op: DebugApi.DebugParameterNamesContext,
+        filterField: String,
+        scopeProjectId: String?,
+    ) = op.createResponse200 {
+        addInputHeader(filterField, scopeProjectId)
+    }
 }

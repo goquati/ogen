@@ -1,3 +1,4 @@
+import de.quati.ogen.plugin.NameConvention
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
@@ -54,6 +55,12 @@ ogen {
         specFile("$projectDir/oas.yaml")
         validator {
             failOnWarnings = true
+            // The two punctuated names test that punctuation separates the words of Kotlin names.
+            parameterFormat {
+                query = NameConvention.Custom {
+                    NameConvention.CamelCase.matches(it) || it in setOf("filter[field]", "scope.project.id")
+                }
+            }
         }
         model {
             typeMapping(
