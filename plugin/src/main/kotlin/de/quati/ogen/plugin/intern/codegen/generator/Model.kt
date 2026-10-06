@@ -7,7 +7,8 @@ import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 
 context(c: CodeGenContext, d: DirectorySyncService)
 internal fun GeneratorConfig.Model.sync() {
-    c.spec.components.schemas.forEach { (_, schema) ->
+    c.spec.components.schemas.forEach { (name, schema) ->
+        if (name in c.spec.multipartBodySchemas && c.childSchemas[name].isNullOrEmpty()) return@forEach
         val typeSpec = schema.toTypeSpec() ?: return@forEach
         d.sync(fileName = "${schema.name.fileName}.kt") {
             addType(typeSpec)

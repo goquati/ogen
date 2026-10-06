@@ -28,6 +28,7 @@ import kotlinx.serialization.json.Json
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.uuid.Uuid
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -326,5 +327,12 @@ class KtorClientTest {
             .check(expectedStatus = 200, expectedInput = "customFields|p1")
         clientPublic.debugApi.debugParameterNames(filterField = "a[b].c")
             .check(expectedStatus = 200, expectedInput = "a[b].c|null")
+    }
+
+    @Test
+    fun `test multipart body generates no model`() {
+        assertFailsWith<ClassNotFoundException> {
+            Class.forName("de.quati.ogen.gen.model.UploadUserFileRequestBodyDto")
+        }
     }
 }

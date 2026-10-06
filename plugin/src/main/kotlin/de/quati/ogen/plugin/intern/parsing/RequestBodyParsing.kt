@@ -1,12 +1,13 @@
 package de.quati.ogen.plugin.intern.parsing
 
+import de.quati.ogen.plugin.intern.model.Component
 import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Endpoint
 import de.quati.ogen.plugin.intern.model.RefString
 import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
 
-context(_: ParserContext)
+context(c: ParserContext)
 internal fun io.swagger.v3.oas.models.parameters.RequestBody?.parse(
     name: ComponentName.RequestBody
 ): Endpoint.RequestBody {
@@ -20,10 +21,16 @@ internal fun io.swagger.v3.oas.models.parameters.RequestBody?.parse(
         required = required ?: false,
         description = description,
         content = content.map { (key, value) ->
+            val contentType = ContentType.parse(key!!)
+            val registeredBefore = c.getSchemas().keys
             value.parse(
-                contentType = ContentType.parse(key!!),
+                contentType = contentType,
                 name = name.schemaName,
-            )
+            ).also { media ->
+                val schema = media.schema
+                if (contentType is ContentType.Multipart && schema is Component.Schema.Ref && schema.name !in registeredBefore)
+                    c.markMultipartBodySchema(schema.name)
+            }
         }
     )
 }

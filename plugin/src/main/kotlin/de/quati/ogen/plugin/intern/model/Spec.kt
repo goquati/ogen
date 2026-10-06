@@ -8,6 +8,7 @@ internal data class Spec(
     val paths: Endpoints,
     val components: Components,
     val security: Security,
+    val multipartBodySchemas: Set<ComponentName.Schema>,
 ) {
     enum class Version {
         V3_0, V3_1

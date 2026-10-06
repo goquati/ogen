@@ -46,6 +46,7 @@ internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
             paths = paths,
             components = components,
             security = defaultSecurity,
+            multipartBodySchemas = getMultipartBodySchemas(),
         )
     }
     return spec.copy(
