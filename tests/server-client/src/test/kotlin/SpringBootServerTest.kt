@@ -350,6 +350,13 @@ class SpringBootServerTest {
     }
 
     @Test
+    fun `test punctuated parameter names`() {
+        val op = Operation(HttpMethod.GET, "/api/v1/public/debug/names")
+        val query = mapOf("filter[field]" to "customFields", "scope.project.id" to "p1")
+        client.doRequest(op = op, user = null, query = query, expectedStatus = 200, expectedInput = "customFields|p1")
+    }
+
+    @Test
     fun `test operation context`() {
         UsersApi.GetUsersContext.name shouldBe "getUsers"
         UsersApi.GetUsersContext.description shouldBe "Returns users, optionally filtered by tenant, verification status, search term, locale or email."

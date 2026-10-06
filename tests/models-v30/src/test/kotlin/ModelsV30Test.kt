@@ -12,6 +12,7 @@ import de.quati.ogen.oas.schemas.gen.model.AnyOfRefDto
 import de.quati.ogen.oas.schemas.gen.model.ArrayOfUnionsDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesAnyObjectDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesObjectDto
+import de.quati.ogen.oas.schemas.gen.model.ContentKindDto
 import de.quati.ogen.oas.schemas.gen.model.LocaleDto
 import de.quati.ogen.oas.schemas.gen.model.MapInnerObjectDto
 import de.quati.ogen.oas.schemas.gen.model.MapPrimitiveDto
@@ -25,6 +26,7 @@ import de.quati.ogen.oas.schemas.gen.model.OneOfMapping2Dto
 import de.quati.ogen.oas.schemas.gen.model.OneOfMappingDto
 import de.quati.ogen.oas.schemas.gen.model.OneOfMixedDto
 import de.quati.ogen.oas.schemas.gen.model.OneOfPrimitiveDto
+import de.quati.ogen.oas.schemas.gen.model.PunctuatedNamesDto
 import de.quati.ogen.oas.schemas.gen.model.RecursiveObjectDto
 import de.quati.ogen.oas.schemas.gen.model.RoleDto
 import de.quati.ogen.oas.schemas.gen.model.TenantDto
@@ -410,5 +412,17 @@ class ModelsV30Test {
 
         RoleDto.ADMIN.value shouldBe "admin"
         RoleDto.MEMBER.value shouldBe "member"
+    }
+
+    @Test
+    fun `test punctuated names`() {
+        ContentKindDto.TEXT_PLAIN.test(expectedString = "\"text/plain\"")
+        ContentKindDto.APPLICATION_JSON.test(expectedString = "\"application/json\"")
+
+        PunctuatedNamesDto(
+            bindingHostId = "host-1",
+            routerExternal = true,
+            kind = ContentKindDto.APPLICATION_JSON,
+        ).test(expectedString = """{"binding:host_id":"host-1","router.external":true,"kind":"application/json"}""")
     }
 }

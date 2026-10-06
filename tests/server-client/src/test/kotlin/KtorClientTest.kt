@@ -319,4 +319,12 @@ class KtorClientTest {
         clientUser.debugApi.debugInfo(debugSession = "foo").check(expectedStatus = 200, expectedInput = "foo")
         clientAdmin.debugApi.debugInfo(debugSession = "foo").check(expectedStatus = 200, expectedInput = "foo")
     }
+
+    @Test
+    fun `test punctuated parameter names`(): TestResult = runTest {
+        clientPublic.debugApi.debugParameterNames(filterField = "customFields", scopeProjectId = "p1")
+            .check(expectedStatus = 200, expectedInput = "customFields|p1")
+        clientPublic.debugApi.debugParameterNames(filterField = "a[b].c")
+            .check(expectedStatus = 200, expectedInput = "a[b].c|null")
+    }
 }
