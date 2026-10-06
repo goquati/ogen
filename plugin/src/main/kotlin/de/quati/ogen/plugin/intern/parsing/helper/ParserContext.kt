@@ -20,6 +20,7 @@ internal class ParserContext(
     private val schemas = mutableMapOf<ComponentName.Schema, Component.Schema.NonInline>()
     private val reservedNames = mutableSetOf<ComponentName.Schema>()
     private val generatedOperationIds = mutableSetOf<GeneratedOperationId>()
+    private val multipartBodySchemas = mutableSetOf<ComponentName.Schema>()
 
     private data class GeneratedOperationId(
         val id: OperationName,
@@ -27,6 +28,10 @@ internal class ParserContext(
     )
 
     fun getSchemas() = schemas.toMap()
+    fun getMultipartBodySchemas() = multipartBodySchemas.toSet()
+    fun markMultipartBodySchema(name: ComponentName.Schema) {
+        multipartBodySchemas += name
+    }
     fun registerSchema(
         location: SchemaLocation,
         schemaGen: (SchemaLocation) -> Component.Schema,
