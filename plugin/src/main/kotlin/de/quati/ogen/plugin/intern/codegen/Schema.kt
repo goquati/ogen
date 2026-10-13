@@ -20,11 +20,36 @@ import de.quati.kotlin.util.poet.toSnakeCase
 import de.quati.ogen.plugin.intern.model.Component
 import de.quati.ogen.plugin.intern.model.Type
 
+/**
+ * This reference followed by the references of the aliases it passes through, ending at a reference to a
+ * schema that is not an alias. A component that only refers to another schema generates no class of its own.
+ */
+context(c: CodeGenContext)
+private fun Component.Schema.Ref.aliasChain(): List<Component.Schema.Ref> {
+    val chain = mutableListOf(this)
+    while (true) {
+        val next = c.schemaAliases[chain.last().name] ?: return chain
+        require(chain.none { it.name == next.name }) {
+            "Schema aliases form a cycle: ${(chain + next).joinToString(" -> ") { it.name.toString() }}"
+        }
+        chain += next
+    }
+}
+
+/** The reference this one stands for once aliases are followed; nullable when any reference on the way is. */
+context(c: CodeGenContext)
+internal fun Component.Schema.Ref.resolveAlias(): Component.Schema.Ref {
+    val chain = aliasChain()
+    if (chain.size == 1) return this
+    return Component.Schema.Ref.create(name = chain.last().name, isNullable = chain.any { it.isNullable })
+}
+
 context(c: CodeGenContext)
 private fun Component.Schema.getMappingOrNull(): Type.NonPrimitiveType.Custom? {
     if (this is Component.Schema.Ref) {
-        c.schemaMappings[name]?.also { return it }
-        return requireNotNull(c.allSchemas[name]).getMappingOrNull()
+        val chain = aliasChain()
+        chain.firstNotNullOfOrNull { c.schemaMappings[it.name] }?.also { return it }
+        return requireNotNull(c.allSchemas[chain.last().name]).getMappingOrNull()
     }
     when (this) {
         is Component.Schema.Inline -> Unit
@@ -40,7 +65,7 @@ private fun Component.Schema.getMappingOrNull(): Type.NonPrimitiveType.Custom? {
  */
 context(c: CodeGenContext)
 internal fun Component.Schema.isNullableResolved(): Boolean = when (this) {
-    is Component.Schema.Ref -> isNullable || c.allSchemas[name]?.isNullable == true
+    is Component.Schema.Ref -> resolveAlias().let { it.isNullable || c.allSchemas[it.name]?.isNullable == true }
     else -> isNullable
 }
 
@@ -91,7 +116,7 @@ internal fun Component.Schema.getTypeName(
 
             is Component.Schema.Ref -> Type.NonPrimitiveType.SerializableObject(
                 packageName = c.packageModel,
-                simpleNames = name.classNameSimpleNames
+                simpleNames = resolveAlias().name.classNameSimpleNames
             )
 
             is Component.Schema.Unknown.Inline -> Type.PrimitiveType.JsonElement
@@ -104,7 +129,7 @@ context(c: CodeGenContext)
 private fun Component.Schema.Composed.toObjOrNull(): Component.Schema.Obj? {
     val innerSchemas = schemas.map { schema ->
         when (schema) {
-            is Component.Schema.Ref -> when (val refSchema = c.allSchemas[schema.name]) {
+            is Component.Schema.Ref -> when (val refSchema = c.allSchemas[schema.resolveAlias().name]) {
                 is Component.Schema.Obj -> refSchema
                 is Component.Schema.Composed -> refSchema.toObjOrNull()
                 else -> null

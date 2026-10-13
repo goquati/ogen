@@ -13,6 +13,8 @@ import de.quati.ogen.oas.schemas.gen.model.ArrayOfUnionsDto
 import de.quati.ogen.oas.schemas.gen.model.NullableNameDto
 import de.quati.ogen.oas.schemas.gen.model.NullableObjectDto
 import de.quati.ogen.oas.schemas.gen.model.RefsToNullableSchemasDto
+import de.quati.ogen.oas.schemas.gen.model.AliasTargetDto
+import de.quati.ogen.oas.schemas.gen.model.RefsToAliasesDto
 import de.quati.ogen.oas.schemas.gen.model.ArrayNullableMappedDto
 import de.quati.ogen.oas.schemas.gen.model.ArrayNullablePrimitiveDto
 import de.quati.ogen.oas.schemas.gen.model.MapNullableMappedDto
@@ -51,6 +53,7 @@ import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.uuid.Uuid
 
 class ModelsV30Test {
@@ -483,5 +486,24 @@ class ModelsV30Test {
             names = listOf(),
             byKey = mapOf(),
         ).test(expectedString = """{"name":null,"obj":null,"names":[],"byKey":{}}""")
+    }
+
+    @Test
+    fun `test references to schema aliases`() {
+        RefsToAliasesDto(
+            plain = AliasTargetDto(foo = "a"),
+            nullable = AliasTargetDto(foo = "b"),
+            chained = null,
+            items = listOf(AliasTargetDto(foo = "c")),
+        ).test(expectedString = """{"plain":{"foo":"a"},"nullable":{"foo":"b"},"chained":null,"items":[{"foo":"c"}]}""")
+        RefsToAliasesDto(
+            plain = AliasTargetDto(foo = "a"),
+            nullable = null,
+            chained = AliasTargetDto(foo = "b"),
+            items = listOf(),
+        ).test(expectedString = """{"plain":{"foo":"a"},"nullable":null,"chained":{"foo":"b"},"items":[]}""")
+        assertFailsWith<ClassNotFoundException> {
+            Class.forName("de.quati.ogen.oas.schemas.gen.model.PlainAliasDto")
+        }
     }
 }

@@ -21,6 +21,7 @@ internal class ParserContext(
     private val reservedNames = mutableSetOf<ComponentName.Schema>()
     private val generatedOperationIds = mutableSetOf<GeneratedOperationId>()
     private val multipartBodySchemas = mutableSetOf<ComponentName.Schema>()
+    private val schemaAliases = mutableMapOf<ComponentName.Schema, Component.Schema.Ref>()
 
     private data class GeneratedOperationId(
         val id: OperationName,
@@ -29,6 +30,10 @@ internal class ParserContext(
 
     fun getSchemas() = schemas.toMap()
     fun getMultipartBodySchemas() = multipartBodySchemas.toSet()
+    fun getSchemaAliases() = schemaAliases.toMap()
+    fun addSchemaAlias(name: ComponentName.Schema, ref: Component.Schema.Ref) {
+        schemaAliases[name] = ref
+    }
     fun markMultipartBodySchema(name: ComponentName.Schema) {
         multipartBodySchemas += name
     }

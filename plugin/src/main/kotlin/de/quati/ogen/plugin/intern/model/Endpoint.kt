@@ -11,6 +11,7 @@ import de.quati.ogen.plugin.intern.codegen.SchemaTypeSpecData
 import de.quati.ogen.plugin.intern.codegen.getTypeName
 import de.quati.ogen.plugin.intern.codegen.isNullableResolved
 import de.quati.ogen.plugin.intern.codegen.prettyName
+import de.quati.ogen.plugin.intern.codegen.resolveAlias
 import de.quati.ogen.plugin.intern.codegen.toTypeSpecData
 import io.swagger.v3.oas.models.PathItem
 
@@ -131,7 +132,7 @@ internal data class Endpoint(
 
                 is Component.Schema.Ref -> run {
                     if (!followRef) null
-                    else when (val typeSpecData = c.allSchemas[this.name]?.toTypeSpecData()!!) {
+                    else when (val typeSpecData = c.allSchemas[this.resolveAlias().name]?.toTypeSpecData()!!) {
                         is SchemaTypeSpecData.DataClass, is SchemaTypeSpecData.SealedInterface -> null
                         is SchemaTypeSpecData.Enum -> CodeBlock.of(".value")
                         is SchemaTypeSpecData.ValueClass -> CodeBlock.of(
@@ -179,7 +180,7 @@ internal data class Endpoint(
             get() {
                 if (contentType !is ContentType.Multipart) return emptyList()
                 val schema = mediaType?.schema?.let {
-                    if (it is Component.Schema.Ref) c.allSchemas[it.name] else it
+                    if (it is Component.Schema.Ref) c.allSchemas[it.resolveAlias().name] else it
                 }
                 val obj = schema as? Component.Schema.Obj ?: return emptyList()
                 return obj.properties.map { (name, propertySchema) ->

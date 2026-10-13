@@ -1,5 +1,6 @@
 package de.quati.ogen.plugin.intern.parsing
 
+import de.quati.ogen.plugin.intern.model.Component
 import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.Spec
 import de.quati.ogen.plugin.intern.model.SpecSecurityContext
@@ -37,7 +38,10 @@ internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
                 type = SchemaLocation.Root.Type.COMPONENTS_SCHEMA,
                 name = name,
             )
-            obj.parse(location = location)
+            val schema = obj.parse(location = location)
+            // A component that only refers to another schema is not registered under its own name
+            if (schema is Component.Schema.Ref && schema.name != name)
+                addSchemaAlias(name = name, ref = schema)
         }
         val components = raw.components.parse()
         val paths = raw.paths.parse()
@@ -52,6 +56,7 @@ internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
     return spec.copy(
         components = spec.components.copy(
             schemas = parserContext.getSchemas(),
+            schemaAliases = parserContext.getSchemaAliases(),
         ),
     )
 }
@@ -59,6 +64,7 @@ internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
 context(_: ParserContext)
 private fun io.swagger.v3.oas.models.Components.parse() = Spec.Components(
     schemas = emptyMap(), // ParserContext includes the actual schemas
+    schemaAliases = emptyMap(), // ParserContext includes the actual schema aliases
     parameters = parameters?.entries?.associate { (name, obj) ->
         val name = ComponentName.Parameter.parse(name)
         name to obj.parse(name = name)

@@ -504,3 +504,46 @@ components:
           type: object
           additionalProperties:
             $ref: '#/components/schemas/NullableObject'
+
+    AliasTarget:
+      description: Object that the aliases below stand for.
+      type: object
+      required:
+        - foo
+      properties:
+        foo:
+          description: Sample string field.
+          type: string
+
+    PlainAlias:
+      $ref: '#/components/schemas/AliasTarget'
+
+    NullableAlias:
+      description: Nullable alias of another component, as a oneOf with null.
+      oneOf:
+        - $ref: '#/components/schemas/AliasTarget'
+        - type: "null"
+
+    AliasOfAlias:
+      $ref: '#/components/schemas/NullableAlias'
+
+    RefsToAliases:
+      description: Object referencing components that only refer to another component.
+      type: object
+      required:
+        - plain
+        - nullable
+        - chained
+        - items
+      properties:
+        plain:
+          $ref: '#/components/schemas/PlainAlias'
+        nullable:
+          $ref: '#/components/schemas/NullableAlias'
+        chained:
+          $ref: '#/components/schemas/AliasOfAlias'
+        items:
+          description: Items referencing an alias.
+          type: array
+          items:
+            $ref: '#/components/schemas/PlainAlias'

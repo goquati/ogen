@@ -23,6 +23,7 @@ internal class CodeGenContext(
 
     val discriminatorInfoMap: Map<ComponentName.Schema, ElementDiscriminatorInfo>
     val allSchemas = spec.components.schemas
+    val schemaAliases = spec.components.schemaAliases
     val childSchemas = allSchemas.values.groupByNotNull { it.name.getParent() }
     val enumSchemas = allSchemas.values.filterIsInstance<Component.Schema.EnumString>().toSet()
 
