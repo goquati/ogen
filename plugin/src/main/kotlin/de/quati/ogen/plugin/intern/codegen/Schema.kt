@@ -46,7 +46,7 @@ internal fun Component.Schema.getTypeName(
         )
 
         is Component.Schema.Inline -> when (this) {
-            is Component.Schema.Array.Inline -> items.getTypeName(withFlow = false).let { itemTypeData ->
+            is Component.Schema.Array.Inline -> items.getTypeName(withFlow = false).nullable(items.isNullable).let { itemTypeData ->
                 when (withFlow) {
                     true -> Type.NonPrimitiveType.Flow(itemTypeData)
                     false -> Type.NonPrimitiveType.List(itemTypeData)
@@ -55,7 +55,7 @@ internal fun Component.Schema.getTypeName(
 
             is Component.Schema.MapS.Inline -> Type.NonPrimitiveType.Map(
                 keyType = Type.PrimitiveType.String,
-                valueType = valueSchema.getTypeName(withFlow = withFlow),
+                valueType = valueSchema.getTypeName(withFlow = withFlow).nullable(valueSchema.isNullable),
             )
 
             is Component.Schema.Primitiv.Inline -> when (type) {

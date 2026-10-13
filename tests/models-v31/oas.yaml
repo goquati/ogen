@@ -424,3 +424,47 @@ components:
           bar:
             description: Sample integer field of the map value.
             type: integer
+
+    MapNullablePrimitive:
+      description: Map whose values are a nullable primitive type.
+      type: object
+      additionalProperties:
+        type: [integer, "null"]
+
+    MapNullableMapped:
+      description: Map whose values are a nullable type with a type mapping and its own serializer.
+      type: object
+      additionalProperties:
+        type: [number, "null"]
+        format: big-decimal
+
+    ArrayNullablePrimitive:
+      description: Array whose items are a nullable primitive type.
+      type: array
+      items:
+        type: [string, "null"]
+
+    ArrayNullableMapped:
+      description: Array whose items are a nullable type with a type mapping and its own serializer.
+      type: array
+      items:
+        type: [number, "null"]
+        format: big-decimal
+
+    NullableItemsAndValues:
+      description: Object whose fields are an array and a map with nullable items and values.
+      type: object
+      required:
+        - tags
+        - labels
+      properties:
+        tags:
+          description: Items that may be null.
+          type: array
+          items:
+            type: [string, "null"]
+        labels:
+          description: Values that may be null.
+          type: object
+          additionalProperties:
+            type: [string, "null"]
