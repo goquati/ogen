@@ -46,12 +46,10 @@ internal class Validator(
             val validationResult = evaluator.validate(spec)
 
             if (validationResult.warnings.isNotEmpty()) {
-                // Warnings that fail the build must be visible without --info
-                val log: (String) -> Unit = if (validatorConfig.failOnWarnings) logger::error else logger::info
-                log("\nSpec has issues or recommendations.\nIssues:\n")
+                logger.warn("\nSpec has issues or recommendations.\nIssues:\n")
 
                 validationResult.warnings.forEach {
-                    log("\t${it.message}\n")
+                    logger.warn("\t${it.message}\n")
                     logger.debug("WARNING: ${it.message}|${it.details}")
                 }
             }
