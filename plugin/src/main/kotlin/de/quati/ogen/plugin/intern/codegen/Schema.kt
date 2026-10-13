@@ -34,6 +34,16 @@ private fun Component.Schema.getMappingOrNull(): Type.NonPrimitiveType.Custom? {
     return null
 }
 
+/**
+ * Whether a value here may be null. A reference is, when the schema it names is nullable: OpenAPI 3.0
+ * ignores `nullable` beside a `$ref`, but `nullable` inside the referenced schema still applies.
+ */
+context(c: CodeGenContext)
+internal fun Component.Schema.isNullableResolved(): Boolean = when (this) {
+    is Component.Schema.Ref -> isNullable || c.allSchemas[name]?.isNullable == true
+    else -> isNullable
+}
+
 context(c: CodeGenContext)
 internal fun Component.Schema.getTypeName(
     withFlow: Boolean,
@@ -46,7 +56,7 @@ internal fun Component.Schema.getTypeName(
         )
 
         is Component.Schema.Inline -> when (this) {
-            is Component.Schema.Array.Inline -> items.getTypeName(withFlow = false).nullable(items.isNullable).let { itemTypeData ->
+            is Component.Schema.Array.Inline -> items.getTypeName(withFlow = false).nullable(items.isNullableResolved()).let { itemTypeData ->
                 when (withFlow) {
                     true -> Type.NonPrimitiveType.Flow(itemTypeData)
                     false -> Type.NonPrimitiveType.List(itemTypeData)
@@ -55,7 +65,7 @@ internal fun Component.Schema.getTypeName(
 
             is Component.Schema.MapS.Inline -> Type.NonPrimitiveType.Map(
                 keyType = Type.PrimitiveType.String,
-                valueType = valueSchema.getTypeName(withFlow = withFlow).nullable(valueSchema.isNullable),
+                valueType = valueSchema.getTypeName(withFlow = withFlow).nullable(valueSchema.isNullableResolved()),
             )
 
             is Component.Schema.Primitiv.Inline -> when (type) {
@@ -315,7 +325,7 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(
             val prettyFieldName = fieldName.toCamelCase(capitalized = false)
             val isRequired = this@generateDataClassTypeSpec.required.contains(fieldName)
             val propType = prop.getTypeName(withFlow = false)
-                .nullable(prop.isNullable)
+                .nullable(prop.isNullableResolved())
                 .let {
                     if (isRequired)
                         it

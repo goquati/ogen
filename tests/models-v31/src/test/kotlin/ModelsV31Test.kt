@@ -10,6 +10,9 @@ import de.quati.ogen.oas.schemas.gen.model.AnyOfMixed2Dto
 import de.quati.ogen.oas.schemas.gen.model.AnyOfPrimitiveDto
 import de.quati.ogen.oas.schemas.gen.model.AnyOfRefDto
 import de.quati.ogen.oas.schemas.gen.model.ArrayOfUnionsDto
+import de.quati.ogen.oas.schemas.gen.model.NullableNameDto
+import de.quati.ogen.oas.schemas.gen.model.NullableObjectDto
+import de.quati.ogen.oas.schemas.gen.model.RefsToNullableSchemasDto
 import de.quati.ogen.oas.schemas.gen.model.ArrayNullableMappedDto
 import de.quati.ogen.oas.schemas.gen.model.ArrayNullablePrimitiveDto
 import de.quati.ogen.oas.schemas.gen.model.MapNullableMappedDto
@@ -464,5 +467,21 @@ class ModelsV31Test {
             tags = listOf("x", null),
             labels = mapOf("k" to null),
         ).test(expectedString = """{"tags":["x",null],"labels":{"k":null}}""")
+    }
+
+    @Test
+    fun `test references to nullable schemas`() {
+        RefsToNullableSchemasDto(
+            name = NullableNameDto("a"),
+            obj = NullableObjectDto(foo = "x".toOption()),
+            names = listOf(NullableNameDto("b"), null),
+            byKey = mapOf("k" to NullableObjectDto(), "n" to null),
+        ).test(expectedString = """{"name":"a","obj":{"foo":"x"},"names":["b",null],"byKey":{"k":{},"n":null}}""")
+        RefsToNullableSchemasDto(
+            name = null,
+            obj = null,
+            names = listOf(),
+            byKey = mapOf(),
+        ).test(expectedString = """{"name":null,"obj":null,"names":[],"byKey":{}}""")
     }
 }
