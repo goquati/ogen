@@ -9,6 +9,7 @@ import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.ComponentsContext
 import de.quati.ogen.plugin.intern.codegen.SchemaTypeSpecData
 import de.quati.ogen.plugin.intern.codegen.getTypeName
+import de.quati.ogen.plugin.intern.codegen.isNullableResolved
 import de.quati.ogen.plugin.intern.codegen.prettyName
 import de.quati.ogen.plugin.intern.codegen.toTypeSpecData
 import io.swagger.v3.oas.models.PathItem
@@ -101,7 +102,7 @@ internal data class Endpoint(
         val toStringableParameter: StringableParameter
             get() {
                 val o = obj
-                val nullable = !o.required || o.schema.isNullable
+                val nullable = !o.required || o.schema.isNullableResolved()
                 val toStringCodeBlock = o.schema.toStringValueCodeBlock()
                 return StringableParameter(
                     name = o.name,

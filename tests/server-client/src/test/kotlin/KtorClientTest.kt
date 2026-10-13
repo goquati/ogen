@@ -3,6 +3,7 @@ package de.quati.ogen
 import de.quati.kotlin.util.toOption
 import de.quati.ogen.gen.client.DebugApi.Companion.debugApi
 import de.quati.ogen.gen.client.UsersApi.Companion.usersApi
+import de.quati.ogen.gen.model.DebugTraceIdDto
 import de.quati.ogen.gen.model.LocaleDto
 import de.quati.ogen.gen.model.TenantIdDto
 import de.quati.ogen.gen.model.UserCreateDto
@@ -343,6 +344,15 @@ class KtorClientTest {
             .check(expectedStatus = 200, expectedInput = "customFields|p1")
         clientPublic.debugApi.debugParameterNames(filterField = "a[b].c")
             .check(expectedStatus = 200, expectedInput = "a[b].c|null")
+    }
+
+    @Test
+    fun `test required parameter referencing a nullable schema`(): TestResult = runTest {
+        clientPublic.debugApi.debugNullableRefParameter(traceId = DebugTraceIdDto(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3")))
+            .check(expectedStatus = 200, expectedInput = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3")
+        // The client accepts null because the referenced schema is nullable; the Spring server
+        // still declares the parameter as required, so omitting it is rejected.
+        clientPublic.debugApi.debugNullableRefParameter(traceId = null).check(expectedStatus = 400)
     }
 
     @Test

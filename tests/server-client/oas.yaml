@@ -343,6 +343,24 @@ paths:
         '200':
           description: "the parameters, echoed"
 
+  /api/v1/public/debug/nullable-ref:
+    get:
+      tags:
+        - debug
+      summary: Echo a parameter referencing a nullable schema
+      description: Echoes a required query parameter whose schema is a reference to a nullable component.
+      operationId: debugNullableRefParameter
+      security: [ ]
+      parameters:
+        - name: traceId
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/DebugTraceId"
+      responses:
+        '200':
+          description: "the parameter, echoed"
+
 security:
   - user: [ ]
   - service: [ ]
@@ -396,6 +414,11 @@ components:
       description: Unique identifier of a tenant.
       type: string
       format: uuid
+    DebugTraceId:
+      description: A trace ID that may be null, as a component of its own.
+      type: string
+      format: uuid
+      nullable: true
     Locale:
       description: Supported UI locale.
       type: string
