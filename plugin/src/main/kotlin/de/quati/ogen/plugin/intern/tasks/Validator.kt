@@ -46,10 +46,12 @@ internal class Validator(
             val validationResult = evaluator.validate(spec)
 
             if (validationResult.warnings.isNotEmpty()) {
-                logger.info("\nSpec has issues or recommendations.\nIssues:\n")
+                // Warnings that fail the build must be visible without --info
+                val log: (String) -> Unit = if (validatorConfig.failOnWarnings) logger::error else logger::info
+                log("\nSpec has issues or recommendations.\nIssues:\n")
 
                 validationResult.warnings.forEach {
-                    logger.info("\t${it.message}\n")
+                    log("\t${it.message}\n")
                     logger.debug("WARNING: ${it.message}|${it.details}")
                 }
             }
@@ -71,8 +73,8 @@ internal class Validator(
             }
 
             if (validatorConfig.failOnWarnings && validationResult.warnings.isNotEmpty()) {
-                logger.error("\nWarnings found in the spec and 'treatWarningsAsErrors' is enabled.\nFailing validation.\n")
-                throw GradleException("Validation failed due to warnings (treatWarningsAsErrors = true).")
+                logger.error("\nWarnings found in the spec and 'failOnWarnings' is enabled.\nFailing validation.\n")
+                throw GradleException("Validation failed due to warnings (failOnWarnings = true).")
             }
 
             val namingConventionErrors = getNamingConventionErrors(spec, validatorConfig)
