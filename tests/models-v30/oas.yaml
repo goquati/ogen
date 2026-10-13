@@ -479,3 +479,41 @@ components:
           additionalProperties:
             type: string
             nullable: true
+
+    NullableName:
+      description: A name that may be null, as a component of its own.
+      type: string
+      nullable: true
+
+    NullableObject:
+      description: An object that may be null, as a component of its own.
+      type: object
+      nullable: true
+      properties:
+        foo:
+          description: Sample string field.
+          type: string
+
+    RefsToNullableSchemas:
+      description: Object referencing nullable components from a field, array items and map values.
+      type: object
+      required:
+        - name
+        - obj
+        - names
+        - byKey
+      properties:
+        name:
+          $ref: '#/components/schemas/NullableName'
+        obj:
+          $ref: '#/components/schemas/NullableObject'
+        names:
+          description: Items referencing a nullable component.
+          type: array
+          items:
+            $ref: '#/components/schemas/NullableName'
+        byKey:
+          description: Values referencing a nullable component.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/NullableObject'
