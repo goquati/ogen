@@ -29,7 +29,7 @@ internal sealed interface Type : ToPoet {
         }
 
         data class List(
-            val innerType: Type,
+            val innerType: TypeWithNullability,
         ) : NonPrimitiveType {
             override val packageName = PackageName("kotlin.collections")
             override val simpleNames = listOf("List")
@@ -37,7 +37,7 @@ internal sealed interface Type : ToPoet {
         }
 
         data class Flow(
-            val innerType: Type,
+            val innerType: TypeWithNullability,
         ) : NonPrimitiveType {
             override val packageName = PackageName("kotlinx.coroutines.flow")
             override val simpleNames = listOf("Flow")
@@ -46,7 +46,7 @@ internal sealed interface Type : ToPoet {
 
         data class Map(
             val keyType: Type,
-            val valueType: Type,
+            val valueType: TypeWithNullability,
         ) : NonPrimitiveType {
             override val packageName = PackageName("kotlin.collections")
             override val simpleNames = listOf("Map")

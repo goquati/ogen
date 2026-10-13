@@ -19,14 +19,14 @@ internal fun TypeWithNullability.serializerCreateCode(): CodeBlock = when (val t
     is Type.NonPrimitiveType.List -> CodeBlock.of(
         "%T(%L)",
         Poet.listSerializer,
-        type.innerType.nullable(false).serializerCreateCode(),
+        type.innerType.serializerCreateCode(),
     )
 
     is Type.NonPrimitiveType.Map -> CodeBlock.of(
         "%T(%L, %L)",
         Poet.mapSerializer,
         type.keyType.nullable(false).serializerCreateCode(),
-        type.valueType.nullable(false).serializerCreateCode(),
+        type.valueType.serializerCreateCode(),
     )
 
     is Type.NonPrimitiveType.Option -> CodeBlock.of(
@@ -63,7 +63,7 @@ internal fun Type.getSerializerTypeName(register: Boolean): TypeName? = when (th
         throw NotImplementedError("Flow serialization is not supported")
 
     is Type.NonPrimitiveType.List -> run {
-        val defaultType = null == innerType.getSerializerTypeName(register = false)
+        val defaultType = null == innerType.type.getSerializerTypeName(register = false)
         if (defaultType) return@run null
         c.globalGenContext.registerSerializer(
             register = register,
@@ -74,7 +74,7 @@ internal fun Type.getSerializerTypeName(register: Boolean): TypeName? = when (th
 
     is Type.NonPrimitiveType.Map -> run {
         val defaultKey = null == keyType.getSerializerTypeName(register = false)
-        val defaultValue = null == valueType.getSerializerTypeName(register = false)
+        val defaultValue = null == valueType.type.getSerializerTypeName(register = false)
         if (defaultKey && defaultValue) return@run null
         c.globalGenContext.registerSerializer(
             register = register,

@@ -10,6 +10,11 @@ import de.quati.ogen.oas.schemas.gen.model.AnyOfMixed2Dto
 import de.quati.ogen.oas.schemas.gen.model.AnyOfPrimitiveDto
 import de.quati.ogen.oas.schemas.gen.model.AnyOfRefDto
 import de.quati.ogen.oas.schemas.gen.model.ArrayOfUnionsDto
+import de.quati.ogen.oas.schemas.gen.model.ArrayNullableMappedDto
+import de.quati.ogen.oas.schemas.gen.model.ArrayNullablePrimitiveDto
+import de.quati.ogen.oas.schemas.gen.model.MapNullableMappedDto
+import de.quati.ogen.oas.schemas.gen.model.MapNullablePrimitiveDto
+import de.quati.ogen.oas.schemas.gen.model.NullableItemsAndValuesDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesAnyObjectDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesObjectDto
 import de.quati.ogen.oas.schemas.gen.model.ContentKindDto
@@ -424,5 +429,40 @@ class ModelsV30Test {
             routerExternal = true,
             kind = ContentKindDto.APPLICATION_JSON,
         ).test(expectedString = """{"binding:host_id":"host-1","router.external":true,"kind":"application/json"}""")
+    }
+
+    @Test
+    fun `test map object with nullable primitive`() {
+        MapNullablePrimitiveDto(mapOf(
+            "key1" to 47,
+            "key2" to null,
+        )).test(expectedString = """{"key1":47,"key2":null}""")
+    }
+
+    @Test
+    fun `test map object with nullable mapped type`() {
+        MapNullableMappedDto(mapOf(
+            "key1" to java.math.BigDecimal("1.5"),
+            "key2" to null,
+        )).test(expectedString = """{"key1":"1.5","key2":null}""")
+    }
+
+    @Test
+    fun `test array of nullable primitives`() {
+        ArrayNullablePrimitiveDto(listOf("a", null)).test(expectedString = """["a",null]""")
+    }
+
+    @Test
+    fun `test array of nullable mapped type`() {
+        ArrayNullableMappedDto(listOf(java.math.BigDecimal("2.5"), null))
+            .test(expectedString = """["2.5",null]""")
+    }
+
+    @Test
+    fun `test object with nullable items and values`() {
+        NullableItemsAndValuesDto(
+            tags = listOf("x", null),
+            labels = mapOf("k" to null),
+        ).test(expectedString = """{"tags":["x",null],"labels":{"k":null}}""")
     }
 }
