@@ -113,7 +113,7 @@ internal data class Endpoint(
                     type = if (toStringCodeBlock == null) String::class.asClassName()
                     else o.schema.getTypeName(withFlow = false).poet,
                     description = o.description,
-                    toStringCodeBlock = toStringCodeBlock ?: CodeBlock.of(".toString()")
+                    toStringCodeBlock = toStringCodeBlock ?: CodeBlock.of("") // the parameter is a String then
                 )
             }
 
@@ -137,7 +137,7 @@ internal data class Endpoint(
                         is SchemaTypeSpecData.Enum -> CodeBlock.of(".value")
                         is SchemaTypeSpecData.ValueClass -> CodeBlock.of(
                             ".value%L",
-                            typeSpecData.schema.toStringValueCodeBlock(followRef = false) ?: return@run null,
+                            typeSpecData.schema.toInline().toStringValueCodeBlock(followRef = false) ?: return@run null,
                         )
                     }
                 }

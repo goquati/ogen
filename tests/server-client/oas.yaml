@@ -361,6 +361,31 @@ paths:
         '200':
           description: "the parameter, echoed"
 
+  /api/v1/public/debug/string-parameters:
+    get:
+      tags:
+        - debug
+      summary: Echo parameters that are passed on as strings
+      description: Echoes a parameter referencing a string component and an array parameter, which the client passes on as a string.
+      operationId: debugStringParameters
+      security: [ ]
+      parameters:
+        - name: label
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/DebugLabel"
+        - name: tags
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: "the parameters, echoed"
+
 security:
   - user: [ ]
   - service: [ ]
@@ -414,6 +439,9 @@ components:
       description: Unique identifier of a tenant.
       type: string
       format: uuid
+    DebugLabel:
+      description: A label, as a string component of its own.
+      type: string
     DebugTraceId:
       description: A trace ID that may be null, as a component of its own.
       type: string

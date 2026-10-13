@@ -1,5 +1,6 @@
 package de.quati.ogen.api
 
+import de.quati.ogen.gen.model.DebugLabelDto
 import de.quati.ogen.gen.model.DebugTraceIdDto
 import de.quati.ogen.gen.server.DebugApi
 import org.springframework.stereotype.Service
@@ -26,5 +27,13 @@ class DebugController : DebugApi {
         traceId: DebugTraceIdDto,
     ) = op.createResponse200 {
         addInputHeader(traceId)
+    }
+
+    override suspend fun debugStringParameters(
+        op: DebugApi.DebugStringParametersContext,
+        label: DebugLabelDto,
+        tags: List<String>,
+    ) = op.createResponse200 {
+        addInputHeader(label, tags.joinToString(","))
     }
 }

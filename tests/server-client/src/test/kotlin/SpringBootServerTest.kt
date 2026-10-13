@@ -378,6 +378,13 @@ class SpringBootServerTest {
     }
 
     @Test
+    fun `test parameters passed on as strings`() {
+        val op = Operation(HttpMethod.GET, "/api/v1/public/debug/string-parameters")
+        val query = mapOf("label" to "foo", "tags" to "a,b")
+        client.doRequest(op = op, user = null, query = query, expectedStatus = 200, expectedInput = "foo|a,b")
+    }
+
+    @Test
     fun `test operation context`() {
         UsersApi.GetUsersContext.name shouldBe "getUsers"
         UsersApi.GetUsersContext.description shouldBe "Returns users, optionally filtered by tenant, verification status, search term, locale or email."
