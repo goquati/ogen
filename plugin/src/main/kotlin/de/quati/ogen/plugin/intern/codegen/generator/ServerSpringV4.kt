@@ -122,11 +122,11 @@ private fun TypeSpec.Builder.createController(
                 addParameter(
                     name = paramNameResolver.resolve(parameter.prettyName),
                     type = parameter.schema.getTypeName(withFlow = false)
-                        .poet.copy(nullable = !parameter.required),
+                        .poet.copy(nullable = parameter.isNullable),
                 ) {
                     addAnnotation(Poet.Spring.annotationClassName(parameter.type)) {
                         addMember("value = %S", parameter.name)
-                        addMember("required = %L", parameter.required)
+                        addMember("required = %L", !parameter.isNullable)
                     }
                 }
             when {

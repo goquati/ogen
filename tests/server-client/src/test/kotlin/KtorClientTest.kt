@@ -348,12 +348,12 @@ class KtorClientTest {
     }
 
     @Test
-    fun `test required parameter referencing a nullable schema`(): TestResult = runTest {
-        clientPublic.debugApi.debugNullableRefParameter(traceId = DebugTraceIdDto(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3")))
-            .check(expectedStatus = 200, expectedInput = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3")
-        // The client accepts null because the referenced schema is nullable; the Spring server
-        // still declares the parameter as required, so omitting it is rejected.
-        clientPublic.debugApi.debugNullableRefParameter(traceId = null).check(expectedStatus = 400)
+    fun `test required parameters with nullable schemas`(): TestResult = runTest {
+        val traceId = DebugTraceIdDto(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3"))
+        clientPublic.debugApi.debugNullableParameters(id = traceId, traceId = traceId, note = "foo")
+            .check(expectedStatus = 200, expectedInput = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3|75897dbc-8dea-4d14-82c6-dd0ee2243cb3|foo")
+        clientPublic.debugApi.debugNullableParameters(id = traceId)
+            .check(expectedStatus = 200, expectedInput = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3|null|null")
     }
 
     @Test

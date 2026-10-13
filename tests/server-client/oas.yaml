@@ -343,23 +343,34 @@ paths:
         '200':
           description: "the parameters, echoed"
 
-  /api/v1/public/debug/nullable-ref:
+  /api/v1/public/debug/nullable/{id}:
     get:
       tags:
         - debug
-      summary: Echo a parameter referencing a nullable schema
-      description: Echoes a required query parameter whose schema is a reference to a nullable component.
-      operationId: debugNullableRefParameter
+      summary: Echo required parameters with nullable schemas
+      description: Echoes required parameters whose schemas are nullable, inline or through a reference. A path parameter stays non-null, as it cannot be left out.
+      operationId: debugNullableParameters
       security: [ ]
       parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/DebugTraceId"
         - name: traceId
           in: query
           required: true
           schema:
             $ref: "#/components/schemas/DebugTraceId"
+        - name: note
+          in: query
+          required: true
+          schema:
+            type: string
+            nullable: true
       responses:
         '200':
-          description: "the parameter, echoed"
+          description: "the parameters, echoed"
 
   /api/v1/public/debug/string-parameters:
     get:

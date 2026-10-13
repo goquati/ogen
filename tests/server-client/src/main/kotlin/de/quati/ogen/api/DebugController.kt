@@ -22,11 +22,13 @@ class DebugController : DebugApi {
         addInputHeader(filterField, scopeProjectId)
     }
 
-    override suspend fun debugNullableRefParameter(
-        op: DebugApi.DebugNullableRefParameterContext,
-        traceId: DebugTraceIdDto,
+    override suspend fun debugNullableParameters(
+        op: DebugApi.DebugNullableParametersContext,
+        id: DebugTraceIdDto,
+        traceId: DebugTraceIdDto?,
+        note: String?,
     ) = op.createResponse200 {
-        addInputHeader(traceId)
+        addInputHeader(id, traceId, note)
     }
 
     override suspend fun debugStringParameters(

@@ -88,6 +88,10 @@ internal data class Endpoint(
             val schema: Component.Schema,
         ) : Parameter {
             val prettyName get() = name.toCamelCase(capitalized = false)
+
+            /** Whether the parameter may be left out; a path parameter never can, even when its schema is nullable. */
+            context(_: CodeGenContext)
+            val isNullable get() = !required || (type != Type.PATH && schema.isNullableResolved())
         }
 
         enum class Type { QUERY, PATH, HEADER, COOKIE }
@@ -103,12 +107,11 @@ internal data class Endpoint(
         val toStringableParameter: StringableParameter
             get() {
                 val o = obj
-                val nullable = !o.required || o.schema.isNullableResolved()
                 val toStringCodeBlock = o.schema.toStringValueCodeBlock()
                 return StringableParameter(
                     name = o.name,
                     prettyName = o.prettyName,
-                    nullable = nullable,
+                    nullable = o.isNullable,
                     inType = o.type,
                     type = if (toStringCodeBlock == null) String::class.asClassName()
                     else o.schema.getTypeName(withFlow = false).poet,
