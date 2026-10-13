@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class TestGeneration {
     companion object {
@@ -80,5 +82,14 @@ class TestGeneration {
                 .replace(":", "_")
                 .let {  "${it}_${info.method.name.lowercase()}" }
         }
+    }
+
+    @Test
+    fun testSchemaNameCollision() {
+        val e = assertFailsWith<IllegalStateException> { testClientGenSpec("schema-name-collision") }
+        assertEquals(
+            "Schemas 'collision_name', 'CollisionName' share the Kotlin name 'CollisionName'; rename all but one of them",
+            e.message,
+        )
     }
 }

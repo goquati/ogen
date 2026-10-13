@@ -1,0 +1,14 @@
+openapi: 3.0.4
+info:
+  title: Schema name collision
+  description: Two schema names that map to the same Kotlin name.
+  version: 1.0.0
+
+paths: {}
+
+components:
+  schemas:
+    collision_name:
+      type: string
+    CollisionName:
+      type: integer

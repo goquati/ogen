@@ -31,6 +31,7 @@ internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
         tagPathPrefixes = raw.paths.getTagPathPrefixes(),
     )
 
+    raw.components.checkSchemaNameCollisions()
     val spec = with(parserContext) {
         raw.components.schemas?.entries?.forEach { (name, obj) ->
             val name = ComponentName.Schema.Root.parse(name)
@@ -59,6 +60,17 @@ internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
             schemaAliases = parserContext.getSchemaAliases(),
         ),
     )
+}
+
+// References name a schema by its Kotlin name, so two schemas sharing one cannot be told apart
+private fun io.swagger.v3.oas.models.Components.checkSchemaNameCollisions() {
+    val collisions = schemas?.keys.orEmpty()
+        .groupBy(ComponentName.Schema.Root::parse)
+        .filterValues { it.size > 1 }
+    if (collisions.isEmpty()) return
+    error(collisions.entries.joinToString(separator = "\n") { (name, rawNames) ->
+        "Schemas ${rawNames.joinToString { "'$it'" }} share the Kotlin name '$name'; rename all but one of them"
+    })
 }
 
 context(_: ParserContext)
