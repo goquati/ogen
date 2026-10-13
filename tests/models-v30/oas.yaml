@@ -560,3 +560,74 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PlainAlias'
+
+    OneOfAlias:
+      description: Union with an implicit discriminator, whose second variant is referenced through an alias.
+      oneOf:
+        - $ref: '#/components/schemas/OneOfAlias1'
+        - $ref: '#/components/schemas/OneOfAlias2Alias'
+      discriminator:
+        propertyName: objectType
+    OneOfAlias1:
+      description: First variant of OneOfAlias.
+      type: object
+      required:
+        - objectType
+      properties:
+        objectType:
+          description: Discriminator value identifying this variant.
+          type: string
+        bar:
+          description: Sample field unique to this variant.
+          type: string
+    OneOfAlias2:
+      description: Second variant of OneOfAlias.
+      type: object
+      required:
+        - objectType
+      properties:
+        objectType:
+          description: Discriminator value identifying this variant.
+          type: string
+        foo:
+          description: Sample field unique to this variant.
+          type: string
+    OneOfAlias2Alias:
+      $ref: '#/components/schemas/OneOfAlias2'
+
+    OneOfAliasMapping:
+      description: Union with an explicit discriminator mapping, whose second variant is referenced through an alias.
+      oneOf:
+        - $ref: '#/components/schemas/OneOfAliasMapping1'
+        - $ref: '#/components/schemas/OneOfAliasMapping2Alias'
+      discriminator:
+        propertyName: objectType
+        mapping:
+          obj1: '#/components/schemas/OneOfAliasMapping1'
+          obj2: '#/components/schemas/OneOfAliasMapping2Alias'
+    OneOfAliasMapping1:
+      description: First variant of OneOfAliasMapping.
+      type: object
+      required:
+        - objectType
+      properties:
+        objectType:
+          description: Discriminator value identifying this variant.
+          type: string
+        bar:
+          description: Sample field unique to this variant.
+          type: string
+    OneOfAliasMapping2:
+      description: Second variant of OneOfAliasMapping.
+      type: object
+      required:
+        - objectType
+      properties:
+        objectType:
+          description: Discriminator value identifying this variant.
+          type: string
+        foo:
+          description: Sample field unique to this variant.
+          type: string
+    OneOfAliasMapping2Alias:
+      $ref: '#/components/schemas/OneOfAliasMapping2'

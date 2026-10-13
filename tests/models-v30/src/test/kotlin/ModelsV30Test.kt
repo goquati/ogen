@@ -34,6 +34,12 @@ import de.quati.ogen.oas.schemas.gen.model.OneOfDiscriminatorDto
 import de.quati.ogen.oas.schemas.gen.model.OneOfMapping1Dto
 import de.quati.ogen.oas.schemas.gen.model.OneOfMapping2Dto
 import de.quati.ogen.oas.schemas.gen.model.OneOfMappingDto
+import de.quati.ogen.oas.schemas.gen.model.OneOfAliasDto
+import de.quati.ogen.oas.schemas.gen.model.OneOfAlias1Dto
+import de.quati.ogen.oas.schemas.gen.model.OneOfAlias2Dto
+import de.quati.ogen.oas.schemas.gen.model.OneOfAliasMappingDto
+import de.quati.ogen.oas.schemas.gen.model.OneOfAliasMapping1Dto
+import de.quati.ogen.oas.schemas.gen.model.OneOfAliasMapping2Dto
 import de.quati.ogen.oas.schemas.gen.model.OneOfMixedDto
 import de.quati.ogen.oas.schemas.gen.model.OneOfPrimitiveDto
 import de.quati.ogen.oas.schemas.gen.model.PunctuatedNamesDto
@@ -505,5 +511,14 @@ class ModelsV30Test {
         assertFailsWith<ClassNotFoundException> {
             Class.forName("de.quati.ogen.oas.schemas.gen.model.PlainAliasDto")
         }
+    }
+
+    @Test
+    @OptIn(ExperimentalSerializationApi::class)
+    fun `test oneOf with discriminator and a variant referenced through an alias`() {
+        (OneOfAlias1Dto(bar = "abc".toOption()) as OneOfAliasDto).test(expectedString = """{"objectType":"OneOfAlias1","bar":"abc"}""")
+        (OneOfAlias2Dto(foo = "def".toOption()) as OneOfAliasDto).test(expectedString = """{"objectType":"OneOfAlias2Alias","foo":"def"}""")
+        (OneOfAliasMapping1Dto(bar = "abc".toOption()) as OneOfAliasMappingDto).test(expectedString = """{"objectType":"obj1","bar":"abc"}""")
+        (OneOfAliasMapping2Dto(foo = "def".toOption()) as OneOfAliasMappingDto).test(expectedString = """{"objectType":"obj2","foo":"def"}""")
     }
 }

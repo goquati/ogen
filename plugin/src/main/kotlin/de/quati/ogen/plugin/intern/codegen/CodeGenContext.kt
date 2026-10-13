@@ -31,18 +31,18 @@ internal class CodeGenContext(
         val invalidSealedInterfaces = mutableSetOf<Component.Schema.SealedInterface>()
         discriminatorInfoMap = allSchemas.values
             .filterIsInstance<Component.Schema.SealedInterface>()
-            .flatMap { si -> si.schemas.map { it.value to si } }
+            .flatMap { si -> si.schemas.map { it.value.resolveAlias().name to si } }
             .groupBy({ it.first }, { it.second })
-            .entries.associateNotNull { (refSchema, interfaces) ->
+            .entries.associateNotNull { (schemaName, interfaces) ->
                 val discriminator = interfaces.map { it.discriminatorName }.distinct().singleOrNull()
                 val name = interfaces.mapNotNull {
-                    it.schemas.entries.firstOrNull { (_, schema) -> schema.ref == refSchema.ref }?.key
+                    it.schemas.entries.firstOrNull { (_, schema) -> schema.resolveAlias().name == schemaName }?.key
                 }.distinct().singleOrNull()
                 if (name == null || discriminator == null) {
                     invalidSealedInterfaces.addAll(interfaces)
                     return@associateNotNull null
                 }
-                refSchema.name to ElementDiscriminatorInfo(
+                schemaName to ElementDiscriminatorInfo(
                     discriminatorName = discriminator,
                     elementName = name,
                     interfaces = interfaces,
