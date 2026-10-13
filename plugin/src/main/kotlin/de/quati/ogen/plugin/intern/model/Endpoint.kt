@@ -113,7 +113,7 @@ internal data class Endpoint(
                     type = if (toStringCodeBlock == null) String::class.asClassName()
                     else o.schema.getTypeName(withFlow = false).poet,
                     description = o.description,
-                    toStringCodeBlock = toStringCodeBlock ?: CodeBlock.of("") // the parameter is a String then
+                    toStringCodeBlock = toStringCodeBlock ?: CodeBlock.of("") // a parameter without one is passed as a String
                 )
             }
 

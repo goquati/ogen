@@ -374,7 +374,8 @@ class SpringBootServerTest {
     @Test
     fun `test required parameter referencing a nullable schema`() {
         val op = Operation(HttpMethod.GET, "/api/v1/public/debug/nullable-ref")
-        client.doRequest(op = op, user = null, query = mapOf("traceId" to "75897dbc-8dea-4d14-82c6-dd0ee2243cb3"), expectedStatus = 200, expectedInput = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3")
+        val query = mapOf("traceId" to "75897dbc-8dea-4d14-82c6-dd0ee2243cb3")
+        client.doRequest(op = op, user = null, query = query, expectedStatus = 200, expectedInput = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3")
     }
 
     @Test

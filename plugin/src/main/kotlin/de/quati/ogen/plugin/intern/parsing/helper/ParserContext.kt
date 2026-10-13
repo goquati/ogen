@@ -30,13 +30,14 @@ internal class ParserContext(
 
     fun getSchemas() = schemas.toMap()
     fun getMultipartBodySchemas() = multipartBodySchemas.toSet()
+    fun markMultipartBodySchema(name: ComponentName.Schema) {
+        multipartBodySchemas += name
+    }
     fun getSchemaAliases() = schemaAliases.toMap()
     fun addSchemaAlias(name: ComponentName.Schema, ref: Component.Schema.Ref) {
         schemaAliases[name] = ref
     }
-    fun markMultipartBodySchema(name: ComponentName.Schema) {
-        multipartBodySchemas += name
-    }
+    fun isSchemaRegistered(name: ComponentName.Schema) = name in schemas
     fun registerSchema(
         location: SchemaLocation,
         schemaGen: (SchemaLocation) -> Component.Schema,

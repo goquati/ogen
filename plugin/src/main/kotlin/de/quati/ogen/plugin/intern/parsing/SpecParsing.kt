@@ -40,7 +40,7 @@ internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
             )
             val schema = obj.parse(location = location)
             // A component that only refers to another schema is not registered under its own name
-            if (schema is Component.Schema.Ref && schema.name != name)
+            if (schema is Component.Schema.Ref && !isSchemaRegistered(name))
                 addSchemaAlias(name = name, ref = schema)
         }
         val components = raw.components.parse()

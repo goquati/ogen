@@ -25,7 +25,6 @@ internal data class Spec(
         override val parameters: Map<ComponentName.Parameter, Endpoint.Parameter>,
         override val requestBody: Map<ComponentName.RequestBody, Endpoint.RequestBody>,
         override val response: Map<ComponentName.Response, Endpoint.Response>,
-        /** Components that only refer to another schema, by name, with the reference they stand for. */
         val schemaAliases: Map<ComponentName.Schema, Component.Schema.Ref>,
     ) : ComponentsContext
 }
