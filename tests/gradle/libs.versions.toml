@@ -1,5 +1,5 @@
 [versions]
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 spring-boot = "4.1.1"
 quati-util = "2.6.1"
 kotlinx-coroutine = "1.11.0"
