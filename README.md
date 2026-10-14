@@ -9,36 +9,52 @@
 - **Advanced OpenAPI Support**: Supports OpenAPI 3.0 and 3.1, including `oneOf` (via sealed interfaces), `allOf`, `anyOf`, and complex nested schemas.
 - **Kotlin Multiplatform**: Seamlessly works with KMP projects, generating code into the appropriate source sets.
 - **Spring Boot Support**: Generates server interfaces for Spring Boot (WebFlux).
-- **Ktor Support**: Supports both Ktor Server (planned) and Ktor Client generators.
+- **Ktor Client Support**: Generates Ktor clients (a Ktor server generator is planned).
+- **Multipart Requests**: Supports `multipart/form-data` request bodies, including file uploads, in the Spring server and the Ktor client.
 - **OpenAPI Validation**: Built-in validator to ensure your OpenAPI specs follow best practices and naming conventions.
 - **Highly Configurable**: Custom type mappings, schema mappings, and naming convention enforcement.
 
 ## Installation
 
-Apply the plugin in your `build.gradle.kts`:
+Apply the plugin and add the runtime libraries in your `build.gradle.kts`:
 
 ```kotlin
 plugins {
     kotlin("jvm") // or kotlin("multiplatform")
     kotlin("plugin.serialization")
     id("de.quati.ogen") version "0.15.1"
+}
 
+dependencies {
     implementation("de.quati.ogen:core:0.15.1")
-    implementation("de.quati.ogen:client-ktor:0.15.1") // Optional: only for generate Ktor clients required
-    implementation("de.quati.ogen:server-spring:0.15.1") // Optional: only for Spring server with `apiResponse = true` required
+    implementation("de.quati.ogen:client-ktor:0.15.1") // Optional: only required for generated Ktor clients
+    implementation("de.quati.ogen:server-spring:0.15.1") // Optional: only required for the Spring server with `apiResponse = true`
+    implementation("de.quati:kotlin-util:2.6.1") // Provides `Option`, used by generated models for optional properties
+}
+```
+
+The generated code also needs `kotlinx-serialization-json`. If your spec uses `format: uuid`, the generated code uses
+`kotlin.uuid.Uuid`, which requires opting in to `kotlin.uuid.ExperimentalUuidApi`:
+
+```kotlin
+kotlin {
+    compilerOptions {
+        optIn.add("kotlin.uuid.ExperimentalUuidApi")
+    }
 }
 ```
 
 ## Configuration
 
-Configure the generator using the `ogen` extension:
+Configure the generator using the `ogen` extension. `utilPackageName`, a spec (`specFile` or `specMerge`) and `model`
+are required; everything else is optional.
 
 ```kotlin
 ogen {
     utilPackageName("com.example.api.gen.util")
     add(packageName = "com.example.api.gen") {
         specFile("$projectDir/specs/api.yaml")
-        // Optional: Configure validation
+        // Optional: Validate the spec; without this block, no validation runs
         validator {
             failOnWarnings = true
             // Enforce naming conventions
@@ -46,7 +62,7 @@ ogen {
             schemaNameFormat = NameConvention.PascalCase
         }
 
-        // Optional: Configure model generation
+        // Required: Generate models
         model {
             // Map OpenAPI types to existing Kotlin/Java classes
             typeMapping(
@@ -68,10 +84,31 @@ ogen {
         }
 
         // Optional: Generate Ktor Client
-        ktorClient {}
+        clientKtor {}
     }
 }
 ```
+
+### Further Options
+
+- **Multiple specs**: call `add` once per spec, each with its own package name.
+- **Package names and postfixes**: by default, models go to `<packageName>.model` with the postfix `Dto`, the Spring
+  server to `<packageName>.server` and the Ktor client to `<packageName>.client`, both with the postfix `Api`. Each of
+  `model`, `serverSpringV4` and `clientKtor` can override this with `packageName` and `postfix`.
+- **Type and schema mappings**: `typeMapping` takes `type` as `<type>` or `<type>+<format>` (e.g. `string+date-time`).
+  `schemaMapping` takes a schema name; nested schemas are separated by dots. `serializerObject` is optional for both.
+- **Merging specs**: instead of `specFile`, `specMerge(path = "$projectDir/specs")` merges all specs in a directory.
+  The merged spec's `info` is set with `mergedFileInfoTitle`, `mergedFileInfoVersion` and `mergedFileInfoDescription`,
+  or taken from a base spec with `specMerge(path = ..., baseSpec = "$projectDir/specs/base.yaml")`.
+- **Operation IDs**: for operations without an `operationId`, `operationIdGenerator { info -> ... }` derives one
+  from an `EndpointInfo` (`tag`, `path`, `relativePath`, `method`). If it returns `null` or isn't set, the name is
+  derived from the path and method.
+- **Validation rules**: besides `failOnWarnings` (default `false`) and `recommendations` (default `true`), the
+  `validator` block sets naming conventions for `schemaNameFormat` (default `PascalCase`), `propertyNameFormat`,
+  `tagFormat` and `operationIdFormat` (default `CamelCase`), `pathSegmentFormat` (default `KebabCase`),
+  `stringEnumFormat` (default `Any`) and, via `parameterFormat { path; query; header; cookie }`, parameter names.
+  Besides the predefined conventions, `NameConvention.RegexFormat("...")` and `NameConvention.Custom { name -> ... }`
+  define custom ones.
 
 ### Spring Boot Security Context
 
@@ -124,13 +161,16 @@ is registered by Spring Boot auto-configuration in reactive web applications. To
 
 The plugin registers the following tasks:
 
-- `ogenGenerate`: Generates Kotlin code from the configured OpenAPI specifications. This task is automatically hooked into the Kotlin compilation process.
+- `ogenGenerate`: Generates Kotlin code from the configured OpenAPI specifications into
+  `build/generated/sources/ogen`, validating them first if a `validator` is configured. This task is automatically
+  hooked into the Kotlin compilation process. It runs on every build and is not compatible with the configuration
+  cache.
 - `ogenValidate`: Validates the OpenAPI specifications against the configured rules without generating code.
 
 ## Requirements
 
 - JDK 21 or higher
-- Kotlin 2.0 or higher
+- Kotlin 2.2 or higher
 
 ## License
 
