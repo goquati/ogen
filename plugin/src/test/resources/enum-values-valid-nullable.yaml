@@ -1,0 +1,15 @@
+openapi: 3.0.3
+info:
+  title: Enum values
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    State:
+      type: string
+      nullable: true
+      enum: [open, closed, null]
+    Count:
+      type: integer
+      nullable: true
+      enum: [1, 2, null]

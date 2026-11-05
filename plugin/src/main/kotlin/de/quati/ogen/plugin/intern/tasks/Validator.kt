@@ -3,6 +3,7 @@ package de.quati.ogen.plugin.intern.tasks
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.model.config.ValidatorConfig
+import de.quati.ogen.plugin.intern.validation.enumValueErrors
 import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
 import de.quati.ogen.plugin.intern.validation.successResponseWarnings
@@ -92,6 +93,7 @@ internal class Validator(
         private val errorChecks: List<(OpenAPI) -> List<String>> = listOf(
             ::pathParameterErrors,
             ::undefinedSecuritySchemeErrors,
+            ::enumValueErrors,
         )
 
         // ogen's own warnings; they run on any spec swagger-parser could parse, next to openapi-generator's.
