@@ -65,9 +65,14 @@ internal fun assertValidationFails(
 }
 
 /** Asserts the check's messages, and that validation fails on them. */
-internal fun assertErrors(spec: String, check: (OpenAPI) -> List<String>, expected: List<String>) {
+internal fun assertErrors(
+    spec: String,
+    check: (OpenAPI) -> List<String>,
+    expected: List<String>,
+    validator: SpecsConfigBuilder.SpecConfingBuilder.ValidatorConfig.() -> Unit = {},
+) {
     assertEquals(expected, check(parsedSpec(spec)))
-    assertValidationFails(spec, errorsMessage(spec, expected.size))
+    assertValidationFails(spec, errorsMessage(spec, expected.size), validator)
 }
 
 /** Asserts the check's messages, and that validation fails on them with `failOnWarnings` only. */

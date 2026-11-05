@@ -1,0 +1,30 @@
+openapi: 3.1.0
+info:
+  title: Naming conventions
+  description: "In 3.1 a path-level parameter stays on its path, and webhooks have operations too."
+  version: 1.0.0
+paths:
+  /items/{itemId}:
+    parameters:
+      - name: Page_Size
+        in: query
+        schema:
+          type: integer
+    get:
+      operationId: getItem
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+webhooks:
+  itemCreated:
+    post:
+      operationId: Item_Created
+      responses:
+        '200':
+          description: OK

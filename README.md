@@ -108,7 +108,8 @@ ogen {
   `tagFormat` and `operationIdFormat` (default `CamelCase`), `pathSegmentFormat` (default `KebabCase`),
   `stringEnumFormat` (default `Any`) and, via `parameterFormat { path; query; header; cookie }`, parameter names.
   Besides the predefined conventions, `NameConvention.RegexFormat("...")` and `NameConvention.Custom { name -> ... }`
-  define custom ones.
+  define custom ones. The conventions apply to every schema and parameter the generator sees, inline request and
+  response schemas, composition members and path-level parameters included.
 - **What the validator checks**: swagger-parser's errors, the naming conventions and these checks fail the build:
   path parameters missing from the path template, security schemes not defined in `components.securitySchemes`,
   enum values that don't match their schema's type or are listed twice, `required` names without a matching property,

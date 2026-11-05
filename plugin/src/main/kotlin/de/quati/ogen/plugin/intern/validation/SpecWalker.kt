@@ -13,6 +13,9 @@ import io.swagger.v3.oas.models.responses.ApiResponse
 import java.util.Collections
 import java.util.IdentityHashMap
 
+/** A variable in a path template, such as `{id}`; group 1 is its name. */
+internal val pathVariable = Regex("""\{([^{}]+)}""")
+
 /** How a schema relates to the value its parent schema describes. */
 internal enum class SchemaRole {
     /** Describes another value: a property, an item, a map value. */
@@ -40,6 +43,9 @@ internal class SchemaNode(
     val isInsideNot: Boolean get() = role == SchemaRole.NEGATED || parent?.isInsideNot == true
 }
 
+/** A parameter; [ownerLocation] is where it is declared: a component, a path or an operation. */
+internal class ParameterNode(val parameter: Parameter, val ownerLocation: String)
+
 /** An operation; [pathItemLocation] is its path, or where its path item sits (`webhooks.newPet`, a callback). */
 internal class OperationNode(val pathItemLocation: String, val method: PathItem.HttpMethod, val operation: Operation) {
     val location get() = "$pathItemLocation:${method.name}"
@@ -59,6 +65,10 @@ internal fun OpenAPI.walkSchemas(visit: (SchemaNode) -> Unit) = SpecWalker(visit
 internal fun OpenAPI.operations(): List<OperationNode> =
     mutableListOf<OperationNode>().also { operations -> SpecWalker(visitOperation = { operations.add(it) }).walk(this) }
 
+/** Every parameter, each once: components, path items and operations. */
+internal fun OpenAPI.parameters(): List<ParameterNode> =
+    mutableListOf<ParameterNode>().also { parameters -> SpecWalker(visitParameter = { parameters.add(it) }).walk(this) }
+
 /**
  * swagger-parser puts one Parameter, RequestBody, ApiResponse, Header, Callback or PathItem object into every place
  * that uses a 3.0 `$ref` or path-level parameter, so each is walked once, at its first location; components go first,
@@ -68,6 +78,7 @@ internal fun OpenAPI.operations(): List<OperationNode> =
 private class SpecWalker(
     private val visitSchema: (SchemaNode) -> Unit = {},
     private val visitOperation: (OperationNode) -> Unit = {},
+    private val visitParameter: (ParameterNode) -> Unit = {},
 ) {
     private val walked = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
 
@@ -131,8 +142,10 @@ private class SpecWalker(
         content?.walk(location)
     }
 
-    private fun Parameter.walk(location: String) {
-        if (firstWalk(this)) walkSchemaOrContent(schema, content, location)
+    private fun Parameter.walk(location: String, ownerLocation: String = location) {
+        if (!firstWalk(this)) return
+        visitParameter(ParameterNode(this, ownerLocation))
+        walkSchemaOrContent(schema, content, location)
     }
 
     private fun Header.walk(location: String) {
@@ -155,11 +168,11 @@ private class SpecWalker(
 
     private fun PathItem.walk(location: String) {
         if (!firstWalk(this)) return
-        parameters?.forEach { it.walk("$location.parameters.${it.name}") }
+        parameters?.forEach { it.walk("$location.parameters.${it.name}", location) }
         readOperationsMap().forEach { (method, operation) ->
             val node = OperationNode(location, method, operation)
             visitOperation(node)
-            operation.parameters?.forEach { it.walk("${node.location}.parameters.${it.name}") }
+            operation.parameters?.forEach { it.walk("${node.location}.parameters.${it.name}", node.location) }
             operation.requestBody?.walk("${node.location}.requestBody")
             operation.responses?.forEach { (status, response) -> response.walk("${node.location}.responses.$status") }
             operation.callbacks?.forEach { (name, callback) -> callback.walk("${node.location}.callbacks.$name") }

@@ -2,9 +2,9 @@ package de.quati.ogen.plugin.intern.tasks
 
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
-import de.quati.ogen.plugin.intern.model.config.ValidatorConfig
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
+import de.quati.ogen.plugin.intern.validation.namingConventionErrors
 import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
 import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
@@ -15,12 +15,7 @@ import de.quati.ogen.plugin.intern.validation.undefinedRequiredPropertyErrors
 import de.quati.ogen.plugin.intern.validation.undefinedSecuritySchemeErrors
 import de.quati.ogen.plugin.intern.validation.walkSchemas
 import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.Operation
-import io.swagger.v3.oas.models.media.ArraySchema
-import io.swagger.v3.oas.models.media.ObjectSchema
 import io.swagger.v3.oas.models.media.Schema
-import io.swagger.v3.oas.models.media.StringSchema
-import io.swagger.v3.oas.models.parameters.Parameter
 import org.gradle.api.GradleException
 import org.slf4j.Logger
 import org.openapitools.codegen.validation.Invalid
@@ -78,7 +73,7 @@ internal class Validator(
                 throw GradleException("Validation of the $specName failed.")
             }
 
-            val errors = getNamingConventionErrors(spec, validatorConfig) + errorChecks.flatMap { it(spec) }
+            val errors = namingConventionErrors(spec, validatorConfig) + errorChecks.flatMap { it(spec) }
             if (errors.isNotEmpty()) {
                 logger.error("\nThe $specName is invalid.\nIssues:\n")
                 errors.forEach { logger.error(formatIssue(it)) }
@@ -110,77 +105,6 @@ internal class Validator(
             ::undeclaredTagWarnings,
             ::nullableWithoutTypeWarnings,
         )
-
-        fun getNamingConventionErrors(
-            spec: OpenAPI,
-            config: ValidatorConfig,
-        ): List<String> {
-            val errors = mutableListOf<String>()
-
-            fun Schema<*>.check(path: String): Unit = when (this) {
-                is ObjectSchema -> properties?.forEach { (name, prop) ->
-                    if (!config.propertyNameFormat.matches(name))
-                        errors.add("property '$name' in $path matches not parameter format ${config.propertyNameFormat}")
-                    prop.check(path = "$path.$name")
-                }
-
-                is ArraySchema -> items?.check(path = "$path[]")
-                is StringSchema -> {
-                    enum?.filterNotNull()?.forEach {
-                        if (!config.stringEnumFormat.matches(it))
-                            errors.add("enum value '$it' in $path matches not enum format ${config.stringEnumFormat}")
-                    }
-                }
-
-                else -> Unit
-            }.let { }
-
-            fun Parameter.check(path: String) {
-                val name = name
-                schema?.check(path = "$path.$name")
-                if (name != null) {
-                    val format = when (this.`in`) {
-                        "path" -> config.parameterFormat.path
-                        "query" -> config.parameterFormat.query
-                        "cookie" -> config.parameterFormat.cookie
-                        "header" -> config.parameterFormat.header
-                        else -> error("Unknown parameter location: ${this.`in`}")
-                    }
-                    if (!format.matches(name))
-                        errors.add("parameter '$name' $path matches not parameter format $format")
-                }
-            }
-
-            fun Operation.check(path: String) {
-                tags?.filter { !config.tagFormat.matches(it) }
-                    ?.forEach { errors.add("tag '$it' in '$path' matches not tag format ${config.tagFormat}") }
-                operationId?.takeIf { !config.operationIdFormat.matches(it) }
-                    ?.let { errors.add("operationId '$it' in '$path' matches not operationId format ${config.operationIdFormat}") }
-                parameters?.forEach { it.check(path = path) }
-            }
-
-            spec.paths?.forEach { (path, pathItem) ->
-                path.trimStart('/').split("/")
-                    // The root path `/` and a trailing slash leave an empty segment, which is no name.
-                    .filter { it.isNotEmpty() }
-                    .filter { !it.startsWith("{") && !it.endsWith("}") }
-                    .filter { !config.pathSegmentFormat.matches(it) }
-                    .forEach {
-                        errors.add("path segment '$it' in '$path' matches not path segment format ${config.pathSegmentFormat}")
-                    }
-                pathItem.parameters?.forEach { it.schema?.check(path) }
-                pathItem.readOperationsMap().forEach { (method, operation) ->
-                    operation.check("${path}:${method.name}")
-                }
-            }
-
-            spec.components?.schemas?.forEach { (name, schema) ->
-                name.takeIf { !config.schemaNameFormat.matches(name) }
-                    ?.let { errors.add("schema name '$it' matches not schemaName format ${config.schemaNameFormat}") }
-                schema.check(path = name)
-            }
-            return errors
-        }
 
         // The evaluator's details name a schema by its `name` and an operation by its operationId, which
         // swagger-parser leaves empty and a spec may omit; set them for the evaluation only.

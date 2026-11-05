@@ -1,0 +1,101 @@
+openapi: 3.0.3
+info:
+  title: Naming conventions
+  description: "One name that breaks its convention in each place the naming check covers."
+  version: 1.0.0
+tags:
+  - name: Items
+paths:
+  /Bad_Segment:
+    get:
+      operationId: listThings
+      responses:
+        '200':
+          description: OK
+  /items/{itemId}:
+    parameters:
+      # A path-level parameter's name.
+      - name: Page_Size
+        in: query
+        schema:
+          type: integer
+    get:
+      operationId: Get_Item
+      tags: [Items]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/SortOrder'
+        - name: x_trace_id
+          in: header
+          schema:
+            type: string
+        - name: Session_Id
+          in: cookie
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              # An inline response schema.
+              schema:
+                type: object
+                properties:
+                  Inline_Name:
+                    type: string
+    post:
+      operationId: createItem
+      tags: [Items]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            # An inline request body with properties but no `type: object`.
+            schema:
+              properties:
+                Body_Field:
+                  type: string
+      callbacks:
+        onCreated:
+          '{$request.body#/callbackUrl}':
+            post:
+              operationId: On_Created
+              responses:
+                '200':
+                  description: OK
+      responses:
+        '201':
+          description: Created
+components:
+  parameters:
+    SortOrder:
+      name: Sort_Order
+      in: query
+      schema:
+        type: string
+        enum: [Asc_Order, desc]
+  schemas:
+    item_model:
+      type: object
+      properties:
+        Bad_Prop:
+          type: string
+        state:
+          enum: [Open_State, closed]
+    Composed:
+      allOf:
+        - $ref: '#/components/schemas/item_model'
+        # A composition member's properties.
+        - properties:
+            Member_Prop:
+              type: string
