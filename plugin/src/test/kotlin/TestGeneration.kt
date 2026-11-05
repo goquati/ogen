@@ -85,6 +85,11 @@ class TestGeneration {
     }
 
     @Test
+    fun testClientGenSpecWithoutSchemas() {
+        testClientGenSpec("no-schemas")
+    }
+
+    @Test
     fun testSchemaNameCollision() {
         val e = assertFailsWith<IllegalStateException> { testClientGenSpec("schema-name-collision") }
         assertEquals(

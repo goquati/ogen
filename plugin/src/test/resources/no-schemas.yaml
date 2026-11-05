@@ -1,0 +1,25 @@
+openapi: 3.0.3
+info:
+  title: No schemas
+  description: A spec with components but no schemas, so the model package gets no files.
+  version: 1.0.0
+paths:
+  /ping:
+    get:
+      operationId: ping
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
