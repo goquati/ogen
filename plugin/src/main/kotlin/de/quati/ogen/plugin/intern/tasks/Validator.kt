@@ -44,6 +44,7 @@ internal class Validator(
 
             val spec = parseResult.openAPI
             val validationResult = evaluator.validate(spec)
+            validationResult.addTrailingSlashWarnings(spec)
 
             if (validationResult.warnings.isNotEmpty()) {
                 logger.warn("\nSpec has issues or recommendations.\nIssues:\n")
