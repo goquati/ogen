@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info:
+  title: Undeclared tags
+  version: 1.0.0
+tags:
+  - name: items
+  - name: itemDetails
+paths:
+  /items:
+    get:
+      tags: [items]
+      operationId: listItems
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [other]
+      operationId: createItem
+      responses:
+        '204':
+          description: Created
+  /items/{itemId}:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [itemDetails, itmes, itmes, other]
+      operationId: getItem
+      responses:
+        '200':
+          description: OK
+    delete:
+      tags: [itemdetails]
+      operationId: deleteItem
+      responses:
+        '204':
+          description: Deleted
+components:
+  schemas: {}

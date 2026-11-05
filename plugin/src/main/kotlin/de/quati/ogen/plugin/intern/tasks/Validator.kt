@@ -7,6 +7,7 @@ import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
 import de.quati.ogen.plugin.intern.validation.successResponseWarnings
 import de.quati.ogen.plugin.intern.validation.trailingSlashWarnings
+import de.quati.ogen.plugin.intern.validation.undeclaredTagWarnings
 import de.quati.ogen.plugin.intern.validation.undefinedSecuritySchemeErrors
 import de.quati.ogen.plugin.intern.validation.walkSchemas
 import io.swagger.v3.oas.models.OpenAPI
@@ -97,6 +98,7 @@ internal class Validator(
         private val warningChecks: List<(OpenAPI) -> List<String>> = listOf(
             ::trailingSlashWarnings,
             ::successResponseWarnings,
+            ::undeclaredTagWarnings,
         )
 
         fun getNamingConventionErrors(
