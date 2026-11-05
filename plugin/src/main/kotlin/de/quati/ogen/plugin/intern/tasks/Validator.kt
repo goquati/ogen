@@ -2,8 +2,10 @@ package de.quati.ogen.plugin.intern.tasks
 
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
+import de.quati.ogen.plugin.intern.validation.ambiguousPathWarnings
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
+import de.quati.ogen.plugin.intern.validation.identicalPathErrors
 import de.quati.ogen.plugin.intern.validation.namingConventionErrors
 import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
 import de.quati.ogen.plugin.intern.validation.operations
@@ -93,6 +95,7 @@ internal class Validator(
         // ogen's own errors; they run once swagger-parser and openapi-generator found no errors.
         private val errorChecks: List<(OpenAPI) -> List<String>> = listOf(
             ::pathParameterErrors,
+            ::identicalPathErrors,
             ::undefinedSecuritySchemeErrors,
             ::enumValueErrors,
             ::contradictoryConstraintErrors,
@@ -106,6 +109,7 @@ internal class Validator(
             ::undeclaredTagWarnings,
             ::nullableWithoutTypeWarnings,
             ::patternWarnings,
+            ::ambiguousPathWarnings,
         )
 
         // The evaluator's details name a schema by its `name` and an operation by its operationId, which

@@ -1,0 +1,45 @@
+openapi: 3.0.3
+info:
+  title: Unambiguous paths
+  description: >-
+    A concrete path beside a templated one, which OpenAPI resolves to the concrete one whatever their order; crossing
+    paths without a shared method; a custom method next to its resource; and a path beside its trailing-slash twin.
+  version: 1.0.0
+paths:
+  /items/{id}:
+    get:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+  /items/all:
+    get:
+      responses:
+        '200': { description: OK }
+  /items:
+    get:
+      responses:
+        '200': { description: OK }
+  /items/:
+    get:
+      responses:
+        '200': { description: OK }
+  # A custom method: the variable is part of a longer segment, so this is not `/items/{id}` again.
+  /items/{id}:archive:
+    post:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+  /{entity}/me:
+    put:
+      parameters:
+        - { name: entity, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+  /books/{id}:
+    post:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }

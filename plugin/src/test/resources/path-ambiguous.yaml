@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info:
+  title: Ambiguous paths
+  description: "Each path has a literal where the other has a variable, so GET and PUT /books/me match both."
+  version: 1.0.0
+paths:
+  /{entity}/me:
+    get:
+      parameters:
+        - { name: entity, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+    put:
+      parameters:
+        - { name: entity, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+  /books/{id}:
+    get:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+    put:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }

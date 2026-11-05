@@ -111,13 +111,15 @@ ogen {
   define custom ones. The conventions apply to every schema and parameter the generator sees, inline request and
   response schemas, composition members and path-level parameters included.
 - **What the validator checks**: swagger-parser's errors, the naming conventions and these checks fail the build:
-  path parameters missing from the path template, security schemes not defined in `components.securitySchemes`,
-  enum values that don't match their schema's type or are listed twice, `required` names without a matching property,
-  and contradictory constraints such as `minimum` above `maximum`. These are warnings: paths with a trailing slash,
-  operations without a 2xx or 3xx response, operation tags missing from the top-level `tags` (when it declares any),
-  `nullable` without a `type` in OpenAPI 3.0, and `pattern` regexes and `patternProperties` keys that don't compile as
-  Java regexes (OpenAPI's are JavaScript's, which differ slightly). openapi-generator's recommendations are warnings
-  too; `recommendations = false` turns off only those. `failOnWarnings = true` fails the build on any warning.
+  path parameters missing from the path template, paths that differ only in their variables' names, security schemes
+  not defined in `components.securitySchemes`, enum values that don't match their schema's type or are listed twice,
+  `required` names without a matching property, and contradictory constraints such as `minimum` above `maximum`. These
+  are warnings: paths with a trailing slash, operations without a 2xx or 3xx response, operation tags missing from the
+  top-level `tags` (when it declares any), `nullable` without a `type` in OpenAPI 3.0, `pattern` regexes and
+  `patternProperties` keys that don't compile as Java regexes (OpenAPI's are JavaScript's, which differ slightly), and
+  ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and `/books/{id}`).
+  openapi-generator's recommendations are warnings too; `recommendations = false` turns off only those.
+  `failOnWarnings = true` fails the build on any warning.
 
 ### Spring Boot Security Context
 

@@ -1,0 +1,24 @@
+openapi: 3.0.3
+info:
+  title: Identical paths
+  description: "Paths that differ only in their variables' names."
+  version: 1.0.0
+paths:
+  /items/{itemId}:
+    get:
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+  /items/{id}:
+    put:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+  /items/{key}:
+    delete:
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
