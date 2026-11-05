@@ -159,10 +159,12 @@ internal class Validator(
 
             spec.paths?.forEach { (path, pathItem) ->
                 path.trimStart('/').split("/")
+                    // The root path `/` and a trailing slash leave an empty segment, which is no name.
+                    .filter { it.isNotEmpty() }
                     .filter { !it.startsWith("{") && !it.endsWith("}") }
                     .filter { !config.pathSegmentFormat.matches(it) }
                     .forEach {
-                        errors.add("path segment '$it' in '$path' matches path segment format ${config.pathSegmentFormat}")
+                        errors.add("path segment '$it' in '$path' matches not path segment format ${config.pathSegmentFormat}")
                     }
                 pathItem.parameters?.forEach { it.schema?.check(path) }
                 pathItem.readOperationsMap().forEach { (method, operation) ->

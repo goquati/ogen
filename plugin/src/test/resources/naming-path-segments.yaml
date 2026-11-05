@@ -1,0 +1,26 @@
+openapi: 3.0.3
+info:
+  title: Path segments
+  description: "The root path, a trailing slash, a double slash, and one segment that is not kebab-case."
+  version: 1.0.0
+paths:
+  /:
+    get:
+      responses:
+        '200':
+          description: OK
+  /items/:
+    get:
+      responses:
+        '200':
+          description: OK
+  /items//all:
+    get:
+      responses:
+        '200':
+          description: OK
+  /Items:
+    get:
+      responses:
+        '200':
+          description: OK
