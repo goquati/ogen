@@ -109,6 +109,13 @@ ogen {
   `stringEnumFormat` (default `Any`) and, via `parameterFormat { path; query; header; cookie }`, parameter names.
   Besides the predefined conventions, `NameConvention.RegexFormat("...")` and `NameConvention.Custom { name -> ... }`
   define custom ones.
+- **What the validator checks**: swagger-parser's errors, the naming conventions and these checks fail the build:
+  path parameters missing from the path template, security schemes not defined in `components.securitySchemes`,
+  enum values that don't match their schema's type or are listed twice, `required` names without a matching property,
+  and contradictory constraints such as `minimum` above `maximum`. These are warnings: paths with a trailing slash,
+  operations without a 2xx or 3xx response, operation tags missing from the top-level `tags` (when it declares any),
+  and `nullable` without a `type` in OpenAPI 3.0. openapi-generator's recommendations are warnings too;
+  `recommendations = false` turns off only those. `failOnWarnings = true` fails the build on any warning.
 
 ### Spring Boot Security Context
 
