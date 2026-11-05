@@ -6,6 +6,7 @@ import de.quati.ogen.plugin.intern.model.config.ValidatorConfig
 import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
 import de.quati.ogen.plugin.intern.validation.trailingSlashWarnings
+import de.quati.ogen.plugin.intern.validation.undefinedSecuritySchemeErrors
 import de.quati.ogen.plugin.intern.validation.walkSchemas
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Operation
@@ -88,6 +89,7 @@ internal class Validator(
         // ogen's own errors; they run once swagger-parser and openapi-generator found no errors.
         private val errorChecks: List<(OpenAPI) -> List<String>> = listOf(
             ::pathParameterErrors,
+            ::undefinedSecuritySchemeErrors,
         )
 
         // ogen's own warnings; they run on any spec swagger-parser could parse, next to openapi-generator's.

@@ -1,0 +1,31 @@
+openapi: 3.0.3
+info:
+  title: Undefined security schemes
+  version: 1.0.0
+security:
+  - apiKey: []
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      security:
+        - bearer: []
+        - oauth: []
+          bearer: []
+      responses:
+        '200':
+          description: OK
+    post:
+      operationId: createPet
+      responses:
+        '201':
+          description: Created
+components:
+  securitySchemes:
+    oauth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://example.com/token
+          scopes: {}
+  schemas: {}
