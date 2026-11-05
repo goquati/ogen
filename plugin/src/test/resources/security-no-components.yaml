@@ -1,0 +1,14 @@
+openapi: 3.0.3
+info:
+  title: Security without components
+  version: 1.0.0
+security:
+  - {}
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      security: []
+      responses:
+        '200':
+          description: OK
