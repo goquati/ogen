@@ -1,0 +1,56 @@
+openapi: 3.0.3
+info:
+  title: Success response present
+  version: 1.0.0
+paths:
+  /status:
+    get:
+      operationId: getStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+    delete:
+      operationId: deleteStatus
+      responses:
+        "204":
+          description: No content
+        "404":
+          description: Not found
+    put:
+      operationId: putStatus
+      responses:
+        "299":
+          description: Upper bound of 2xx
+        default:
+          description: Error
+    post:
+      operationId: postStatus
+      responses:
+        "2XX":
+          description: Any success
+  /login:
+    get:
+      operationId: login
+      responses:
+        "302":
+          description: Redirect to the identity provider
+  /lowercase:
+    get:
+      operationId: lowercase
+      responses:
+        "2xx":
+          description: Any success, lowercase as ogen's generator accepts it
+  /legacy:
+    get:
+      operationId: legacy
+      responses:
+        "3XX":
+          description: Any redirect
+components:
+  schemas:
+    Status:
+      type: string

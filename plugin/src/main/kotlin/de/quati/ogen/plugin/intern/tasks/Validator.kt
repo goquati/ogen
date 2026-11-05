@@ -44,6 +44,7 @@ internal class Validator(
 
             val spec = parseResult.openAPI
             val validationResult = evaluator.validate(spec)
+            if (validatorConfig.recommendations) spec?.let { validationResult.addSuccessResponseWarnings(it) }
 
             if (validationResult.warnings.isNotEmpty()) {
                 logger.warn("\nSpec has issues or recommendations.\nIssues:\n")
