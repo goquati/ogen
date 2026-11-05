@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: Path parameters in the path template (OpenAPI 3.1)
+  description: >-
+    A path-level parameter used by every operation, a referenced parameter, and a parameter inside a path segment,
+    all in the template.
+  version: 1.0.0
+
+paths:
+  /owners/{ownerId}/items/{itemId}:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getItem
+      parameters:
+        - $ref: '#/components/parameters/ownerId'
+      responses:
+        '200':
+          description: OK
+    delete:
+      operationId: deleteItem
+      parameters:
+        - $ref: '#/components/parameters/ownerId'
+      responses:
+        '204':
+          description: Deleted
+  /files/{fileId}.json:
+    get:
+      operationId: getFile
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+components:
+  parameters:
+    ownerId:
+      name: ownerId
+      in: path
+      required: true
+      schema:
+        type: string
