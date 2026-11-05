@@ -3,6 +3,7 @@ package de.quati.ogen.plugin.intern.tasks
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.model.config.ValidatorConfig
+import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
 import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
@@ -95,6 +96,7 @@ internal class Validator(
             ::pathParameterErrors,
             ::undefinedSecuritySchemeErrors,
             ::enumValueErrors,
+            ::contradictoryConstraintErrors,
             ::undefinedRequiredPropertyErrors,
         )
 

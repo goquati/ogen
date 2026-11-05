@@ -1,0 +1,110 @@
+openapi: 3.1.0
+info:
+  title: Contradictory constraints
+  version: 1.0.0
+paths:
+  /items/{itemId}:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 10
+          maximum: 1
+    get:
+      operationId: getItem
+      responses:
+        '200':
+          description: OK
+webhooks:
+  newPet:
+    post:
+      operationId: newPet
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: integer
+              exclusiveMinimum: 6
+              maximum: 5
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string }
+            encoding:
+              file:
+                headers:
+                  X-Part:
+                    schema: { type: string, minLength: 4, maxLength: 3 }
+      responses:
+        '200':
+          description: OK
+components:
+  pathItems:
+    Ping:
+      get:
+        operationId: ping
+        parameters:
+          - name: count
+            in: query
+            schema:
+              type: integer
+              minimum: 4
+              maximum: 3
+        responses:
+          '200':
+            description: OK
+  schemas:
+    Pet:
+      type: object
+      properties:
+        exclusiveLower:
+          type: integer
+          exclusiveMinimum: 5
+          maximum: 5
+        exclusiveUpper:
+          type: integer
+          minimum: 5
+          exclusiveMaximum: 5
+        bothExclusive:
+          type: number
+          exclusiveMinimum: 1
+          exclusiveMaximum: 1
+        tighterExclusive:
+          type: integer
+          minimum: 1
+          exclusiveMinimum: 5
+          maximum: 5
+        minimumAboveExclusiveMaximum:
+          type: integer
+          minimum: 6
+          exclusiveMaximum: 5
+        exclusiveAboveExclusive:
+          type: number
+          exclusiveMinimum: 3
+          exclusiveMaximum: 2
+      patternProperties:
+        '^x-':
+          type: string
+          minLength: 2
+          maxLength: 1
+    Pair:
+      type: array
+      prefixItems:
+        - type: integer
+          minimum: 2
+          maximum: 1
+    Conditional:
+      type: object
+      if:
+        properties:
+          kind: { const: range }
+      then:
+        properties:
+          low: { type: integer, minimum: 5, maximum: 1 }
+      contains:
+        type: string
+        minLength: 3
+        maxLength: 2
