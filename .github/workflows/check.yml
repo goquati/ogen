@@ -25,13 +25,19 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Check
+      - name: Check the plugin
+        id: check-plugin
+        run: cd ./plugin && ./gradlew build
+
+      - name: Check the test projects
         id: check
-        run: cd ./tests && ./gradlew :check
+        run: cd ./tests && ./gradlew check
 
       - name: Upload test reports
-        if: ${{ always() && steps.check.outcome == 'failure' }}
+        if: ${{ always() && (steps.check-plugin.outcome == 'failure' || steps.check.outcome == 'failure') }}
         uses: actions/upload-artifact@v7
         with:
           name: test-reports
-          path: tests/*/build/reports/tests/
+          path: |
+            plugin/build/reports/tests/
+            tests/*/build/reports/tests/
