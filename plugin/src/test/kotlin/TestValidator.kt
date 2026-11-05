@@ -6,23 +6,31 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class TestValidator {
     @Test
     fun testUnparseableSpecFailsValidation() {
-        assertValidationFails("invalid-yaml", "Validation failed.")
+        assertValidationFails("invalid-yaml", failedMessage("invalid-yaml"))
+    }
+
+    // The helpers build the expected messages from the same config, so this pins the spec's file name itself.
+    @Test
+    fun testMessagesNameTheSpecFile() {
+        val e = assertFailsWith<GradleException> { validate("invalid-yaml") }
+        assertTrue(e.message!!.endsWith("/invalid-yaml.yaml' failed."), e.message)
     }
 
     // validator-several-errors has a path parameter outside the template, a duplicated enum value and an undefined
     // required property, and a trailing slash as a warning.
     @Test
     fun testErrorsOfSeveralChecksFailTogether() {
-        assertValidationFails("validator-several-errors", "Found 3 errors in the spec.")
+        assertValidationFails("validator-several-errors", errorsMessage("validator-several-errors", 3))
     }
 
     @Test
     fun testNamingErrorsCountWithTheChecks() {
-        assertValidationFails("validator-several-errors", "Found 4 errors in the spec.") {
+        assertValidationFails("validator-several-errors", errorsMessage("validator-several-errors", 4)) {
             schemaNameFormat = NameConvention.CamelCase
         }
     }
@@ -34,7 +42,10 @@ class TestValidator {
         val e = assertFailsWith<GradleException> {
             Validator(logger).validate(validatorConfigs("validator-several-errors") { failOnWarnings = true })
         }
-        assertEquals("Found 3 errors in the spec.", e.message)
+        assertEquals(errorsMessage("validator-several-errors", 3), e.message)
+        val spec = specName("validator-several-errors")
+        assertContains(logger.at(Level.ERROR), "\nThe $spec is invalid.\nIssues:\n")
+        assertContains(logger.at(Level.WARN), "\nThe $spec has issues or recommendations.\nIssues:\n")
         assertContains(logger.at(Level.WARN), "\tpath '/items/all/' has a trailing slash\n")
         assertContains(logger.at(Level.ERROR), "\tenum value 'open' in 'Item.state' is listed more than once\n")
     }

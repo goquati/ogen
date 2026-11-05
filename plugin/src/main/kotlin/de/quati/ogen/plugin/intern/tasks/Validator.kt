@@ -46,7 +46,9 @@ internal class Validator(
             logger: Logger,
         ) {
             val validatorConfig = config.validatorConfig ?: return
-            logger.info("Validating spec ${config.inputConfig}")
+            // A project can validate several specs; every header and exception names the one it is about.
+            val specName = "spec '${config.inputConfig}'"
+            logger.info("Validating $specName")
 
             val parseResult = config.parseResult
             val messages = parseResult.messages.toSet()
@@ -60,12 +62,12 @@ internal class Validator(
             val warnings = validationResult.warnings.map { it.format() } + ogenWarnings.map(::formatIssue)
 
             if (warnings.isNotEmpty()) {
-                logger.warn("\nSpec has issues or recommendations.\nIssues:\n")
+                logger.warn("\nThe $specName has issues or recommendations.\nIssues:\n")
                 warnings.forEach { logger.warn(it) }
             }
 
             if (spec == null || messages.isNotEmpty() || validationResult.errors.isNotEmpty()) {
-                logger.error("\nSpec is invalid.\nIssues:\n")
+                logger.error("\nThe $specName is invalid.\nIssues:\n")
 
                 messages.forEach { logger.error(formatIssue(it)) }
 
@@ -73,23 +75,23 @@ internal class Validator(
                     logger.error(it.format())
                 }
 
-                throw GradleException("Validation failed.")
+                throw GradleException("Validation of the $specName failed.")
             }
 
             val errors = getNamingConventionErrors(spec, validatorConfig) + errorChecks.flatMap { it(spec) }
             if (errors.isNotEmpty()) {
-                logger.error("\nSpec is invalid.\nIssues:\n")
+                logger.error("\nThe $specName is invalid.\nIssues:\n")
                 errors.forEach { logger.error(formatIssue(it)) }
-                throw GradleException("Found ${errors.size} errors in the spec.")
+                throw GradleException("Found ${errors.size} errors in the $specName.")
             }
 
             if (validatorConfig.failOnWarnings && warnings.isNotEmpty()) {
-                logger.error("\nWarnings found in the spec and 'failOnWarnings' is enabled.\nFailing validation.\n")
-                throw GradleException("Validation failed due to warnings (failOnWarnings = true).")
+                logger.error("\nWarnings found in the $specName and 'failOnWarnings' is enabled.\nFailing validation.\n")
+                throw GradleException("Validation of the $specName failed due to warnings (failOnWarnings = true).")
             }
 
             logger.debug("No error validations from swagger-parser or internal validations.")
-            logger.info("Spec is valid.\n")
+            logger.info("The $specName is valid.\n")
         }
 
         // ogen's own errors; they run once swagger-parser and openapi-generator found no errors.

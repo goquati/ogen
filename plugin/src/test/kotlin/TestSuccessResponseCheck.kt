@@ -16,7 +16,7 @@ class TestSuccessResponseCheck {
     // Unlike openapi-generator's recommendations, ogen's own checks don't depend on `recommendations`.
     @Test
     fun testSuccessResponseMissingWithoutRecommendations() {
-        assertValidationFails("success-response-missing", "Validation failed due to warnings (failOnWarnings = true).") {
+        assertValidationFails("success-response-missing", warningsMessage("success-response-missing")) {
             recommendations = false
             failOnWarnings = true
         }

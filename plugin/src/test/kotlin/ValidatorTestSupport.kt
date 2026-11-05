@@ -40,6 +40,16 @@ internal fun validatorConfigs(
 
 internal fun parsedSpec(spec: String): OpenAPI = validatorConfigs(spec).specs.single().parseResult.openAPI
 
+/** The spec as the validator's messages name it. */
+internal fun specName(spec: String) = "spec '${validatorConfigs(spec).specs.single().inputConfig}'"
+
+internal fun failedMessage(spec: String) = "Validation of the ${specName(spec)} failed."
+
+internal fun errorsMessage(spec: String, count: Int) = "Found $count errors in the ${specName(spec)}."
+
+internal fun warningsMessage(spec: String) =
+    "Validation of the ${specName(spec)} failed due to warnings (failOnWarnings = true)."
+
 internal fun validate(
     spec: String,
     validator: SpecsConfigBuilder.SpecConfingBuilder.ValidatorConfig.() -> Unit = {},
@@ -57,14 +67,14 @@ internal fun assertValidationFails(
 /** Asserts the check's messages, and that validation fails on them. */
 internal fun assertErrors(spec: String, check: (OpenAPI) -> List<String>, expected: List<String>) {
     assertEquals(expected, check(parsedSpec(spec)))
-    assertValidationFails(spec, "Found ${expected.size} errors in the spec.")
+    assertValidationFails(spec, errorsMessage(spec, expected.size))
 }
 
 /** Asserts the check's messages, and that validation fails on them with `failOnWarnings` only. */
 internal fun assertWarnings(spec: String, check: (OpenAPI) -> List<String>, expected: List<String>) {
     assertEquals(expected, check(parsedSpec(spec)))
     validate(spec)
-    assertValidationFails(spec, "Validation failed due to warnings (failOnWarnings = true).") { failOnWarnings = true }
+    assertValidationFails(spec, warningsMessage(spec)) { failOnWarnings = true }
 }
 
 /** Asserts that the check finds nothing and that the spec validates. */

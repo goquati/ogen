@@ -12,7 +12,7 @@ class TestNamingConventions {
             listOf("path segment 'Items' in '/Items' matches not path segment format kebab-case"),
             Validator.getNamingConventionErrors(spec.parseResult.openAPI, spec.validatorConfig!!),
         )
-        assertValidationFails("naming-path-segments", "Found 1 errors in the spec.") {
+        assertValidationFails("naming-path-segments", errorsMessage("naming-path-segments", 1)) {
             pathSegmentFormat = NameConvention.KebabCase
         }
     }
