@@ -1,0 +1,23 @@
+openapi: 3.0.3
+info:
+  title: Nullable property without type
+  version: 1.0.0
+paths:
+  /pets:
+    post:
+      operationId: createPet
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+      responses:
+        '204':
+          description: Created
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        name:
+          nullable: true
