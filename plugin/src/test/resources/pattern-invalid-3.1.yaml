@@ -1,0 +1,13 @@
+openapi: 3.1.0
+info:
+  title: Patterns
+  description: "A patternProperties key is a pattern too."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Labels:
+      type: object
+      patternProperties:
+        '^x-[':
+          type: string

@@ -115,8 +115,9 @@ ogen {
   enum values that don't match their schema's type or are listed twice, `required` names without a matching property,
   and contradictory constraints such as `minimum` above `maximum`. These are warnings: paths with a trailing slash,
   operations without a 2xx or 3xx response, operation tags missing from the top-level `tags` (when it declares any),
-  and `nullable` without a `type` in OpenAPI 3.0. openapi-generator's recommendations are warnings too;
-  `recommendations = false` turns off only those. `failOnWarnings = true` fails the build on any warning.
+  `nullable` without a `type` in OpenAPI 3.0, and `pattern` regexes and `patternProperties` keys that don't compile as
+  Java regexes (OpenAPI's are JavaScript's, which differ slightly). openapi-generator's recommendations are warnings
+  too; `recommendations = false` turns off only those. `failOnWarnings = true` fails the build on any warning.
 
 ### Spring Boot Security Context
 

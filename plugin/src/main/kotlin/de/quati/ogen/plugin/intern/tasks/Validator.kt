@@ -8,6 +8,7 @@ import de.quati.ogen.plugin.intern.validation.namingConventionErrors
 import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
 import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
+import de.quati.ogen.plugin.intern.validation.patternWarnings
 import de.quati.ogen.plugin.intern.validation.successResponseWarnings
 import de.quati.ogen.plugin.intern.validation.trailingSlashWarnings
 import de.quati.ogen.plugin.intern.validation.undeclaredTagWarnings
@@ -104,6 +105,7 @@ internal class Validator(
             ::successResponseWarnings,
             ::undeclaredTagWarnings,
             ::nullableWithoutTypeWarnings,
+            ::patternWarnings,
         )
 
         // The evaluator's details name a schema by its `name` and an operation by its operationId, which

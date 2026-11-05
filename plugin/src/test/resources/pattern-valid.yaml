@@ -1,0 +1,20 @@
+openapi: 3.0.3
+info:
+  title: Patterns
+  description: "Patterns that compile in Java and JavaScript alike."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Item:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z]{3}-\d{4}$'
+        email:
+          type: string
+          pattern: '^[\w.-]+@[\w.-]+$'
+        named:
+          type: string
+          pattern: '^(?<prefix>[a-z]+)\p{L}*$'
