@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: No paths
+  description: "An OpenAPI 3.1 spec without paths, as 3.1 allows: shared schemas only."
+  version: 1.0.0
+components:
+  schemas:
+    Item:
+      type: object
+      properties:
+        id:
+          type: string

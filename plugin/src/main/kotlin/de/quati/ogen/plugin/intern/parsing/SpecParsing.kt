@@ -8,17 +8,21 @@ import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
 import de.quati.ogen.plugin.intern.parsing.helper.SchemaLocation
 import de.quati.ogen.plugin.intern.parsing.helper.longestCommonPrefix
+import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.parser.core.models.SwaggerParseResult
 
 internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
     val raw = openAPI!!
+    // Both sections are optional; a spec without one parses as if it were empty.
+    val rawComponents = raw.components ?: Components()
+    val rawPaths = raw.paths ?: Paths()
     val version = if (isOpenapi31)
         Spec.Version.V3_1
     else
         Spec.Version.V3_0
 
-    val securityRequirementObjects = raw.components.securitySchemes?.parse() ?: emptyMap()
+    val securityRequirementObjects = rawComponents.securitySchemes?.parse() ?: emptyMap()
     val defaultSecurity = object : SpecSecurityContext {
         override val securityRequirementObjects = securityRequirementObjects
     }.run { raw.security.parse() }
@@ -28,12 +32,12 @@ internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
         defaultSecurity = defaultSecurity,
         securityRequirementObjects = securityRequirementObjects,
         operationIdGenerator = config.operationIdGenerator,
-        tagPathPrefixes = raw.paths.getTagPathPrefixes(),
+        tagPathPrefixes = rawPaths.getTagPathPrefixes(),
     )
 
-    raw.components.checkSchemaNameCollisions()
+    rawComponents.checkSchemaNameCollisions()
     val spec = with(parserContext) {
-        raw.components.schemas?.entries?.forEach { (name, obj) ->
+        rawComponents.schemas?.entries?.forEach { (name, obj) ->
             val name = ComponentName.Schema.Root.parse(name)
             val location = SchemaLocation.Root(
                 type = SchemaLocation.Root.Type.COMPONENTS_SCHEMA,
@@ -44,8 +48,8 @@ internal fun SwaggerParseResult.parse(config: SpecConfig): Spec {
             if (schema is Component.Schema.Ref && !isSchemaRegistered(name))
                 addSchemaAlias(name = name, ref = schema)
         }
-        val components = raw.components.parse()
-        val paths = raw.paths.parse()
+        val components = rawComponents.parse()
+        val paths = rawPaths.parse()
         Spec(
             version = version,
             paths = paths,
