@@ -505,7 +505,6 @@ components:
       type: object
       required:
         - email
-        - id
         - tenants
       properties:
         firstName:
