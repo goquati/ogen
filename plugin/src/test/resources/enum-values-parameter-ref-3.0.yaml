@@ -1,0 +1,31 @@
+openapi: 3.0.3
+info:
+  title: Enum values
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      operationId: listItems
+      parameters:
+        - $ref: "#/components/parameters/Kind"
+      responses:
+        "200":
+          description: OK
+    post:
+      operationId: createItem
+      parameters:
+        - $ref: "#/components/parameters/Kind"
+      responses:
+        "200":
+          description: OK
+components:
+  parameters:
+    Kind:
+      name: kind
+      in: query
+      schema:
+        type: string
+        enum: [a, a]
+  schemas:
+    Item:
+      type: string

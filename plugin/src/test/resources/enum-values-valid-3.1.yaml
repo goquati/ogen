@@ -1,0 +1,44 @@
+openapi: 3.1.0
+info:
+  title: Enum values
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      operationId: listItems
+      parameters:
+        - name: kind
+          in: query
+          schema:
+            type: string
+            enum: [a, b]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+                  enum: [1, 2]
+components:
+  schemas:
+    Count:
+      type: integer
+      enum: [1, 2.0]
+    Ratio:
+      type: number
+      enum: [1, 1.5]
+    Name:
+      type: string
+      enum: ["1", "true"]
+    Mixed:
+      type: [integer, string]
+      enum: [1, "1"]
+    Item:
+      type: object
+      properties:
+        flag:
+          type: boolean
+          enum: [true, false]
