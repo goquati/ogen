@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info:
+  title: Validator warnings
+  description: >-
+    Warnings with details (invalid type on a component and on a nested schema, GET with a body with and
+    without an operationId) and one without (unused schema).
+  version: 1.0.0
+
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+      responses:
+        '200':
+          description: OK
+  /owners:
+    get:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Owner'
+      responses:
+        '200':
+          description: OK
+
+components:
+  schemas:
+    Pet:
+      type: strin
+    Owner:
+      type: object
+      properties:
+        age:
+          type: strin
+    Orphan:
+      type: string

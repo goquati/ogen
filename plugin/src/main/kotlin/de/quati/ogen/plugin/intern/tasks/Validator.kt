@@ -12,8 +12,11 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import org.gradle.api.GradleException
 import org.slf4j.Logger
+import org.openapitools.codegen.validation.Invalid
 import org.openapitools.codegen.validations.oas.OpenApiEvaluator
 import org.openapitools.codegen.validations.oas.RuleConfiguration
+import java.util.Collections
+import java.util.IdentityHashMap
 
 internal class Validator(
     private val logger: Logger,
@@ -43,14 +46,13 @@ internal class Validator(
             })
 
             val spec = parseResult.openAPI
-            val validationResult = evaluator.validate(spec)
+            val validationResult = spec.withLocationNames { evaluator.validate(spec) }
 
             if (validationResult.warnings.isNotEmpty()) {
                 logger.warn("\nSpec has issues or recommendations.\nIssues:\n")
 
                 validationResult.warnings.forEach {
-                    logger.warn("\t${it.message}\n")
-                    logger.debug("WARNING: ${it.message}|${it.details}")
+                    logger.warn(it.format())
                 }
             }
 
@@ -63,8 +65,7 @@ internal class Validator(
                 }
 
                 validationResult.errors.forEach {
-                    logger.error("\t${it.message}\n")
-                    logger.debug("ERROR: ${it.message}|${it.details}")
+                    logger.error(it.format())
                 }
 
                 throw GradleException("Validation failed.")
@@ -155,5 +156,40 @@ internal class Validator(
             }
             return errors
         }
+
+        // The evaluator's details name a schema by its `name` and an operation by its operationId, which
+        // swagger-parser leaves empty and a spec may omit; set them for the evaluation only.
+        private fun <T> OpenAPI?.withLocationNames(evaluate: () -> T): T {
+            val namedSchemas = mutableListOf<Schema<*>>()
+            val visited = Collections.newSetFromMap(IdentityHashMap<Schema<*>, Boolean>())
+            fun Schema<*>.name(path: String) {
+                if (`$ref` != null || !visited.add(this)) return
+                if (name == null) {
+                    name = path
+                    namedSchemas.add(this)
+                }
+                properties?.forEach { (prop, schema) -> schema.name(path = "$path.$prop") }
+                items?.name(path = "$path[]")
+                (additionalProperties as? Schema<*>)?.name(path = "$path{}")
+                allOf?.forEachIndexed { i, schema -> schema.name(path = "$path.allOf[$i]") }
+                oneOf?.forEachIndexed { i, schema -> schema.name(path = "$path.oneOf[$i]") }
+                anyOf?.forEachIndexed { i, schema -> schema.name(path = "$path.anyOf[$i]") }
+                not?.name(path = "$path.not")
+            }
+            this?.components?.schemas?.forEach { (name, schema) -> schema.name(path = name) }
+            val namedOperations = this?.paths.orEmpty().flatMap { (path, pathItem) ->
+                pathItem.readOperations().filter { it.operationId == null }.onEach { it.operationId = path }
+            }
+            try {
+                return evaluate()
+            } finally {
+                namedSchemas.forEach { it.name = null }
+                namedOperations.forEach { it.operationId = null }
+            }
+        }
+
+        // The details name the schema or operation; some rules (e.g. unused schemas, duplicate tags) give none.
+        private fun Invalid.format(): String =
+            if (details.isNullOrBlank()) "\t$message\n" else "\t$message\n\t\t$details\n"
     }
 }
