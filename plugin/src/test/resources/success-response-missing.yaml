@@ -1,0 +1,43 @@
+openapi: 3.0.3
+info:
+  title: Success response missing
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      operationId: listItems
+      responses:
+        "404":
+          description: Not found
+    post:
+      operationId: createItem
+      responses:
+        default:
+          description: Error
+  /items/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getItem
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+    delete:
+      operationId: deleteItem
+      responses:
+        "1XX":
+          description: Informational
+        "4XX":
+          description: Client error
+components:
+  schemas:
+    Item:
+      type: string
