@@ -44,48 +44,49 @@ internal class Validator(
 
             val spec = parseResult.openAPI
             val validationResult = evaluator.validate(spec)
+            val ogenWarnings = if (spec == null) emptyList() else warningChecks.flatMap { it(spec) }
+            val warnings = validationResult.warnings.map { formatIssue(it.message) } + ogenWarnings.map(::formatIssue)
 
-            if (validationResult.warnings.isNotEmpty()) {
+            if (warnings.isNotEmpty()) {
                 logger.warn("\nSpec has issues or recommendations.\nIssues:\n")
-
-                validationResult.warnings.forEach {
-                    logger.warn("\t${it.message}\n")
-                    logger.debug("WARNING: ${it.message}|${it.details}")
-                }
+                warnings.forEach { logger.warn(it) }
             }
 
-            if (messages.isNotEmpty() || validationResult.errors.isNotEmpty()) {
+            if (spec == null || messages.isNotEmpty() || validationResult.errors.isNotEmpty()) {
                 logger.error("\nSpec is invalid.\nIssues:\n")
 
-                messages.forEach {
-                    logger.error("\t$it\n")
-                    logger.debug("ERROR: $it")
-                }
+                messages.forEach { logger.error(formatIssue(it)) }
 
                 validationResult.errors.forEach {
-                    logger.error("\t${it.message}\n")
-                    logger.debug("ERROR: ${it.message}|${it.details}")
+                    logger.error(formatIssue(it.message))
                 }
 
                 throw GradleException("Validation failed.")
             }
 
-            if (validatorConfig.failOnWarnings && validationResult.warnings.isNotEmpty()) {
-                logger.error("\nWarnings found in the spec and 'failOnWarnings' is enabled.\nFailing validation.\n")
-                throw GradleException("Validation failed due to warnings (failOnWarnings = true).")
+            val errors = getNamingConventionErrors(spec, validatorConfig) + errorChecks.flatMap { it(spec) }
+            if (errors.isNotEmpty()) {
+                logger.error("\nSpec is invalid.\nIssues:\n")
+                errors.forEach { logger.error(formatIssue(it)) }
+                throw GradleException("Found ${errors.size} errors in the spec.")
             }
 
-            val namingConventionErrors = getNamingConventionErrors(spec, validatorConfig)
-            if (namingConventionErrors.isNotEmpty()) {
-                namingConventionErrors.forEach {
-                    logger.error("\t${it}")
-                }
-                throw GradleException("Found ${namingConventionErrors.size} naming convention errors.")
+            if (validatorConfig.failOnWarnings && warnings.isNotEmpty()) {
+                logger.error("\nWarnings found in the spec and 'failOnWarnings' is enabled.\nFailing validation.\n")
+                throw GradleException("Validation failed due to warnings (failOnWarnings = true).")
             }
 
             logger.debug("No error validations from swagger-parser or internal validations.")
             logger.info("Spec is valid.\n")
         }
+
+        // ogen's own errors; they run once swagger-parser and openapi-generator found no errors.
+        private val errorChecks: List<(OpenAPI) -> List<String>> = listOf(
+        )
+
+        // ogen's own warnings; they run on any spec swagger-parser could parse, next to openapi-generator's.
+        private val warningChecks: List<(OpenAPI) -> List<String>> = listOf(
+        )
 
         fun getNamingConventionErrors(
             spec: OpenAPI,
@@ -135,7 +136,7 @@ internal class Validator(
                 parameters?.forEach { it.check(path = path) }
             }
 
-            spec.paths.forEach { (path, pathItem) ->
+            spec.paths?.forEach { (path, pathItem) ->
                 path.trimStart('/').split("/")
                     .filter { !it.startsWith("{") && !it.endsWith("}") }
                     .filter { !config.pathSegmentFormat.matches(it) }
@@ -148,12 +149,14 @@ internal class Validator(
                 }
             }
 
-            spec.components.schemas.forEach { (name, schema) ->
+            spec.components?.schemas?.forEach { (name, schema) ->
                 name.takeIf { !config.schemaNameFormat.matches(name) }
                     ?.let { errors.add("schema name '$it' matches not schemaName format ${config.schemaNameFormat}") }
                 schema.check(path = name)
             }
             return errors
         }
+
+        private fun formatIssue(issue: String) = "\t$issue\n"
     }
 }

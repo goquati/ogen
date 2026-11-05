@@ -1,0 +1,4 @@
+info:
+  title: No openapi field, so swagger-parser returns no spec
+  version: 1.0.0
+paths: {}
