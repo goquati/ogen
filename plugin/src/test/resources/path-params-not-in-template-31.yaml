@@ -1,0 +1,62 @@
+openapi: 3.1.0
+info:
+  title: Path parameters missing from the path template (OpenAPI 3.1)
+  description: >-
+    Path parameters at operation and path level, referenced, and differing only in case, none in the template.
+    Item only keeps components.schemas non-null for the naming check.
+  version: 1.0.0
+
+paths:
+  /items/all:
+    parameters:
+      - name: filterId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: listItems
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    delete:
+      operationId: deleteItems
+      responses:
+        '204':
+          description: Deleted
+  /items/{itemId}:
+    get:
+      operationId: getItem
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: ItemId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/ownerId'
+      responses:
+        '200':
+          description: OK
+
+components:
+  parameters:
+    ownerId:
+      name: ownerId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    Item:
+      type: string
