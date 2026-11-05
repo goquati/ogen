@@ -3,6 +3,8 @@ package de.quati.ogen.plugin.intern.tasks
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.model.config.ValidatorConfig
+import de.quati.ogen.plugin.intern.validation.operations
+import de.quati.ogen.plugin.intern.validation.walkSchemas
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.media.ArraySchema
@@ -12,6 +14,7 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import org.gradle.api.GradleException
 import org.slf4j.Logger
+import org.openapitools.codegen.validation.Invalid
 import org.openapitools.codegen.validations.oas.OpenApiEvaluator
 import org.openapitools.codegen.validations.oas.RuleConfiguration
 
@@ -43,9 +46,9 @@ internal class Validator(
             })
 
             val spec = parseResult.openAPI
-            val validationResult = evaluator.validate(spec)
+            val validationResult = spec.withLocationNames { evaluator.validate(spec) }
             val ogenWarnings = if (spec == null) emptyList() else warningChecks.flatMap { it(spec) }
-            val warnings = validationResult.warnings.map { formatIssue(it.message) } + ogenWarnings.map(::formatIssue)
+            val warnings = validationResult.warnings.map { it.format() } + ogenWarnings.map(::formatIssue)
 
             if (warnings.isNotEmpty()) {
                 logger.warn("\nSpec has issues or recommendations.\nIssues:\n")
@@ -58,7 +61,7 @@ internal class Validator(
                 messages.forEach { logger.error(formatIssue(it)) }
 
                 validationResult.errors.forEach {
-                    logger.error(formatIssue(it.message))
+                    logger.error(it.format())
                 }
 
                 throw GradleException("Validation failed.")
@@ -156,6 +159,32 @@ internal class Validator(
             }
             return errors
         }
+
+        // The evaluator's details name a schema by its `name` and an operation by its operationId, which
+        // swagger-parser leaves empty and a spec may omit; set them for the evaluation only.
+        private fun <T> OpenAPI?.withLocationNames(evaluate: () -> T): T {
+            val namedSchemas = mutableListOf<Schema<*>>()
+            this?.walkSchemas { node ->
+                if (node.schema.`$ref` == null && node.schema.name == null) {
+                    node.schema.name = node.location
+                    namedSchemas.add(node.schema)
+                }
+            }
+            val namedOperations = this?.operations().orEmpty()
+                .filter { it.operation.operationId == null }
+                .onEach { it.operation.operationId = it.pathItemLocation }
+                .map { it.operation }
+            try {
+                return evaluate()
+            } finally {
+                namedSchemas.forEach { it.name = null }
+                namedOperations.forEach { it.operationId = null }
+            }
+        }
+
+        // The details name the schema or operation; some rules (e.g. unused schemas, duplicate tags) give none.
+        private fun Invalid.format(): String =
+            if (details.isNullOrBlank()) formatIssue(message) else "\t$message\n\t\t$details\n"
 
         private fun formatIssue(issue: String) = "\t$issue\n"
     }
