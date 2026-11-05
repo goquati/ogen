@@ -5,6 +5,7 @@ import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.model.config.ValidatorConfig
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
+import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
 import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
 import de.quati.ogen.plugin.intern.validation.successResponseWarnings
@@ -105,6 +106,7 @@ internal class Validator(
             ::trailingSlashWarnings,
             ::successResponseWarnings,
             ::undeclaredTagWarnings,
+            ::nullableWithoutTypeWarnings,
         )
 
         fun getNamingConventionErrors(

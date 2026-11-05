@@ -1,0 +1,100 @@
+openapi: 3.0.3
+info:
+  title: Nullable without type
+  version: 1.0.0
+paths:
+  /pets:
+    parameters:
+      - name: X-Trace
+        in: header
+        schema:
+          nullable: true
+    get:
+      operationId: listPets
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          $ref: '#/components/responses/Pets'
+    post:
+      operationId: createPet
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - name: filter
+          in: query
+          content:
+            application/json:
+              schema:
+                nullable: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  nullable: true
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate:
+              schema:
+                nullable: true
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  nullable: true
+        '201':
+          $ref: '#/components/responses/Created'
+components:
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema:
+        nullable: true
+  requestBodies:
+    NewPet:
+      content:
+        application/json:
+          schema:
+            nullable: true
+  responses:
+    Pets:
+      description: OK
+      content:
+        application/json:
+          schema:
+            nullable: true
+    Created:
+      description: Created
+      headers:
+        Location:
+          $ref: '#/components/headers/Location'
+  headers:
+    Location:
+      schema:
+        nullable: true
+  schemas:
+    Pet:
+      type: object
+      properties:
+        name:
+          nullable: true
+        labels:
+          type: object
+          additionalProperties:
+            nullable: true
+        other:
+          not:
+            nullable: true
+    Dog:
+      allOf:
+        - $ref: '#/components/schemas/Pet'
+        - type: object
+          properties:
+            breed:
+              nullable: true

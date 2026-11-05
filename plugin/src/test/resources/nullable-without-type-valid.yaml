@@ -1,0 +1,37 @@
+openapi: 3.0.3
+info:
+  title: Nullable with type, reference or composition
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Owner:
+      type: object
+      properties:
+        name:
+          type: string
+    Cat:
+      type: object
+      properties:
+        lives:
+          type: integer
+    Pet:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        owner:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Owner'
+        other:
+          nullable: true
+          oneOf:
+            - $ref: '#/components/schemas/Owner'
+            - $ref: '#/components/schemas/Cat'
+        any:
+          nullable: true
+          anyOf:
+            - $ref: '#/components/schemas/Owner'
+            - $ref: '#/components/schemas/Cat'
