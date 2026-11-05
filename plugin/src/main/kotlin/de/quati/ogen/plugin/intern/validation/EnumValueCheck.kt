@@ -4,6 +4,7 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.media.Schema
 import java.math.BigDecimal
+import java.util.Base64
 
 /**
  * Enum values that do not match their schema's type or are listed twice, as far as swagger-parser's model shows them:
@@ -53,11 +54,13 @@ internal fun enumValueErrors(spec: OpenAPI): List<String> {
 /** Equal for values that are equal in JSON: `1` and `1.0`, but not `1` and `"1"`. */
 private fun Any?.enumKey(): Any? = when (this) {
     is Number -> BigDecimal(toString()).stripTrailingZeros()
+    // swagger-parser reads `format: byte` values as arrays, which compare by identity.
+    is ByteArray -> toList()
     else -> this
 }
 
 private fun Any.matchesAny(types: Set<String>) = when (this) {
-    is String -> "string" in types
+    is String, is ByteArray -> "string" in types
     is Boolean -> "boolean" in types
     is Number -> "number" in types ||
         ("integer" in types && BigDecimal(toString()).stripTrailingZeros().scale() <= 0)
@@ -65,4 +68,8 @@ private fun Any.matchesAny(types: Set<String>) = when (this) {
     else -> true // An object or array value is not checked.
 }
 
-private fun Any?.render() = if (this is String) "'$this'" else toString()
+private fun Any?.render() = when (this) {
+    is String -> "'$this'"
+    is ByteArray -> "'${Base64.getEncoder().encodeToString(this)}'"
+    else -> toString()
+}

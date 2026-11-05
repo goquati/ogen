@@ -57,6 +57,9 @@ class TestEnumValueCheck {
     fun testDuplicate30() = assertEnumErrors("duplicate", "enum value 'open' in 'State' is listed more than once")
 
     @Test
+    fun testDuplicateByte() = assertEnumErrors("duplicate-byte", "enum value 'YQ==' in 'Token' is listed more than once")
+
+    @Test
     fun testDuplicateNumber31() = assertEnumErrors("duplicate-number-3.1", "enum value 1 in 'Size' is listed more than once")
 
     // swagger-parser reads 'low' as null.
