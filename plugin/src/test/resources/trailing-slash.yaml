@@ -1,0 +1,58 @@
+openapi: 3.0.3
+info:
+  title: Trailing slash
+  description: Paths that end with a slash, next to the root path and paths without one.
+  version: 1.0.0
+
+paths:
+  /:
+    get:
+      operationId: getRoot
+      responses:
+        '204':
+          description: No content
+  /items/:
+    get:
+      operationId: getItems
+      responses:
+        '204':
+          description: No content
+  /items/{id}/:
+    get:
+      operationId: getItem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+  /items//:
+    get:
+      operationId: getItemsDoubleSlash
+      responses:
+        '204':
+          description: No content
+  //:
+    get:
+      operationId: getSlashes
+      responses:
+        '204':
+          description: No content
+  /users:
+    get:
+      operationId: getUsers
+      responses:
+        '204':
+          description: No content
+
+components:
+  schemas:
+    Item:
+      type: string

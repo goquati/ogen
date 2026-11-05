@@ -5,6 +5,7 @@ import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.model.config.ValidatorConfig
 import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
+import de.quati.ogen.plugin.intern.validation.trailingSlashWarnings
 import de.quati.ogen.plugin.intern.validation.walkSchemas
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Operation
@@ -91,6 +92,7 @@ internal class Validator(
 
         // ogen's own warnings; they run on any spec swagger-parser could parse, next to openapi-generator's.
         private val warningChecks: List<(OpenAPI) -> List<String>> = listOf(
+            ::trailingSlashWarnings,
         )
 
         fun getNamingConventionErrors(
