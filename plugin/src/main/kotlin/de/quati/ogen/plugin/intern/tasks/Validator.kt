@@ -82,6 +82,7 @@ internal class Validator(
                 }
                 throw GradleException("Found ${namingConventionErrors.size} naming convention errors.")
             }
+            checkRequiredProperties(spec, logger)
 
             logger.debug("No error validations from swagger-parser or internal validations.")
             logger.info("Spec is valid.\n")

@@ -1,0 +1,38 @@
+openapi: 3.1.0
+info:
+  title: Required properties defined, OpenAPI 3.1
+  description: Required entries that a property, a reference or additional and unevaluated properties allow.
+  version: 1.0.0
+
+paths: {}
+
+components:
+  schemas:
+    Base:
+      type: object
+      properties:
+        name: { type: string }
+    OpenAny:
+      type: object
+      required: [anything]
+      additionalProperties: true
+    OpenSchema:
+      type: object
+      required: [anything]
+      additionalProperties:
+        type: string
+    OpenUnevaluated:
+      type: object
+      required: [anything]
+      unevaluatedProperties: true
+    RefSibling:
+      $ref: '#/components/schemas/Base'
+      required: [name, extra]
+      properties:
+        extra: { type: string }
+    RefSiblingMember:
+      required: [name, extra]
+      allOf:
+        - $ref: '#/components/schemas/Base'
+          properties:
+            extra: { type: string }

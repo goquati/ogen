@@ -1,0 +1,169 @@
+openapi: 3.0.3
+info:
+  title: Required properties undefined
+  description: Required entries without a matching property, in every place the validator looks.
+  version: 1.0.0
+
+paths:
+  /items:
+    parameters:
+      - name: scope
+        in: query
+        schema:
+          type: object
+          required: [region]
+          properties:
+            zone: { type: string }
+    post:
+      operationId: createItem
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: object
+            required: [kind]
+            properties:
+              type: { type: string }
+        - name: sort
+          in: query
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [field]
+                properties:
+                  order: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                name: { type: string }
+      responses:
+        '201':
+          description: Created
+          headers:
+            X-Trace:
+              schema:
+                type: object
+                required: [traceId]
+                properties:
+                  id: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [identifier]
+                properties:
+                  id: { type: string }
+
+components:
+  schemas:
+    Item:
+      type: object
+      required: [name, colour]
+      properties:
+        name: { type: string }
+        color: { type: string }
+        address:
+          type: object
+          required: [street]
+          properties:
+            city: { type: string }
+        tags:
+          type: array
+          items:
+            type: object
+            required: [label]
+            properties:
+              value: { type: string }
+    Closed:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        name: { type: string }
+    Dictionary:
+      type: object
+      additionalProperties:
+        type: object
+        required: [key]
+        properties:
+          value: { type: string }
+    Base:
+      type: object
+      properties:
+        name: { type: string }
+        nickname: { type: string }
+    Extended:
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - type: object
+          required: [age]
+    TightenedTypo:
+      required: [nickanme]
+      allOf:
+        - $ref: '#/components/schemas/Base'
+    RequiresNickname:
+      required: [nickanme]
+    Person:
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - $ref: '#/components/schemas/RequiresNickname'
+    EitherName:
+      type: object
+      properties:
+        name: { type: string }
+        nickname: { type: string }
+      oneOf:
+        - required: [name]
+        - required: [nmae]
+    AnyName:
+      type: object
+      properties:
+        name: { type: string }
+      anyOf:
+        - required: [nickname]
+    Grid:
+      allOf:
+        - type: object
+          properties:
+            rows:
+              type: array
+              items:
+                type: array
+                items:
+                  type: object
+                  required: [cell]
+                  properties:
+                    value: { type: string }
+  parameters:
+    Paging:
+      name: paging
+      in: query
+      schema:
+        type: object
+        required: [size]
+        properties:
+          limit: { type: integer }
+  requestBodies:
+    NewItem:
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [label]
+            properties:
+              name: { type: string }
+  responses:
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [reason]
+            properties:
+              message: { type: string }
