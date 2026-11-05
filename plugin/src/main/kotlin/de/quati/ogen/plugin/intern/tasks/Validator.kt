@@ -4,8 +4,10 @@ import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.validation.ambiguousPathWarnings
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
+import de.quati.ogen.plugin.intern.validation.defaultOutsideEnumErrors
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
 import de.quati.ogen.plugin.intern.validation.identicalPathErrors
+import de.quati.ogen.plugin.intern.validation.invalidTypeErrors
 import de.quati.ogen.plugin.intern.validation.namingConventionErrors
 import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
 import de.quati.ogen.plugin.intern.validation.operations
@@ -98,6 +100,8 @@ internal class Validator(
             ::identicalPathErrors,
             ::undefinedSecuritySchemeErrors,
             ::enumValueErrors,
+            ::defaultOutsideEnumErrors,
+            ::invalidTypeErrors,
             ::contradictoryConstraintErrors,
             ::undefinedRequiredPropertyErrors,
         )

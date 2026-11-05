@@ -1,0 +1,15 @@
+openapi: 3.1.0
+info:
+  title: Invalid types
+  description: "In 3.1 `null` is a type of its own. An invalid entry in a type list is already a swagger-parser error."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        count:
+          type: integr
+        nickname:
+          type: [string, 'null']

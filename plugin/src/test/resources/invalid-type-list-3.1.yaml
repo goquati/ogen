@@ -1,0 +1,13 @@
+openapi: 3.1.0
+info:
+  title: Invalid type list
+  description: "An invalid entry in a 3.1 type list, which swagger-parser itself rejects."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        name:
+          type: [string, nul]

@@ -1,13 +1,20 @@
 import de.quati.ogen.plugin.intern.tasks.Validator
+import org.gradle.api.GradleException
 import org.slf4j.event.Level
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class TestValidatorWarningDetails {
+    // validator-warnings has invalid types on purpose, for openapi-generator's warning about them; they also fail
+    // validation, after every warning is logged.
     private fun warnings(spec: String): List<String> {
         val logger = CapturingLogger()
-        Validator(logger = logger).validate(configs = validatorConfigs(spec))
+        val e = assertFailsWith<GradleException> {
+            Validator(logger = logger).validate(configs = validatorConfigs(spec))
+        }
+        assertEquals(errorsMessage(spec, 2), e.message)
         return logger.at(Level.WARN)
     }
 
@@ -37,7 +44,7 @@ class TestValidatorWarningDetails {
         val spec = configs.specs.single().parseResult.openAPI
         val schemas = spec.components.schemas
         schemas.getValue("Orphan").name = "Custom"
-        Validator(logger = CapturingLogger()).validate(configs = configs)
+        assertFailsWith<GradleException> { Validator(logger = CapturingLogger()).validate(configs = configs) }
         assertEquals(mapOf("Pet" to null, "Owner" to null, "Orphan" to "Custom"), schemas.mapValues { it.value.name })
         assertEquals(null, schemas.getValue("Owner").properties.getValue("age").name)
         assertEquals(listOf("listPets", null), spec.paths.values.map { it.get.operationId })

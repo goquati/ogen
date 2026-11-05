@@ -4,7 +4,6 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.media.Schema
 import java.math.BigDecimal
-import java.util.Base64
 
 /**
  * Enum values that do not match their schema's type or are listed twice, as far as swagger-parser's model shows them:
@@ -17,12 +16,8 @@ internal fun enumValueErrors(spec: OpenAPI): List<String> {
         val schema = node.schema
         val values = schema.enum?.takeIf { it.isNotEmpty() } ?: return@walkSchemas
         val where = "'${node.location}'"
-        val declared = when {
-            isV31 -> schema.types.orEmpty()
-            // In 3.0 a schema without `type` stays a plain Schema, typed only by inference.
-            schema::class == Schema::class -> emptySet()
-            else -> setOfNotNull(schema.type)
-        }
+        // In 3.0 a schema without `type` stays a plain Schema, typed only by inference.
+        val declared = if (!isV31 && schema::class == Schema::class) emptySet() else schema.declaredTypes(isV31)
         val nullAllowed = if (isV31) "null" in declared else schema.nullable == true
         val valueTypes = declared - "null"
         val castHint = if (!isV31 && schema.type in setOf("integer", "number"))
@@ -51,14 +46,6 @@ internal fun enumValueErrors(spec: OpenAPI): List<String> {
     return errors
 }
 
-/** Equal for values that are equal in JSON: `1` and `1.0`, but not `1` and `"1"`. */
-private fun Any?.enumKey(): Any? = when (this) {
-    is Number -> BigDecimal(toString()).stripTrailingZeros()
-    // swagger-parser reads `format: byte` values as arrays, which compare by identity.
-    is ByteArray -> toList()
-    else -> this
-}
-
 private fun Any.matchesAny(types: Set<String>) = when (this) {
     is String, is ByteArray -> "string" in types
     is Boolean -> "boolean" in types
@@ -66,10 +53,4 @@ private fun Any.matchesAny(types: Set<String>) = when (this) {
         ("integer" in types && BigDecimal(toString()).stripTrailingZeros().scale() <= 0)
 
     else -> true // An object or array value is not checked.
-}
-
-private fun Any?.render() = when (this) {
-    is String -> "'$this'"
-    is ByteArray -> "'${Base64.getEncoder().encodeToString(this)}'"
-    else -> toString()
 }

@@ -1,0 +1,26 @@
+openapi: 3.0.3
+info:
+  title: Defaults outside their enum
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: size
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2]
+            default: 3
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [open, closed]
+          default: pending

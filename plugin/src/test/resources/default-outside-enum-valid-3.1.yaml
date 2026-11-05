@@ -1,0 +1,19 @@
+openapi: 3.1.0
+info:
+  title: Valid defaults
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [open, closed]
+          default: open
+        ratio:
+          description: "1.0 and 1 are the same JSON number."
+          type: number
+          enum: [1, 2.5]
+          default: 1.0

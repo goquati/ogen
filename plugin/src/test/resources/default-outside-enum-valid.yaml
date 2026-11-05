@@ -1,0 +1,19 @@
+openapi: 3.0.3
+info:
+  title: Valid defaults
+  description: "A listed default, and one that doesn't fit its type, which swagger-parser turns into null."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [open, closed]
+          default: open
+        level:
+          type: integer
+          enum: [1, 2]
+          default: lots
