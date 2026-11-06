@@ -1,0 +1,12 @@
+openapi: 3.0.3
+info:
+  title: Enum values
+  description: "swagger-parser reads the values of a `format: byte` schema as byte arrays."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Token:
+      type: string
+      format: byte
+      enum: [YQ==, Yg==, YQ==]

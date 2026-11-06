@@ -1,0 +1,16 @@
+openapi: 3.0.3
+info:
+  title: Enum values
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Item:
+      type: object
+      properties:
+        nested:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum: [fast, fast]

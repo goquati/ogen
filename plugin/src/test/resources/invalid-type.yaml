@@ -1,0 +1,16 @@
+openapi: 3.0.3
+info:
+  title: Invalid types
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        count:
+          type: integr
+        tags:
+          type: array
+          items:
+            type: strng

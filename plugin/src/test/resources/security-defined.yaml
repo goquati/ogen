@@ -1,0 +1,29 @@
+openapi: 3.0.3
+info:
+  title: Defined security schemes
+  version: 1.0.0
+security:
+  - {}
+  - bearer: []
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      security: []
+      responses:
+        '200':
+          description: OK
+    post:
+      operationId: createPet
+      security:
+        - {}
+        - bearer: []
+      responses:
+        '201':
+          description: Created
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+  schemas: {}

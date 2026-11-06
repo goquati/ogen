@@ -1,0 +1,12 @@
+openapi: 3.0.3
+info:
+  title: Enum values
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Tags:
+      type: array
+      items:
+        type: string
+        enum: [a, a]

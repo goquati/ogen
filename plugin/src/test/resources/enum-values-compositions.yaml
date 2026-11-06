@@ -1,0 +1,25 @@
+openapi: 3.0.3
+info:
+  title: Enum values
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Composite:
+      allOf:
+        - type: string
+          enum: [a, a]
+      anyOf:
+        - type: string
+          enum: [b, b]
+      oneOf:
+        - type: string
+          enum: [c, c]
+      not:
+        type: string
+        enum: [d, d]
+    Map:
+      type: object
+      additionalProperties:
+        type: string
+        enum: [m, m]

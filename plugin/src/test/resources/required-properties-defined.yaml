@@ -1,0 +1,111 @@
+openapi: 3.0.3
+info:
+  title: Required properties defined
+  description: Required entries that a property, a composition member or additionalProperties allows.
+  version: 1.0.0
+
+paths:
+  /items:
+    post:
+      operationId: createItem
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/Base'
+                - type: object
+                  required: [name, extra]
+                  properties:
+                    extra: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: { type: string }
+
+components:
+  schemas:
+    Base:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        nickname: { type: string }
+    Tightened:
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - type: object
+          required: [nickname]
+    TightenedOnTop:
+      required: [nickname]
+      allOf:
+        - $ref: '#/components/schemas/Extended'
+    Extended:
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - type: object
+          properties:
+            age: { type: integer }
+    RequiresNickname:
+      required: [nickname]
+    Person:
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - $ref: '#/components/schemas/RequiresNickname'
+    EitherName:
+      type: object
+      properties:
+        name: { type: string }
+        nickname: { type: string }
+      oneOf:
+        - required: [name]
+        - required: [nickname]
+    AnyName:
+      type: object
+      properties:
+        name: { type: string }
+        nickname: { type: string }
+      anyOf:
+        - required: [name]
+        - required: [nickname]
+    WithoutLegacyId:
+      type: object
+      properties:
+        name: { type: string }
+      not:
+        required: [legacyId]
+    OpenAny:
+      type: object
+      required: [anything]
+      additionalProperties: true
+    OpenEmpty:
+      type: object
+      required: [anything]
+      additionalProperties: {}
+    OpenSchema:
+      type: object
+      required: [anything]
+      additionalProperties:
+        type: string
+    Node:
+      type: object
+      required: [value, children]
+      properties:
+        value: { type: string }
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node'
+    SelfExtending:
+      allOf:
+        - $ref: '#/components/schemas/SelfExtending'
+        - type: object
+          required: [value]
+          properties:
+            value: { type: string }

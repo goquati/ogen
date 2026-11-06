@@ -1,0 +1,36 @@
+openapi: 3.0.3
+info:
+  title: Enum values
+  version: 1.0.0
+paths: {}
+components:
+  parameters:
+    Kind:
+      name: kind
+      in: query
+      schema:
+        type: string
+        enum: [a, a]
+  requestBodies:
+    Body:
+      content:
+        application/json:
+          schema:
+            type: string
+            enum: [b, b]
+  responses:
+    Answer:
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: string
+            enum: [c, c]
+  headers:
+    Rate:
+      schema:
+        type: string
+        enum: [d, d]
+  schemas:
+    Item:
+      type: string

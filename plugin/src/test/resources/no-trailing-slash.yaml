@@ -1,0 +1,40 @@
+openapi: 3.0.3
+info:
+  title: No trailing slash
+  description: The root path and paths without a trailing slash.
+  version: 1.0.0
+
+paths:
+  /:
+    get:
+      operationId: getRoot
+      responses:
+        '204':
+          description: No content
+  /items:
+    get:
+      operationId: getItems
+      responses:
+        '204':
+          description: No content
+  /items/{id}:
+    get:
+      operationId: getItem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+
+components:
+  schemas:
+    Item:
+      type: string

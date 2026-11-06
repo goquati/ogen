@@ -1,0 +1,31 @@
+openapi: 3.0.3
+info:
+  title: Several errors
+  version: 1.0.0
+paths:
+  /items/all/:
+    get:
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+components:
+  schemas:
+    Item:
+      type: object
+      required: [name, colour]
+      properties:
+        name:
+          type: string
+        state:
+          type: string
+          enum: [open, open]

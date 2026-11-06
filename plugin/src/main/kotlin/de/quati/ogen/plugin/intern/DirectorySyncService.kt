@@ -55,8 +55,11 @@ internal class DirectorySyncService(
     }
 
     private fun cleanup() {
-        val actualFiles = outDir.listDirectoryEntries().map { it.absolute() }
-            .filter { it.isRegularFile() }.toSet()
+        // A package that never got a file has no directory, and so no stale files.
+        val actualFiles = if (outDir.exists())
+            outDir.listDirectoryEntries().map { it.absolute() }.filter { it.isRegularFile() }.toSet()
+        else
+            emptySet()
         val filesToDelete = actualFiles - (filesCreated + filesUpdated + filesUnchanged)
         filesToDelete.forEach { it.deleteExisting() }
         filesDeleted += filesToDelete

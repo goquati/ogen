@@ -1,0 +1,70 @@
+openapi: 3.0.3
+info:
+  title: Consistent constraints
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                minItems: 1
+                maxItems: 1
+                items:
+                  $ref: '#/components/schemas/Pet'
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        equalBounds:
+          type: integer
+          minimum: 5
+          maximum: 5
+        equalDecimalBounds:
+          type: number
+          minimum: 1.0
+          maximum: 1
+        exclusiveWithRoom:
+          type: number
+          minimum: 1
+          exclusiveMinimum: true
+          maximum: 2
+          exclusiveMaximum: true
+        exclusiveFlagWithoutOtherBound:
+          type: integer
+          minimum: 5
+          exclusiveMinimum: true
+        onlyMaximum:
+          type: integer
+          maximum: -1
+        name:
+          type: string
+          minLength: 2
+          maxLength: 2
+        tags:
+          type: array
+          minItems: 0
+          maxItems: 3
+          items:
+            type: string
+        owner:
+          type: object
+          minProperties: 1
+          maxProperties: 1
+        onlyExclusiveMaximum:
+          type: integer
+          maximum: 5
+          exclusiveMaximum: true

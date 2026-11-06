@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info:
+  title: Enum values
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Level:
+      type: integer
+      nullable: true
+      enum: [low, null]

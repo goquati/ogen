@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info:
+  title: No paths
+  description: A 3.1 spec may define only webhooks; it has neither paths nor components.
+  version: 1.0.0
+webhooks:
+  newItem:
+    post:
+      responses:
+        '200':
+          description: OK

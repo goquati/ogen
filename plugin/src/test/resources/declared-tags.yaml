@@ -1,0 +1,22 @@
+openapi: 3.0.3
+info:
+  title: Declared tags
+  version: 1.0.0
+tags:
+  - name: items
+  - name: other
+paths:
+  /items:
+    get:
+      tags: [items, other]
+      operationId: listItems
+      responses:
+        '200':
+          description: OK
+    post:
+      operationId: createItem
+      responses:
+        '204':
+          description: Created
+components:
+  schemas: {}

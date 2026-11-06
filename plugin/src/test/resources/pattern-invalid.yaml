@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info:
+  title: Patterns
+  description: "Patterns Java can't compile: one that no regex dialect accepts, and one JavaScript accepts."
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+            pattern: '([a-z]'
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Item:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: '['
+        anything:
+          type: string
+          pattern: '[^]'
