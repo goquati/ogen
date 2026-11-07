@@ -229,6 +229,39 @@ components:
           description: Sample field unique to this variant.
           type: string
 
+    OneOfTagOnly:
+      description: Union whose first variant carries only the discriminator property.
+      oneOf:
+        - $ref: '#/components/schemas/OneOfTagOnly1'
+        - $ref: '#/components/schemas/OneOfTagOnly2'
+      discriminator:
+        propertyName: objectType
+        mapping:
+          tag1: '#/components/schemas/OneOfTagOnly1'
+          tag2: '#/components/schemas/OneOfTagOnly2'
+    OneOfTagOnly1:
+      description: Variant with no properties besides the discriminator.
+      type: object
+      required:
+        - objectType
+      properties:
+        objectType:
+          description: Discriminator value identifying this variant.
+          type: string
+    OneOfTagOnly2:
+      description: Variant of OneOfTagOnly with a payload field.
+      type: object
+      required:
+        - objectType
+        - foo
+      properties:
+        objectType:
+          description: Discriminator value identifying this variant.
+          type: string
+        foo:
+          description: Sample field unique to this variant.
+          type: string
+
     AllOfRef:
       description: Composition of two referenced object schemas.
       allOf:
