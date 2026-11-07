@@ -34,6 +34,9 @@ import de.quati.ogen.oas.schemas.gen.model.OneOfDiscriminatorDto
 import de.quati.ogen.oas.schemas.gen.model.OneOfMapping1Dto
 import de.quati.ogen.oas.schemas.gen.model.OneOfMapping2Dto
 import de.quati.ogen.oas.schemas.gen.model.OneOfMappingDto
+import de.quati.ogen.oas.schemas.gen.model.OneOfTagOnly1Dto
+import de.quati.ogen.oas.schemas.gen.model.OneOfTagOnly2Dto
+import de.quati.ogen.oas.schemas.gen.model.OneOfTagOnlyDto
 import de.quati.ogen.oas.schemas.gen.model.OneOfAliasDto
 import de.quati.ogen.oas.schemas.gen.model.OneOfAlias1Dto
 import de.quati.ogen.oas.schemas.gen.model.OneOfAlias2Dto
@@ -191,6 +194,13 @@ class ModelsV31Test {
         OneOfMapping2Dto(foo = "world".toOption()).test(expectedString = """{"foo":"world"}""") // TODO ok?
         (OneOfMapping1Dto(bar = "abc".toOption()) as OneOfMappingDto).test(expectedString = """{"objectType":"obj1","bar":"abc"}""")
         (OneOfMapping2Dto(foo = "def".toOption()) as OneOfMappingDto).test(expectedString = """{"objectType":"obj2","foo":"def"}""")
+    }
+
+    @Test
+    @OptIn(ExperimentalSerializationApi::class)
+    fun `test oneOf with tag-only variant`() {
+        (OneOfTagOnly1Dto as OneOfTagOnlyDto).test(expectedString = """{"objectType":"tag1"}""")
+        (OneOfTagOnly2Dto(foo = "x") as OneOfTagOnlyDto).test(expectedString = """{"objectType":"tag2","foo":"x"}""")
     }
 
     @Test

@@ -18,6 +18,7 @@ import de.quati.kotlin.util.poet.dsl.primaryConstructor
 import de.quati.kotlin.util.poet.toCamelCase
 import de.quati.kotlin.util.poet.toSnakeCase
 import de.quati.ogen.plugin.intern.model.Component
+import de.quati.ogen.plugin.intern.model.ElementDiscriminatorInfo
 import de.quati.ogen.plugin.intern.model.Type
 
 /**
@@ -333,47 +334,70 @@ private fun Component.Schema.EnumString.generateEnumTypeSpec(
 }.build()
 
 context(c: CodeGenContext)
-private fun Component.Schema.Obj.generateDataClassTypeSpec(
-): TypeSpec = TypeSpec.classBuilder(name.prettyClassName).apply {
-    val type = this@generateDataClassTypeSpec.getTypeName(withFlow = false)
-    addModifiers(KModifier.DATA)
-    addAnnotation(Poet.serializable(type.getSerializerTypeName(register = true)))
+private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
     val discInfo = c.discriminatorInfoMap[this@generateDataClassTypeSpec.name]
-    if (discInfo != null) {
-        addAnnotation(Poet.serialName(discInfo.elementName))
-        addAnnotation(Poet.experimentalSerializationApi)
-        discInfo.interfaces.forEach { addSuperinterface(it.name.typename) }
-    }
-    primaryConstructor {
-        this@generateDataClassTypeSpec.properties.forEach { (fieldName, prop) ->
-            if (fieldName == discInfo?.discriminatorName) return@forEach
-            val prettyFieldName = fieldName.toCamelCase(capitalized = false)
-            val isRequired = this@generateDataClassTypeSpec.required.contains(fieldName)
-            val propType = prop.getTypeName(withFlow = false)
-                .nullable(prop.isNullableResolved())
-                .let {
-                    if (isRequired)
-                        it
-                    else
-                        Type.NonPrimitiveType.Option(it).nullable(false)
+    // A variant whose only property is the discriminator tag (and any property-less
+    // object) has no constructor parameters; a data class requires at least one.
+    val hasConstructorProperties =
+        properties.keys.any { it != discInfo?.discriminatorName }
+    if (!hasConstructorProperties) return generateObjectTypeSpec(discInfo)
+
+    return TypeSpec.classBuilder(name.prettyClassName).apply {
+        val type = this@generateDataClassTypeSpec.getTypeName(withFlow = false)
+        addModifiers(KModifier.DATA)
+        addAnnotation(Poet.serializable(type.getSerializerTypeName(register = true)))
+        if (discInfo != null) {
+            addAnnotation(Poet.serialName(discInfo.elementName))
+            addAnnotation(Poet.experimentalSerializationApi)
+            discInfo.interfaces.forEach { addSuperinterface(it.name.typename) }
+        }
+        primaryConstructor {
+            this@generateDataClassTypeSpec.properties.forEach { (fieldName, prop) ->
+                if (fieldName == discInfo?.discriminatorName) return@forEach
+                val prettyFieldName = fieldName.toCamelCase(capitalized = false)
+                val isRequired = this@generateDataClassTypeSpec.required.contains(fieldName)
+                val propType = prop.getTypeName(withFlow = false)
+                    .nullable(prop.isNullableResolved())
+                    .let {
+                        if (isRequired)
+                            it
+                        else
+                            Type.NonPrimitiveType.Option(it).nullable(false)
+                    }
+                addParameter(prettyFieldName, propType.poet) {
+                    if (!isRequired)
+                        defaultValue("%T", Poet.option.nestedClass("Undefined"))
                 }
-            addParameter(prettyFieldName, propType.poet) {
-                if (!isRequired)
-                    defaultValue("%T", Poet.option.nestedClass("Undefined"))
-            }
-            addProperty(prettyFieldName, propType.poet) {
-                initializer(prettyFieldName)
-                val propSerializer = propType.type.getSerializerTypeName(register = true)
-                if (propSerializer != null)
-                    addAnnotation(Poet.serializable(propSerializer))
-                if (prettyFieldName != fieldName)
-                    addAnnotation(Poet.serialName(fieldName))
+                addProperty(prettyFieldName, propType.poet) {
+                    initializer(prettyFieldName)
+                    val propSerializer = propType.type.getSerializerTypeName(register = true)
+                    if (propSerializer != null)
+                        addAnnotation(Poet.serializable(propSerializer))
+                    if (prettyFieldName != fieldName)
+                        addAnnotation(Poet.serialName(fieldName))
+                }
             }
         }
-    }
-    c.childSchemas[name]?.forEach { childSchema -> // TODO recursive
-        childSchema.toInnerTypeSpec()?.also {
-            addType(it)
+        c.childSchemas[name]?.forEach { childSchema -> // TODO recursive
+            childSchema.toInnerTypeSpec()?.also {
+                addType(it)
+            }
         }
-    }
-}.build()
+    }.build()
+}
+
+context(c: CodeGenContext)
+private fun Component.Schema.Obj.generateObjectTypeSpec(discInfo: ElementDiscriminatorInfo?): TypeSpec =
+    TypeSpec.objectBuilder(name.prettyClassName).apply {
+        addAnnotation(Poet.serializable())
+        if (discInfo != null) {
+            addAnnotation(Poet.serialName(discInfo.elementName))
+            addAnnotation(Poet.experimentalSerializationApi)
+            discInfo.interfaces.forEach { addSuperinterface(it.name.typename) }
+        }
+        c.childSchemas[this@generateObjectTypeSpec.name]?.forEach { childSchema -> // TODO recursive
+            childSchema.toInnerTypeSpec()?.also {
+                addType(it)
+            }
+        }
+    }.build()
