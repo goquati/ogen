@@ -22,13 +22,13 @@ Apply the plugin and add the runtime libraries in your `build.gradle.kts`:
 plugins {
     kotlin("jvm") // or kotlin("multiplatform")
     kotlin("plugin.serialization")
-    id("de.quati.ogen") version "0.16.0"
+    id("de.quati.ogen") version "0.16.1"
 }
 
 dependencies {
-    implementation("de.quati.ogen:core:0.16.0")
-    implementation("de.quati.ogen:client-ktor:0.16.0") // Optional: only required for generated Ktor clients
-    implementation("de.quati.ogen:server-spring:0.16.0") // Optional: only required for the Spring server with `apiResponse = true`
+    implementation("de.quati.ogen:core:0.16.1")
+    implementation("de.quati.ogen:client-ktor:0.16.1") // Optional: only required for generated Ktor clients
+    implementation("de.quati.ogen:server-spring:0.16.1") // Optional: only required for the Spring server with `apiResponse = true`
     implementation("de.quati:kotlin-util:2.6.1") // Provides `Option`, used by generated models for optional properties
 }
 ```
