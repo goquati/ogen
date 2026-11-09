@@ -115,14 +115,16 @@ ogen {
   parameters missing from the path template, paths that differ only in their variables' names, security schemes not
   defined in `components.securitySchemes`, a `type` that isn't a JSON Schema type, enum values that don't match their
   schema's type or are listed twice, a `default` its `enum` doesn't list, `required` names without a matching property,
-  and contradictory constraints such as `minimum` above `maximum`. These are warnings: paths with a trailing slash,
-  operations without a 2xx or 3xx response, operation tags missing from the top-level `tags` (when it declares any),
-  `nullable` without a `type` in OpenAPI 3.0, `pattern` regexes and `patternProperties` keys that don't compile as Java
-  regexes (OpenAPI's are JavaScript's, which differ slightly), keywords that apply to none of the schema's declared
-  types, such as `maxLength` on an integer, in OpenAPI 3.1 `maximum` next to `exclusiveMaximum` or `minimum` next to
-  `exclusiveMinimum`, where only the tighter bound has an effect, and ambiguous paths: two paths that share a method
-  where neither is more concrete (`/{entity}/me` and `/books/{id}`). openapi-generator's recommendations are warnings
-  too; `recommendations = false` turns off only those. `failOnWarnings = true` fails the build on any warning.
+  contradictory constraints such as `minimum` above `maximum`, and compositions no value can match: `allOf` members
+  whose types exclude each other or the schema's own type, or a type that excludes every `oneOf` or `anyOf` member.
+  These are warnings: paths with a trailing slash, operations without a 2xx or 3xx response, operation tags missing from
+  the top-level `tags` (when it declares any), `nullable` without a `type` in OpenAPI 3.0, `pattern` regexes and
+  `patternProperties` keys that don't compile as Java regexes (OpenAPI's are JavaScript's, which differ slightly),
+  keywords that apply to none of the schema's declared types, such as `maxLength` on an integer, in OpenAPI 3.1
+  `maximum` next to `exclusiveMaximum` or `minimum` next to `exclusiveMinimum`, where only the tighter bound has an
+  effect, and ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and
+  `/books/{id}`). openapi-generator's recommendations are warnings too; `recommendations = false` turns off only those.
+  `failOnWarnings = true` fails the build on any warning.
 
 ### Spring Boot Security Context
 

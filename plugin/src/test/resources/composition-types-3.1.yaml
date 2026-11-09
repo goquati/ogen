@@ -1,0 +1,36 @@
+openapi: 3.1.0
+info:
+  title: Composition types
+  description: "Compositions whose types leave no value, with 3.1's type lists."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Label:
+      type: [string, 'null']
+    Mixed:
+      allOf:
+        - $ref: '#/components/schemas/Label'
+        - type: integer
+    Nothing:
+      type: 'null'
+      oneOf:
+        - type: string
+        - type: [integer, boolean]
+    NoneOfAny:
+      type: string
+      anyOf:
+        - type: integer
+        - type: boolean
+    RefWithType:
+      type: string
+      allOf:
+        - description: "In 3.1 a $ref takes siblings; the member's own type is the one compared."
+          $ref: '#/components/schemas/Label'
+          type: integer
+    Pair:
+      type: array
+      prefixItems:
+        - type: object
+          allOf:
+            - type: string

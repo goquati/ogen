@@ -4,6 +4,7 @@ import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.validation.ambiguousPathWarnings
 import de.quati.ogen.plugin.intern.validation.brokenPathTemplateErrors
+import de.quati.ogen.plugin.intern.validation.compositionTypeErrors
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
 import de.quati.ogen.plugin.intern.validation.defaultOutsideEnumErrors
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
@@ -86,7 +87,8 @@ internal class Validator(
                 throw GradleException("Validation of the $specName failed.")
             }
 
-            val errors = namingConventionErrors(spec, validatorConfig) + errorChecks.flatMap { it(spec) }
+            val errors = namingConventionErrors(spec, validatorConfig) + errorChecks.flatMap { it(spec) } +
+                declaredTypesSpec?.let { s -> declaredTypeErrorChecks.flatMap { it(s) } }.orEmpty()
             if (errors.isNotEmpty()) {
                 logger.error("\nThe $specName is invalid.\nIssues:\n")
                 errors.forEach { logger.error(formatIssue(it)) }
@@ -127,7 +129,12 @@ internal class Validator(
             ::redundantBoundWarnings,
         )
 
-        // Warnings that compare types; they read the spec as written, without swagger-parser's inferred types.
+        // Errors that compare types; they read the spec as written, without swagger-parser's inferred types.
+        private val declaredTypeErrorChecks: List<(OpenAPI) -> List<String>> = listOf(
+            ::compositionTypeErrors,
+        )
+
+        // Warnings that compare types, read the same way.
         private val declaredTypeWarningChecks: List<(OpenAPI) -> List<String>> = listOf(
             ::typeKeywordWarnings,
         )
