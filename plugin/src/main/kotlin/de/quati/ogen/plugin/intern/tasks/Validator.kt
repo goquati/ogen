@@ -15,6 +15,7 @@ import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
 import de.quati.ogen.plugin.intern.validation.patternWarnings
 import de.quati.ogen.plugin.intern.validation.queryOrFragmentInPathErrors
+import de.quati.ogen.plugin.intern.validation.redundantBoundWarnings
 import de.quati.ogen.plugin.intern.validation.successResponseWarnings
 import de.quati.ogen.plugin.intern.validation.trailingSlashWarnings
 import de.quati.ogen.plugin.intern.validation.typeKeywordWarnings
@@ -123,6 +124,7 @@ internal class Validator(
             ::nullableWithoutTypeWarnings,
             ::patternWarnings,
             ::ambiguousPathWarnings,
+            ::redundantBoundWarnings,
         )
 
         // Warnings that compare types; they read the spec as written, without swagger-parser's inferred types.
