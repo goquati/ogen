@@ -3,6 +3,7 @@ package de.quati.ogen.plugin.intern.tasks
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.validation.ambiguousPathWarnings
+import de.quati.ogen.plugin.intern.validation.brokenPathTemplateErrors
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
 import de.quati.ogen.plugin.intern.validation.defaultOutsideEnumErrors
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
@@ -70,6 +71,8 @@ internal class Validator(
                 logger.error("\nThe $specName is invalid.\nIssues:\n")
 
                 messages.forEach { logger.error(formatIssue(it)) }
+                // swagger-parser's message for a variable inside a variable names a parameter `{id`; ogen's names the path.
+                spec?.let { brokenPathTemplateErrors(it) }.orEmpty().forEach { logger.error(formatIssue(it)) }
 
                 validationResult.errors.forEach {
                     logger.error(it.format())
@@ -96,6 +99,7 @@ internal class Validator(
 
         // ogen's own errors; they run once swagger-parser and openapi-generator found no errors.
         private val errorChecks: List<(OpenAPI) -> List<String>> = listOf(
+            ::brokenPathTemplateErrors,
             ::pathParameterErrors,
             ::identicalPathErrors,
             ::undefinedSecuritySchemeErrors,
