@@ -10,6 +10,18 @@ internal fun brokenPathTemplateErrors(spec: OpenAPI): List<String> = spec.paths.
     templateProblem(path)?.let { "path '$path' $it" }
 }
 
+/**
+ * Path keys with a query string or a fragment. A path key is only the path: query parameters belong in `parameters` with
+ * `in: query`, and a fragment never reaches the server.
+ */
+internal fun queryOrFragmentInPathErrors(spec: OpenAPI): List<String> = spec.paths.orEmpty().keys.mapNotNull { path ->
+    when {
+        '?' in path -> "path '$path' contains a query string; query parameters belong in 'parameters' with 'in: query'"
+        '#' in path -> "path '$path' contains a fragment, which never reaches the server"
+        else -> null
+    }
+}
+
 private fun templateProblem(path: String): String? {
     var open = -1
     path.forEachIndexed { i, c ->

@@ -14,6 +14,7 @@ import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
 import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
 import de.quati.ogen.plugin.intern.validation.patternWarnings
+import de.quati.ogen.plugin.intern.validation.queryOrFragmentInPathErrors
 import de.quati.ogen.plugin.intern.validation.successResponseWarnings
 import de.quati.ogen.plugin.intern.validation.trailingSlashWarnings
 import de.quati.ogen.plugin.intern.validation.undeclaredTagWarnings
@@ -100,6 +101,7 @@ internal class Validator(
         // ogen's own errors; they run once swagger-parser and openapi-generator found no errors.
         private val errorChecks: List<(OpenAPI) -> List<String>> = listOf(
             ::brokenPathTemplateErrors,
+            ::queryOrFragmentInPathErrors,
             ::pathParameterErrors,
             ::identicalPathErrors,
             ::undefinedSecuritySchemeErrors,
