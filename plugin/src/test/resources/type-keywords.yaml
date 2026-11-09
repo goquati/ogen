@@ -1,0 +1,65 @@
+openapi: 3.0.3
+info:
+  title: Type keywords
+  description: "Keywords that apply to none of the declared types."
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            maxLength: 3
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Pet:
+      type: object
+      minLength: 1
+      properties:
+        count:
+          type: integer
+          maxLength: 3
+          pattern: '^[0-9]+$'
+        name:
+          type: string
+          minimum: 1
+          exclusiveMinimum: true
+          maxItems: 2
+        tags:
+          type: array
+          items:
+            type: boolean
+            multipleOf: 2
+          properties:
+            first:
+              type: string
+          minProperties: 1
+    More:
+      type: object
+      description: "swagger-parser infers array from items and object from additionalProperties; the check reads the declared types."
+      items:
+        type: string
+      minItems: 1
+      properties:
+        code:
+          type: string
+          properties:
+            x:
+              type: string
+          additionalProperties: false
+          required: [x]
+          maximum: 5
+          exclusiveMaximum: true
+        list:
+          type: array
+          items:
+            type: string
+          maxProperties: 2
+        flag:
+          type: integer
+          uniqueItems: true

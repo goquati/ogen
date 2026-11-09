@@ -20,7 +20,7 @@ internal fun enumValueErrors(spec: OpenAPI): List<String> {
         val declared = if (!isV31 && schema::class == Schema::class) emptySet() else schema.declaredTypes(isV31)
         val nullAllowed = if (isV31) "null" in declared else schema.nullable == true
         val valueTypes = declared - "null"
-        val castHint = if (!isV31 && schema.type in setOf("integer", "number"))
+        val castHint = if (!isV31 && schema.type in numberTypes)
             " (swagger-parser also reads a value that is not a valid ${schema.type} as null)"
         else ""
         val reported = mutableSetOf<Any?>()

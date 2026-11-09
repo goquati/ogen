@@ -17,6 +17,7 @@ import de.quati.ogen.plugin.intern.validation.patternWarnings
 import de.quati.ogen.plugin.intern.validation.queryOrFragmentInPathErrors
 import de.quati.ogen.plugin.intern.validation.successResponseWarnings
 import de.quati.ogen.plugin.intern.validation.trailingSlashWarnings
+import de.quati.ogen.plugin.intern.validation.typeKeywordWarnings
 import de.quati.ogen.plugin.intern.validation.undeclaredTagWarnings
 import de.quati.ogen.plugin.intern.validation.undefinedRequiredPropertyErrors
 import de.quati.ogen.plugin.intern.validation.undefinedSecuritySchemeErrors
@@ -60,7 +61,9 @@ internal class Validator(
 
             val spec = parseResult.openAPI
             val validationResult = spec.withLocationNames { evaluator.validate(spec) }
-            val ogenWarnings = if (spec == null) emptyList() else warningChecks.flatMap { it(spec) }
+            val declaredTypesSpec = if (spec == null) null else config.declaredTypesSpec
+            val ogenWarnings = spec?.let { s -> warningChecks.flatMap { it(s) } }.orEmpty() +
+                declaredTypesSpec?.let { s -> declaredTypeWarningChecks.flatMap { it(s) } }.orEmpty()
             val warnings = validationResult.warnings.map { it.format() } + ogenWarnings.map(::formatIssue)
 
             if (warnings.isNotEmpty()) {
@@ -120,6 +123,11 @@ internal class Validator(
             ::nullableWithoutTypeWarnings,
             ::patternWarnings,
             ::ambiguousPathWarnings,
+        )
+
+        // Warnings that compare types; they read the spec as written, without swagger-parser's inferred types.
+        private val declaredTypeWarningChecks: List<(OpenAPI) -> List<String>> = listOf(
+            ::typeKeywordWarnings,
         )
 
         // The evaluator's details name a schema by its `name` and an operation by its operationId, which

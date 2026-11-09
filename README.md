@@ -118,8 +118,9 @@ ogen {
   and contradictory constraints such as `minimum` above `maximum`. These are warnings: paths with a trailing slash,
   operations without a 2xx or 3xx response, operation tags missing from the top-level `tags` (when it declares any),
   `nullable` without a `type` in OpenAPI 3.0, `pattern` regexes and `patternProperties` keys that don't compile as Java
-  regexes (OpenAPI's are JavaScript's, which differ slightly), and ambiguous paths: two paths that share a method where
-  neither is more concrete (`/{entity}/me` and `/books/{id}`). openapi-generator's recommendations are warnings too;
+  regexes (OpenAPI's are JavaScript's, which differ slightly), keywords that apply to none of the schema's declared
+  types, such as `maxLength` on an integer, and ambiguous paths: two paths that share a method where neither is more
+  concrete (`/{entity}/me` and `/books/{id}`). openapi-generator's recommendations are warnings too;
   `recommendations = false` turns off only those. `failOnWarnings = true` fails the build on any warning.
 
 ### Spring Boot Security Context

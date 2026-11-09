@@ -1,0 +1,53 @@
+openapi: 3.0.3
+info:
+  title: Type keywords
+  description: "Keywords that fit their type, and untyped schemas, which every keyword can apply to."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      required: [name]
+      minProperties: 1
+      additionalProperties:
+        type: string
+      properties:
+        count:
+          type: integer
+          minimum: 0
+          maximum: 10
+          exclusiveMaximum: true
+          multipleOf: 2
+        weight:
+          type: number
+          minimum: 0.5
+        name:
+          type: string
+          minLength: 1
+          maxLength: 20
+          pattern: '^[a-z]+$'
+          exclusiveMinimum: false
+        tags:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+    Labels:
+      type: object
+      maxProperties: 3
+      additionalProperties:
+        type: string
+    Anything:
+      description: "Untyped, although swagger-parser infers a type from items or additionalProperties."
+      items:
+        type: string
+      additionalProperties: false
+      minLength: 1
+      minimum: 1
+      maxItems: 2
+      properties:
+        x:
+          type: string
