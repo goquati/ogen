@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info:
+  title: Enum values
+  description: "Quoted, yes, no, on and off stay strings."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Quoted:
+      type: [boolean, string]
+      enum: [false, 'False', 'no', 'off', true, 'True', 'yes', 'on']

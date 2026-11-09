@@ -1,0 +1,13 @@
+openapi: 3.0.3
+info:
+  title: Enum values
+  description: "Unquoted yes, no, on and off are YAML 1.1 booleans; a 3.0 string schema casts them to 'true' and 'false'."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Untyped:
+      enum: [false, no, true, yes]
+    Words:
+      type: string
+      enum: [yes, 'true', no, 'false']
