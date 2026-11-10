@@ -1,0 +1,76 @@
+openapi: 3.0.3
+info:
+  title: Composition types
+  description: "Compositions that leave values: shared types, an integer in a number, untyped members, null on both sides."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Owner:
+      type: object
+      properties:
+        name:
+          type: string
+    Count:
+      type: integer
+    Untyped:
+      allOf:
+        - $ref: '#/components/schemas/Owner'
+    Numeric:
+      allOf:
+        - type: number
+        - $ref: '#/components/schemas/Count'
+    Extended:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Owner'
+        - $ref: '#/components/schemas/Untyped'
+        - properties:
+            age:
+              type: integer
+    BothNullable:
+      allOf:
+        - type: string
+          nullable: true
+        - type: integer
+          nullable: true
+    NullableParent:
+      type: string
+      nullable: true
+      allOf:
+        - type: string
+    Choice:
+      type: number
+      oneOf:
+        - type: string
+        - $ref: '#/components/schemas/Count'
+    NullOnBothSides:
+      type: string
+      nullable: true
+      oneOf:
+        - type: integer
+          nullable: true
+    OneUntypedMember:
+      type: boolean
+      oneOf:
+        - type: string
+        - description: "Untyped, so it fits."
+    Code:
+      type: string
+      additionalProperties: false
+    InferredObject:
+      description: "swagger-parser infers object for Code from additionalProperties; the check reads its declared string."
+      allOf:
+        - $ref: '#/components/schemas/Code'
+        - type: string
+          maxLength: 5
+    InferredEnum:
+      type: integer
+      allOf:
+        - description: "swagger-parser infers string from the first value; the member declares no type."
+          enum: ['1', 2]
+    AnyMember:
+      type: boolean
+      anyOf:
+        - type: string
+        - description: "Untyped, so it fits."

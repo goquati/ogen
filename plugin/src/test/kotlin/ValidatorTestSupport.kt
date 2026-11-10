@@ -40,6 +40,9 @@ internal fun validatorConfigs(
 
 internal fun parsedSpec(spec: String): OpenAPI = validatorConfigs(spec).specs.single().parseResult.openAPI
 
+/** The spec without swagger-parser's inferred types, as the checks that compare types read it. */
+internal fun declaredTypesSpec(spec: String): OpenAPI = validatorConfigs(spec).specs.single().declaredTypesSpec!!
+
 /** The spec as the validator's messages name it. */
 internal fun specName(spec: String) = "spec '${validatorConfigs(spec).specs.single().inputConfig}'"
 
@@ -70,21 +73,27 @@ internal fun assertErrors(
     check: (OpenAPI) -> List<String>,
     expected: List<String>,
     validator: SpecsConfigBuilder.SpecConfingBuilder.ValidatorConfig.() -> Unit = {},
+    parse: (String) -> OpenAPI = ::parsedSpec,
 ) {
-    assertEquals(expected, check(parsedSpec(spec)))
+    assertEquals(expected, check(parse(spec)))
     assertValidationFails(spec, errorsMessage(spec, expected.size), validator)
 }
 
 /** Asserts the check's messages, and that validation fails on them with `failOnWarnings` only. */
-internal fun assertWarnings(spec: String, check: (OpenAPI) -> List<String>, expected: List<String>) {
-    assertEquals(expected, check(parsedSpec(spec)))
+internal fun assertWarnings(
+    spec: String,
+    check: (OpenAPI) -> List<String>,
+    expected: List<String>,
+    parse: (String) -> OpenAPI = ::parsedSpec,
+) {
+    assertEquals(expected, check(parse(spec)))
     validate(spec)
     assertValidationFails(spec, warningsMessage(spec)) { failOnWarnings = true }
 }
 
 /** Asserts that the check finds nothing and that the spec validates. */
-internal fun assertPasses(spec: String, check: (OpenAPI) -> List<String>) {
-    assertEquals(emptyList(), check(parsedSpec(spec)))
+internal fun assertPasses(spec: String, check: (OpenAPI) -> List<String>, parse: (String) -> OpenAPI = ::parsedSpec) {
+    assertEquals(emptyList(), check(parse(spec)))
     validate(spec)
 }
 

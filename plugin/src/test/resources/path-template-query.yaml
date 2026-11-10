@@ -1,0 +1,18 @@
+openapi: 3.0.3
+info:
+  title: Query strings in paths
+  description: "A path key with a query string, one with a fragment, and one with both."
+  version: 1.0.0
+paths:
+  /items?limit=1:
+    get:
+      responses:
+        '200': { description: OK }
+  /items#top:
+    get:
+      responses:
+        '200': { description: OK }
+  /pets?sort=name#top:
+    get:
+      responses:
+        '200': { description: OK }

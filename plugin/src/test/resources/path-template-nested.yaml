@@ -1,0 +1,10 @@
+openapi: 3.0.3
+info:
+  title: Nested path template
+  description: "A variable inside a variable, which swagger-parser rejects as an undeclared parameter named '{id'."
+  version: 1.0.0
+paths:
+  /carts/{{id}}:
+    get:
+      responses:
+        '200': { description: OK }

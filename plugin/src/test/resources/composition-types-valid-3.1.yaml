@@ -1,0 +1,19 @@
+openapi: 3.1.0
+info:
+  title: Composition types
+  description: "A type list fits when any of its types is shared."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Label:
+      type: [string, 'null']
+    NullOnly:
+      allOf:
+        - $ref: '#/components/schemas/Label'
+        - type: [integer, 'null']
+    Choice:
+      type: [object, 'null']
+      oneOf:
+        - type: 'null'
+        - type: string

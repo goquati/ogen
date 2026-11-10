@@ -1,0 +1,53 @@
+openapi: 3.1.0
+info:
+  title: Redundant bounds
+  description: "Both forms of a bound, where the tighter one applies and the other has no effect."
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            maximum: 100
+            exclusiveMaximum: 50
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Count:
+      type: integer
+      maximum: 10
+      exclusiveMaximum: 5
+    Range:
+      type: object
+      properties:
+        looserMinimum:
+          type: integer
+          minimum: 1
+          exclusiveMinimum: 5
+        looserExclusiveMinimum:
+          type: number
+          minimum: 5
+          exclusiveMinimum: 1
+        looserExclusiveMaximum:
+          type: number
+          maximum: 5
+          exclusiveMaximum: 10
+        equalMinimum:
+          type: integer
+          minimum: 3
+          exclusiveMinimum: 3
+        equalMaximum:
+          type: integer
+          maximum: 3
+          exclusiveMaximum: 3
+        both:
+          type: number
+          minimum: 0
+          exclusiveMinimum: 0.5
+          maximum: 9.5
+          exclusiveMaximum: 10

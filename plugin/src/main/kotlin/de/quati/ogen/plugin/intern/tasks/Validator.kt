@@ -3,6 +3,8 @@ package de.quati.ogen.plugin.intern.tasks
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.validation.ambiguousPathWarnings
+import de.quati.ogen.plugin.intern.validation.brokenPathTemplateErrors
+import de.quati.ogen.plugin.intern.validation.compositionTypeErrors
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
 import de.quati.ogen.plugin.intern.validation.defaultOutsideEnumErrors
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
@@ -13,8 +15,11 @@ import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
 import de.quati.ogen.plugin.intern.validation.operations
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
 import de.quati.ogen.plugin.intern.validation.patternWarnings
+import de.quati.ogen.plugin.intern.validation.queryOrFragmentInPathErrors
+import de.quati.ogen.plugin.intern.validation.redundantBoundWarnings
 import de.quati.ogen.plugin.intern.validation.successResponseWarnings
 import de.quati.ogen.plugin.intern.validation.trailingSlashWarnings
+import de.quati.ogen.plugin.intern.validation.typeKeywordWarnings
 import de.quati.ogen.plugin.intern.validation.undeclaredTagWarnings
 import de.quati.ogen.plugin.intern.validation.undefinedRequiredPropertyErrors
 import de.quati.ogen.plugin.intern.validation.undefinedSecuritySchemeErrors
@@ -58,7 +63,9 @@ internal class Validator(
 
             val spec = parseResult.openAPI
             val validationResult = spec.withLocationNames { evaluator.validate(spec) }
-            val ogenWarnings = if (spec == null) emptyList() else warningChecks.flatMap { it(spec) }
+            val declaredTypesSpec = if (spec == null) null else config.declaredTypesSpec
+            val ogenWarnings = spec?.let { s -> warningChecks.flatMap { it(s) } }.orEmpty() +
+                declaredTypesSpec?.let { s -> declaredTypeWarningChecks.flatMap { it(s) } }.orEmpty()
             val warnings = validationResult.warnings.map { it.format() } + ogenWarnings.map(::formatIssue)
 
             if (warnings.isNotEmpty()) {
@@ -70,6 +77,8 @@ internal class Validator(
                 logger.error("\nThe $specName is invalid.\nIssues:\n")
 
                 messages.forEach { logger.error(formatIssue(it)) }
+                // swagger-parser's message for a variable inside a variable names a parameter `{id`; ogen's names the path.
+                spec?.let { brokenPathTemplateErrors(it) }.orEmpty().forEach { logger.error(formatIssue(it)) }
 
                 validationResult.errors.forEach {
                     logger.error(it.format())
@@ -78,7 +87,8 @@ internal class Validator(
                 throw GradleException("Validation of the $specName failed.")
             }
 
-            val errors = namingConventionErrors(spec, validatorConfig) + errorChecks.flatMap { it(spec) }
+            val errors = namingConventionErrors(spec, validatorConfig) + errorChecks.flatMap { it(spec) } +
+                declaredTypesSpec?.let { s -> declaredTypeErrorChecks.flatMap { it(s) } }.orEmpty()
             if (errors.isNotEmpty()) {
                 logger.error("\nThe $specName is invalid.\nIssues:\n")
                 errors.forEach { logger.error(formatIssue(it)) }
@@ -96,6 +106,8 @@ internal class Validator(
 
         // ogen's own errors; they run once swagger-parser and openapi-generator found no errors.
         private val errorChecks: List<(OpenAPI) -> List<String>> = listOf(
+            ::brokenPathTemplateErrors,
+            ::queryOrFragmentInPathErrors,
             ::pathParameterErrors,
             ::identicalPathErrors,
             ::undefinedSecuritySchemeErrors,
@@ -114,6 +126,17 @@ internal class Validator(
             ::nullableWithoutTypeWarnings,
             ::patternWarnings,
             ::ambiguousPathWarnings,
+            ::redundantBoundWarnings,
+        )
+
+        // Errors that compare types; they read the spec as written, without swagger-parser's inferred types.
+        private val declaredTypeErrorChecks: List<(OpenAPI) -> List<String>> = listOf(
+            ::compositionTypeErrors,
+        )
+
+        // Warnings that compare types, read the same way.
+        private val declaredTypeWarningChecks: List<(OpenAPI) -> List<String>> = listOf(
+            ::typeKeywordWarnings,
         )
 
         // The evaluator's details name a schema by its `name` and an operation by its operationId, which

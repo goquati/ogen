@@ -1,0 +1,39 @@
+openapi: 3.1.0
+info:
+  title: Type keywords
+  description: "A keyword fits when any of the declared types takes it."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        id:
+          type: [string, integer]
+          maxLength: 20
+          minimum: 1
+        tags:
+          type: [array, 'null']
+          prefixItems:
+            - type: string
+          contains:
+            type: string
+          minContains: 1
+          unevaluatedItems: false
+        count:
+          type: integer
+          exclusiveMinimum: 0
+          exclusiveMaximum: 10
+        labels:
+          type: object
+          patternProperties:
+            '^x-':
+              type: string
+          propertyNames:
+            pattern: '^[a-z]+$'
+          unevaluatedProperties: false
+    Anything:
+      items:
+        type: string
+      maxLength: 3

@@ -1,0 +1,18 @@
+openapi: 3.0.3
+info:
+  title: Broken path templates
+  description: "An empty variable, an unclosed brace and a stray closing brace."
+  version: 1.0.0
+paths:
+  /items/{}:
+    get:
+      responses:
+        '200': { description: OK }
+  /orders/{id:
+    get:
+      responses:
+        '200': { description: OK }
+  /users/id}:
+    get:
+      responses:
+        '200': { description: OK }

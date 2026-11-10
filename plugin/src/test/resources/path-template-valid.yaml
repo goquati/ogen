@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info:
+  title: Valid path templates
+  description: "The root path, a plain variable, a custom method and a file extension next to a variable."
+  version: 1.0.0
+paths:
+  /:
+    get:
+      responses:
+        '200': { description: OK }
+  /items/{id}:
+    get:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+  /items/{id}:cancel:
+    post:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+  /files/{name}.json:
+    get:
+      parameters:
+        - { name: name, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }

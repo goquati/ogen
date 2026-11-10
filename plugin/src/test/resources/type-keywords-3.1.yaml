@@ -1,0 +1,44 @@
+openapi: 3.1.0
+info:
+  title: Type keywords
+  description: "Keywords that apply to none of the declared types, with 3.1's own keywords and type lists."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      items:
+        type: string
+      prefixItems:
+        - type: string
+      properties:
+        count:
+          type: [integer, 'null']
+          pattern: '^[0-9]+$'
+        nothing:
+          type: 'null'
+          maxLength: 3
+        tags:
+          type: array
+          patternProperties:
+            '^x-':
+              type: string
+          propertyNames:
+            pattern: '^[a-z]+$'
+          dependentSchemas:
+            a:
+              required: [b]
+          unevaluatedProperties: false
+          dependentRequired:
+            a: [b]
+        name:
+          type: string
+          contains:
+            type: string
+          minContains: 1
+          maxContains: 2
+          unevaluatedItems: false
+          exclusiveMinimum: 1
+          exclusiveMaximum: 5
+          multipleOf: 2

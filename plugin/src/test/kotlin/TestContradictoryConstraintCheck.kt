@@ -1,4 +1,5 @@
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
+import de.quati.ogen.plugin.intern.validation.redundantBoundWarnings
 import kotlin.test.Test
 
 class TestContradictoryConstraintCheck {
@@ -66,5 +67,29 @@ class TestContradictoryConstraintCheck {
     fun testConsistentConstraints() {
         assertPasses("consistent-constraints", ::contradictoryConstraintErrors)
         assertPasses("consistent-constraints-3.1", ::contradictoryConstraintErrors)
+    }
+
+    @Test
+    fun testRedundantBounds() {
+        assertWarnings(
+            "redundant-bounds-3.1", ::redundantBoundWarnings, listOf(
+                "maximum 10 has no effect next to exclusiveMaximum 5 in 'Count'",
+                "minimum 1 has no effect next to exclusiveMinimum 5 in 'Range.looserMinimum'",
+                "exclusiveMinimum 1 has no effect next to minimum 5 in 'Range.looserExclusiveMinimum'",
+                "exclusiveMaximum 10 has no effect next to maximum 5 in 'Range.looserExclusiveMaximum'",
+                "minimum 3 has no effect next to exclusiveMinimum 3 in 'Range.equalMinimum'",
+                "maximum 3 has no effect next to exclusiveMaximum 3 in 'Range.equalMaximum'",
+                "minimum 0 has no effect next to exclusiveMinimum 0.5 in 'Range.both'",
+                "exclusiveMaximum 10 has no effect next to maximum 9.5 in 'Range.both'",
+                "maximum 100 has no effect next to exclusiveMaximum 50 in '/items:GET.parameters.limit'",
+            )
+        )
+    }
+
+    @Test
+    fun testSingleBounds() {
+        assertPasses("redundant-bounds-valid-3.1", ::redundantBoundWarnings)
+        // 3.0's boolean `exclusiveMinimum` modifies `minimum` rather than adding a bound.
+        assertPasses("consistent-constraints", ::redundantBoundWarnings)
     }
 }

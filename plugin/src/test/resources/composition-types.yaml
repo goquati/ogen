@@ -1,0 +1,74 @@
+openapi: 3.0.3
+info:
+  title: Composition types
+  description: "Compositions whose types leave no value."
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            allOf:
+              - type: string
+              - type: boolean
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Owner:
+      type: object
+    Count:
+      type: integer
+    Mixed:
+      allOf:
+        - type: string
+        - type: integer
+    Three:
+      allOf:
+        - type: string
+        - type: integer
+        - type: boolean
+    Pet:
+      type: string
+      allOf:
+        - $ref: '#/components/schemas/Owner'
+    Choice:
+      type: object
+      oneOf:
+        - type: string
+        - type: integer
+    Either:
+      type: boolean
+      anyOf:
+        - $ref: '#/components/schemas/Count'
+        - type: string
+    NotNullable:
+      allOf:
+        - type: string
+          nullable: true
+        - type: integer
+    Alias:
+      $ref: '#/components/schemas/Count'
+    AliasOfAlias:
+      $ref: '#/components/schemas/Alias'
+    Chained:
+      type: string
+      allOf:
+        - $ref: '#/components/schemas/AliasOfAlias'
+    NullOnOneSide:
+      type: string
+      nullable: true
+      anyOf:
+        - type: integer
+    Wrapper:
+      type: object
+      properties:
+        owner:
+          allOf:
+            - $ref: '#/components/schemas/Owner'
+            - type: array
+              items:
+                type: string
