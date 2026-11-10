@@ -4,6 +4,10 @@ import kotlin.test.Test
 class TestEnumValueCheck {
     companion object {
         private const val CAST_HINT = " (swagger-parser also reads a value that is not a valid integer as null)"
+        private const val YAML_BOOLEAN_HINT =
+            " (swagger-parser may have made it: it reads unquoted yes, no, on and off as booleans; quote them)"
+        private const val BOOLEAN_CAST_HINT = " (swagger-parser may have made it: it reads unquoted yes, no, on and off as " +
+            "booleans, and casts every string of a boolean enum, where only 'true', in any case, becomes true)"
 
         private fun assertEnumErrors(spec: String, vararg expected: String) =
             assertErrors("enum-values-$spec", ::enumValueErrors, expected.toList())
@@ -70,6 +74,39 @@ class TestEnumValueCheck {
     @Test
     fun testDuplicateNull31() = assertEnumErrors("duplicate-null-3.1", "enum value null in 'Level' is listed more than once")
 
+    // The model can't show where a duplicate came from, so a literal one gets the hint too.
+    @Test
+    fun testDuplicateBooleanCast30() = assertEnumErrors(
+        "boolean-cast",
+        "enum value false in 'Flag' is listed more than once$BOOLEAN_CAST_HINT",
+        "enum value true in 'Flag' is listed more than once$BOOLEAN_CAST_HINT",
+        "enum value false in 'WordsOnly' is listed more than once$BOOLEAN_CAST_HINT",
+        "enum value true in 'Twice' is listed more than once$BOOLEAN_CAST_HINT",
+    )
+
+    @Test
+    fun testDuplicateBooleanCast31() = assertEnumErrors(
+        "boolean-cast-3.1",
+        "enum value false in 'Flag' is listed more than once$BOOLEAN_CAST_HINT",
+        "enum value true in 'Flag' is listed more than once$BOOLEAN_CAST_HINT",
+    )
+
+    @Test
+    fun testDuplicateYamlBoolean30() = assertEnumErrors(
+        "yaml-booleans",
+        "enum value false in 'Untyped' is listed more than once$YAML_BOOLEAN_HINT",
+        "enum value true in 'Untyped' is listed more than once$YAML_BOOLEAN_HINT",
+        "enum value 'true' in 'Words' is listed more than once$YAML_BOOLEAN_HINT",
+        "enum value 'false' in 'Words' is listed more than once$YAML_BOOLEAN_HINT",
+    )
+
+    @Test
+    fun testDuplicateYamlBoolean31() = assertEnumErrors(
+        "yaml-booleans-3.1",
+        "enum value false in 'Switch' is listed more than once$YAML_BOOLEAN_HINT",
+        "enum value true in 'Switch' is listed more than once$YAML_BOOLEAN_HINT",
+    )
+
     @Test
     fun testNestedProperty() =
         assertEnumErrors("nested-property", "enum value 'fast' in 'Item.nested.mode' is listed more than once")
@@ -135,6 +172,7 @@ class TestEnumValueCheck {
         assertEnumPasses("valid-3.1")
         assertEnumPasses("valid-nullable")
         assertEnumPasses("valid-nullable-3.1")
+        assertEnumPasses("valid-yaml-booleans-3.1")
         // swagger-parser infers the type from the first value; an untyped enum allows any value.
         assertEnumPasses("valid-untyped")
     }

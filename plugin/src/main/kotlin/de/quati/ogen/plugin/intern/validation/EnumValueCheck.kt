@@ -5,9 +5,18 @@ import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.media.Schema
 import java.math.BigDecimal
 
+// swagger-parser reads YAML 1.1; in YAML 1.2, which OpenAPI recommends, these words are strings.
+private const val YAML_BOOLEAN_HINT =
+    " (swagger-parser may have made it: it reads unquoted yes, no, on and off as booleans; quote them)"
+
+// The cast applies in 3.0 and 3.1 alike; '1' and 'y' become false too.
+private const val BOOLEAN_CAST_HINT = " (swagger-parser may have made it: it reads unquoted yes, no, on and off as " +
+    "booleans, and casts every string of a boolean enum, where only 'true', in any case, becomes true)"
+
 /**
  * Enum values that do not match their schema's type or are listed twice, as far as swagger-parser's model shows them:
- * it casts 3.0 values to the type (null if it can't), and types a 3.1 schema without `type` by its first value.
+ * it casts 3.0 values to the type (null if it can't), and types a 3.1 schema without `type` by its first value. A
+ * duplicate that swagger-parser's casts or its YAML 1.1 reading may have made names that cause.
  */
 internal fun enumValueErrors(spec: OpenAPI): List<String> {
     val isV31 = spec.specVersion == SpecVersion.V31
@@ -35,8 +44,16 @@ internal fun enumValueErrors(spec: OpenAPI): List<String> {
                     "enum value ${value.render()} in $where does not match the schema's type ${valueTypes.joinToString(" or ")}"
                 )
 
-                values.count { it.enumKey() == key } > 1 ->
-                    errors.add("enum value ${value.render()} in $where is listed more than once" + if (value == null) castHint else "")
+                values.count { it.enumKey() == key } > 1 -> errors.add(
+                    "enum value ${value.render()} in $where is listed more than once" + when {
+                        value == null -> castHint
+                        value is Boolean && valueTypes == setOf("boolean") -> BOOLEAN_CAST_HINT
+                        value is Boolean -> YAML_BOOLEAN_HINT
+                        // A 3.0 string schema casts a YAML 1.1 boolean to 'true' or 'false'.
+                        !isV31 && value in setOf("true", "false") && "string" in valueTypes -> YAML_BOOLEAN_HINT
+                        else -> ""
+                    }
+                )
 
                 else -> return@forEach
             }

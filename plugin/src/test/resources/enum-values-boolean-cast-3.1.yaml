@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info:
+  title: Enum values
+  description: "swagger-parser casts the strings of a boolean enum: 'FALSE' and '0' become false, 'True' becomes true."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Flag:
+      type: boolean
+      enum: ['0', 'FALSE', false, 'True', true]

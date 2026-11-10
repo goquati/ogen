@@ -1,0 +1,17 @@
+openapi: 3.0.3
+info:
+  title: Enum values
+  description: "swagger-parser casts the strings of a boolean enum and reads unquoted no and off as false; Twice lists true twice."
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Flag:
+      type: boolean
+      enum: ['0', 'FALSE', false, 'True', true]
+    WordsOnly:
+      type: boolean
+      enum: [false, no, off]
+    Twice:
+      type: boolean
+      enum: [true, true]
