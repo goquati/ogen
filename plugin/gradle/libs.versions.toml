@@ -7,7 +7,7 @@ quati-util = "2.6.1"
 poet = { module = "com.squareup:kotlinpoet", version.ref = "kotlinpoet" }
 goquati-base = { module = "de.quati:kotlin-util", version.ref = "quati-util" }
 goquati-poet = { module = "de.quati:kotlin-util-poet", version.ref = "quati-util" }
-swagger-parser = { module = "io.swagger.parser.v3:swagger-parser", version = "2.1.48" }
+swagger-parser = { module = "io.swagger.parser.v3:swagger-parser", version = "2.1.49" }
 swagger-generator = { module = "org.openapitools:openapi-generator", version = "7.27.0" }
 
 [plugins]
