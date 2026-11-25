@@ -5,8 +5,6 @@ extensions.configure<KotlinMultiplatformExtension> {
         jvmMain.dependencies {
             compileOnly(libs.spring.webflux)
             compileOnly(libs.spring.boot.autoconfigure)
-            compileOnly(libs.jakarta.validation.api)
-            implementation(libs.quati.base)
         }
     }
 }

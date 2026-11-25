@@ -10,8 +10,8 @@
 - **Kotlin Multiplatform**: Seamlessly works with KMP projects, generating code into the appropriate source sets.
 - **Spring Boot Support**: Generates server interfaces for Spring Boot (WebFlux).
 - **Ktor Client Support**: Generates Ktor clients (a Ktor server generator is planned).
-- **Request Validation**: Optionally generates Jakarta Bean Validation annotations from the schemas' validation
-  keywords for the Spring server.
+- **Bean Validation**: Optionally generates Jakarta Bean Validation annotations from the schemas' validation
+  keywords, for models (also in multiplatform code) and the Spring server.
 - **Multipart Requests**: Supports `multipart/form-data` request bodies, including file uploads, in the Spring server and the Ktor client.
 - **OpenAPI Validation**: Built-in validator to ensure your OpenAPI specs follow best practices and naming conventions.
 - **Highly Configurable**: Custom type mappings, schema mappings, and naming convention enforcement.
@@ -73,6 +73,8 @@ ogen {
             )
             // Map specific schemas to existing classes
             schemaMapping(schema = "UserId", clazz = "com.example.models.UserId")
+            // Optional: Annotate the properties with Jakarta Bean Validation constraints (a JVM target needs jakarta.validation-api)
+            beanValidation = true
         }
 
         // Optional: Generate Spring Boot server interfaces
@@ -83,7 +85,7 @@ ogen {
             contextIfAnySecurity("com.example.api.AuthContext")
             // Optional: Return typed ApiResponse classes instead of ResponseEntity (requires de.quati.ogen:server-spring)
             apiResponse = true
-            // Optional: Validate requests with Jakarta Bean Validation (requires spring-boot-starter-validation and de.quati.ogen:server-spring)
+            // Optional: Validate parameters and request bodies with Jakarta Bean Validation (requires spring-boot-starter-validation)
             beanValidation = true
         }
 
@@ -177,39 +179,24 @@ The responses are written by `ApiResponseResultHandler` (a WebFlux `HandlerResul
 is registered by Spring Boot auto-configuration in reactive web applications. To customize it, define your own
 `ApiResponseResultHandler` bean; without Spring Boot, register it manually.
 
-### Spring Boot Request Validation
+### Bean Validation
 
-With `beanValidation = true`, the validation keywords of the schemas become Jakarta Bean Validation annotations on the
-controller parameters and on the properties of the models generated for the same spec. Spring validates requests with
-them and answers invalid ones with `400 Bad Request`. This requires `spring-boot-starter-validation` and
-`de.quati.ogen:server-spring`, which registers a `ValueExtractor` for `Option`, so constraints apply to the values of
-optional properties.
+`model { beanValidation = true }` annotates the model properties with the Jakarta Bean Validation constraints of their
+schemas, and `serverSpringV4 { beanValidation = true }` the controller parameters; request bodies get `@Valid`.
+Spring then answers invalid requests with `400 Bad Request`. The properties of request bodies are only validated when
+the models carry the annotations, so the generator warns when only the server option is set. If the models are
+generated in another module, set `beanValidation` in its `model` block and in the server module's `model` block.
 
-| OpenAPI                                                   | Annotation                                            |
-|-----------------------------------------------------------|-------------------------------------------------------|
-| `minLength`, `maxLength` (strings)                        | `@Size`                                               |
-| `pattern` (strings)                                       | `@Pattern`                                            |
-| `format: email` (strings)                                 | `@Email`                                              |
-| `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` (integers) | `@Min`, `@Max`, with exclusive and fractional bounds rounded to inclusive integers |
-| `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` (numbers, and types mapped to `BigDecimal` or `BigInteger`) | `@DecimalMin`, `@DecimalMax` |
-| `minItems`, `maxItems` (arrays)                           | `@Size`                                               |
-| `minProperties`, `maxProperties` (maps)                   | `@Size`                                               |
-| properties, items or values of a generated object type    | `@Valid`                                              |
+The annotations come from `de.quati.ogen.core.validation`: on the JVM they are the Jakarta annotations, which needs
+`jakarta.validation:jakarta.validation-api` at compile time; on other platforms the compiler drops them, so models in
+common code can carry them. `de.quati.ogen:core` registers a value extractor, so constraints on optional (`Option`)
+properties apply to their values.
 
-```kotlin
-public suspend fun getItem(
-    @PathVariable(value = "itemId", required = true) @Size(min = 2, max = 5) @Pattern(regexp = "^[a-z]+$") itemId: String,
-    @RequestParam(value = "limit", required = false) @Min(value = 1L) @Max(value = 100L) limit: Int?,
-): ResponseEntity<ItemDto>
-
-public suspend fun createItem(@RequestBody @Valid itemDto: ItemDto): ResponseEntity<ItemDto>
-```
-
-OpenAPI patterns match anywhere in a string, `@Pattern` only whole strings, so a pattern not anchored with `^` and `$`
-is wrapped to match anywhere. The constraints of a schema that only defines a value class (e.g. a `string` with a
-`pattern` under `components.schemas`) are checked where it is used. Constraints on the items of arrays and on the
-values of maps are not checked, nor are `multipleOf` and `uniqueItems`. Models generated in another module (with
-`skipGeneration`) carry no annotations, so only the controller parameters themselves are validated.
+They check `minLength`, `maxLength`, `pattern` and `format: email` of strings, `minimum`, `maximum`,
+`exclusiveMinimum` and `exclusiveMaximum` of integers and numbers (also those mapped to `BigDecimal` or
+`BigInteger`), `minItems` and `maxItems` of arrays and `minProperties` and `maxProperties` of maps, and cascade into
+generated objects. Constraints on the items of arrays and the values of maps, `multipleOf` and `uniqueItems` are not
+checked.
 
 ## Tasks
 

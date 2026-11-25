@@ -125,6 +125,19 @@ internal object Poet {
         }
     }
 
+    /** Jakarta Bean Validation annotations, usable in multiplatform code. */
+    object Validation {
+        private const val PACKAGE = "de.quati.ogen.core.validation"
+        val valid = ClassName(PACKAGE, "Valid")
+        val size = ClassName(PACKAGE, "Size")
+        val pattern = ClassName(PACKAGE, "Pattern")
+        val email = ClassName(PACKAGE, "Email")
+        val min = ClassName(PACKAGE, "Min")
+        val max = ClassName(PACKAGE, "Max")
+        val decimalMin = ClassName(PACKAGE, "DecimalMin")
+        val decimalMax = ClassName(PACKAGE, "DecimalMax")
+    }
+
     object Spring {
         val configuration = buildAnnotationSpec("org.springframework.context.annotation", "Configuration")
         val restController = buildAnnotationSpec("org.springframework.web.bind.annotation", "RestController")
@@ -144,18 +157,6 @@ internal object Poet {
             Endpoint.Parameter.Type.HEADER -> "RequestHeader"
             Endpoint.Parameter.Type.COOKIE -> "CookieValue"
         }.let { ClassName("org.springframework.web.bind.annotation", it) }
-
-        object Validation {
-            private const val PACKAGE = "jakarta.validation.constraints"
-            val valid = ClassName("jakarta.validation", "Valid")
-            val size = ClassName(PACKAGE, "Size")
-            val pattern = ClassName(PACKAGE, "Pattern")
-            val email = ClassName(PACKAGE, "Email")
-            val min = ClassName(PACKAGE, "Min")
-            val max = ClassName(PACKAGE, "Max")
-            val decimalMin = ClassName(PACKAGE, "DecimalMin")
-            val decimalMax = ClassName(PACKAGE, "DecimalMax")
-        }
 
         object WebFlux {
             val webFluxConfigurer =

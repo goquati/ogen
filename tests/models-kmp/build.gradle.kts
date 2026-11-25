@@ -43,6 +43,14 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotest)
         }
+        jvmMain.dependencies {
+            // the Bean Validation annotations of the models are the Jakarta ones on the JVM
+            implementation("jakarta.validation:jakarta.validation-api:3.1.1")
+        }
+        jvmTest.dependencies {
+            implementation("org.hibernate.validator:hibernate-validator:9.1.5.Final")
+            implementation("org.glassfish.expressly:expressly:6.0.0")
+        }
     }
 
     compilerOptions {
@@ -64,6 +72,7 @@ ogen {
                 type = "string+date-time", clazz = "kotlin.time.Instant",
             )
             schemaMapping(schema = "UserId", clazz = "$group.UserId")
+            beanValidation = true
         }
     }
 }

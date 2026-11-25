@@ -25,7 +25,6 @@ dependencies {
     implementation(libs.bundles.kotlinx.coroutine)
     implementation(libs.bundles.kotlinx.serialization)
     implementation("de.quati.ogen:core:1.0.0-SNAPSHOT")
-    implementation("de.quati.ogen:server-spring:1.0.0-SNAPSHOT")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(kotlin("test"))
@@ -51,7 +50,9 @@ ogen {
         validator {
             failOnWarnings = true
         }
-        model {}
+        model {
+            beanValidation = true
+        }
         serverSpringV4 {
             beanValidation = true
         }

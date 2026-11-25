@@ -1,17 +1,34 @@
 import de.quati.ogen.plugin.SpecsConfigBuilder
 import de.quati.ogen.plugin.intern.tasks.Generator
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.lang.reflect.Proxy
 import java.nio.file.Path
 import kotlin.io.path.readText
 import kotlin.io.path.walk
 import kotlin.test.Test
 import kotlin.test.assertContains
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class TestBeanValidation {
-    private val logger = LoggerFactory.getLogger(TestBeanValidation::class.java)!!
+    private val delegate = LoggerFactory.getLogger(TestBeanValidation::class.java)!!
+    private val warnings = mutableListOf<String>()
 
-    private fun generate(spec: String, beanValidation: Boolean): Map<String, String> {
+    /** Records the warnings, logs everything. */
+    private val logger = Proxy.newProxyInstance(
+        Logger::class.java.classLoader,
+        arrayOf(Logger::class.java),
+    ) { _, method, args ->
+        if (method.name == "warn" && args?.firstOrNull() is String) warnings += args.first() as String
+        method.invoke(delegate, *(args ?: emptyArray()))
+    } as Logger
+
+    private fun generate(
+        spec: String,
+        modelBeanValidation: Boolean = true,
+        serverBeanValidation: Boolean = true,
+    ): Map<String, String> {
         val group = "de.quati.ogen.test"
         val configs = SpecsConfigBuilder().apply {
             utilPackageName("$group.gen.util")
@@ -20,8 +37,9 @@ class TestBeanValidation {
                 model {
                     typeMapping(type = "number+big-decimal", clazz = "java.math.BigDecimal")
                     typeMapping(type = "string+date-time", clazz = "java.time.OffsetDateTime")
+                    beanValidation = modelBeanValidation
                 }
-                serverSpringV4 { this.beanValidation = beanValidation }
+                serverSpringV4 { beanValidation = serverBeanValidation }
             }
         }.build()
         return TestGeneration.withTempDirectory(prefix = "test-bean-validation") { dir ->
@@ -35,7 +53,7 @@ class TestBeanValidation {
 
     @Test
     fun `parameters with OpenAPI 3_1 bounds`() {
-        val api = generate("bean-validation-3.1", beanValidation = true).file("ThingsApi.kt")
+        val api = generate("bean-validation-3.1").file("ThingsApi.kt")
         // exclusive integer bounds become inclusive ones
         assertContains(api, "@PathVariable(value = \"id\", required = true) @Min(value = 1L) id: Long")
         assertContains(api, "@DecimalMin(value = \"0.5\") @DecimalMax(value = \"2\", inclusive = false) ratio: Double?")
@@ -45,7 +63,7 @@ class TestBeanValidation {
 
     @Test
     fun `model properties`() {
-        val model = generate("bean-validation-3.1", beanValidation = true).file("ThingDto.kt")
+        val model = generate("bean-validation-3.1").file("ThingDto.kt")
         // of `minimum` and `exclusiveMinimum` at the same value, the exclusive one is tighter
         assertContains(model, "@field:DecimalMin( value = \"10\", inclusive = false, ) public val amount: BigDecimal")
         assertContains(model, "@field:Size(max = 4)")
@@ -55,14 +73,38 @@ class TestBeanValidation {
 
     @Test
     fun `no annotations without beanValidation`() {
-        val files = generate("bean-validation-3.1", beanValidation = false)
-        files.values.forEach { assertFalse(it.contains("jakarta.validation")) }
+        val files = generate("bean-validation-3.1", modelBeanValidation = false, serverBeanValidation = false)
+        files.values.forEach { assertFalse(it.contains("de.quati.ogen.core.validation")) }
+    }
+
+    @Test
+    fun `model and server flags are independent`() {
+        generate("bean-validation-3.1", serverBeanValidation = false).also {
+            assertContains(it.file("ThingDto.kt"), "@field:Size(max = 4)")
+            assertFalse(it.file("ThingsApi.kt").contains("de.quati.ogen.core.validation"))
+        }
+        generate("bean-validation-3.1", modelBeanValidation = false).also {
+            assertFalse(it.file("ThingDto.kt").contains("de.quati.ogen.core.validation"))
+            assertContains(it.file("ThingsApi.kt"), "@Min(value = 1L) id: Long")
+        }
+    }
+
+    @Test
+    fun `warning when the server validates bodies whose models have no annotations`() {
+        generate("bean-validation-3.1", modelBeanValidation = false)
+        assertEquals(1, warnings.count { "model { beanValidation = true }" in it })
+
+        warnings.clear()
+        generate("bean-validation-3.1")
+        generate("bean-validation-3.1", serverBeanValidation = false)
+        generate("bean-validation-3.1", modelBeanValidation = false, serverBeanValidation = false)
+        assertEquals(emptyList(), warnings.filter { "beanValidation" in it })
     }
 
     @Test
     fun `large specs generate`() {
         listOf("compute", "identity", "image", "network", "storage", "keycloak-26.0.8").forEach {
-            generate(it, beanValidation = true)
+            generate(it)
         }
     }
 }

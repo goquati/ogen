@@ -153,10 +153,10 @@ public open class SpecsConfigBuilder {
             public var apiResponse: Boolean = false
 
             /**
-             * Generates Jakarta Bean Validation annotations (`@Size`, `@Pattern`, `@Min`, `@DecimalMax`, `@Email`,
-             * `@Valid`, ...) from the schemas' validation keywords on the controller parameters and the models of
-             * this spec, so Spring validates requests and answers invalid ones with `400 Bad Request`.
-             * Requires `spring-boot-starter-validation` and the `de.quati.ogen:server-spring` library.
+             * Annotates the controller parameters with the Jakarta Bean Validation constraints of their schemas and
+             * request bodies with `@Valid`, so Spring answers invalid requests with `400 Bad Request`. The properties
+             * of the bodies are only checked if the models are generated with `model { beanValidation = true }`.
+             * Requires `spring-boot-starter-validation`.
              */
             public var beanValidation: Boolean = false
             private var contextIfAnySecurity: ClassName? = null
@@ -193,6 +193,13 @@ public open class SpecsConfigBuilder {
             public var skipGeneration: Boolean = false
             public var postfix: String = "Dto"
 
+            /**
+             * Annotates the model properties with the Jakarta Bean Validation constraints of their schemas, using the
+             * multiplatform annotations of `de.quati.ogen:core`: on the JVM they are the Jakarta annotations, on
+             * other platforms the compiler drops them. A JVM target needs `jakarta.validation:jakarta.validation-api`.
+             */
+            public var beanValidation: Boolean = false
+
             public fun typeMapping(
                 type: String,
                 clazz: String,
@@ -221,6 +228,7 @@ public open class SpecsConfigBuilder {
             internal fun build() = GeneratorConfig.Model(
                 packageName = packageName?.let(::PackageName) ?: error("packageName is required for model code"),
                 skipGeneration = skipGeneration,
+                beanValidation = beanValidation,
                 typeMappings = typeMappings,
                 schemaMappings = schemaMappings,
                 postfix = postfix,

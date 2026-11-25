@@ -1,4 +1,4 @@
-package de.quati.ogen.server.spring;
+package de.quati.ogen.core.validation;
 
 import de.quati.kotlin.util.Option;
 import jakarta.validation.valueextraction.ExtractedValue;

@@ -8,6 +8,7 @@ import de.quati.ogen.plugin.intern.codegen.generator.sync
 import de.quati.ogen.plugin.intern.codegen.util.syncModelUtils
 import de.quati.ogen.plugin.intern.codegen.util.syncServerSpringV4Utils
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
+import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import org.slf4j.Logger
 import java.nio.file.Path
@@ -23,6 +24,7 @@ internal class Generator(
         with(GlobalGenContext(specConfigs = configs)) {
             configs.specs.forEach { config ->
                 Validator.validate(config = config, logger = logger)
+                warnIfBodiesAreNotValidated(config)
                 with(config.toCodeGenContext()) {
                     config.generatorConfigs.forEach { generatorConfig ->
                         generate(config = generatorConfig)
@@ -33,6 +35,22 @@ internal class Generator(
             syncModelUtils()
             syncServerSpringV4Utils()
         }
+    }
+
+    /**
+     * `@Valid` on a request body only checks the properties of the models when they carry the annotations, which
+     * the server generator can't add itself.
+     */
+    private fun warnIfBodiesAreNotValidated(config: SpecConfig) {
+        val serverValidates = config.generatorConfigs
+            .any { it is GeneratorConfig.ServerSpringV4 && it.beanValidation }
+        if (!serverValidates || config.modelConfig.beanValidation) return
+        logger.warn(
+            "ogen: serverSpringV4 { beanValidation = true } without model { beanValidation = true } for " +
+                "'${config.modelConfig.packageName}': the properties of request bodies are not validated. " +
+                "If the models are generated in another module (skipGeneration = true), set beanValidation " +
+                "there and here."
+        )
     }
 
     context(_: CodeGenContext)

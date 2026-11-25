@@ -9,13 +9,19 @@ import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 import java.math.BigDecimal
 import java.math.RoundingMode
 
-/** Whether the code of this spec carries Jakarta Bean Validation annotations. */
+/** Whether the models of this spec carry Jakarta Bean Validation annotations. */
 context(c: CodeGenContext)
-internal val beanValidationEnabled: Boolean
+internal val modelBeanValidation: Boolean
+    get() = c.specConfig.modelConfig.beanValidation
+
+/** Whether the Spring controller parameters of this spec carry Jakarta Bean Validation annotations. */
+context(c: CodeGenContext)
+internal val serverBeanValidation: Boolean
     get() = c.specConfig.generatorConfigs.any { it is GeneratorConfig.ServerSpringV4 && it.beanValidation }
 
 /**
- * The Jakarta Bean Validation annotations that check a value of this schema, without use-site target.
+ * The Jakarta Bean Validation annotations that check a value of this schema, without use-site target; the
+ * multiplatform ones of `de.quati.ogen:core`, which are the Jakarta annotations on the JVM.
  *
  * A value class is only a class of its own on the JVM when it is boxed; otherwise the JVM holds the wrapped value.
  * Its constraints are then put on the value itself, and for a boxed one `@Valid` cascades into the value class,
@@ -29,7 +35,6 @@ internal fun Component.Schema.validationAnnotations(
     nullable: Boolean,
     inContainer: Boolean,
 ): List<AnnotationSpec> {
-    if (!beanValidationEnabled) return emptyList()
     val mapping = getMappingOrNull()
     if (mapping != null) return when (this) {
         is Component.Schema.Primitiv -> constraints.numberAnnotations(mapping.className(), integral = false)
@@ -107,7 +112,7 @@ private fun Component.Schema.Primitiv.primitiveAnnotations(): List<AnnotationSpe
         Type.PrimitiveType.String -> buildList {
             addIfNotNull(sizeAnnotation(constraints.minLength, constraints.maxLength))
             constraints.pattern?.also { add(patternAnnotation(it)) }
-            if (format == "email") add(AnnotationSpec.builder(Poet.Spring.Validation.email).build())
+            if (format == "email") add(AnnotationSpec.builder(Poet.Validation.email).build())
         }
 
         Type.PrimitiveType.Int, Type.PrimitiveType.Long ->
@@ -130,12 +135,12 @@ private fun Constraints.numberAnnotations(type: ClassName, integral: Boolean): L
         return emptyList()
     return listOfNotNull(
         minimum?.let { bound ->
-            if (integral) integralBound(Poet.Spring.Validation.min, bound.integralMin())
-            else decimalBound(Poet.Spring.Validation.decimalMin, bound)
+            if (integral) integralBound(Poet.Validation.min, bound.integralMin())
+            else decimalBound(Poet.Validation.decimalMin, bound)
         },
         maximum?.let { bound ->
-            if (integral) integralBound(Poet.Spring.Validation.max, bound.integralMax())
-            else decimalBound(Poet.Spring.Validation.decimalMax, bound)
+            if (integral) integralBound(Poet.Validation.max, bound.integralMax())
+            else decimalBound(Poet.Validation.decimalMax, bound)
         },
     )
 }
@@ -167,7 +172,7 @@ private fun decimalBound(annotation: ClassName, bound: Constraints.Bound) =
 
 private fun sizeAnnotation(min: Int?, max: Int?): AnnotationSpec? {
     if (min == null && max == null) return null
-    return AnnotationSpec.builder(Poet.Spring.Validation.size).apply {
+    return AnnotationSpec.builder(Poet.Validation.size).apply {
         if (min != null) addMember("min = %L", min)
         if (max != null) addMember("max = %L", max)
     }.build()
@@ -180,10 +185,10 @@ private fun sizeAnnotation(min: Int?, max: Int?): AnnotationSpec? {
 private fun patternAnnotation(pattern: String): AnnotationSpec {
     val anchored = pattern.startsWith("^") && pattern.endsWith("$") && !pattern.endsWith("\\$")
     val regexp = if (anchored) pattern else "[\\s\\S]*(?:$pattern)[\\s\\S]*"
-    return AnnotationSpec.builder(Poet.Spring.Validation.pattern).addMember("regexp = %S", regexp).build()
+    return AnnotationSpec.builder(Poet.Validation.pattern).addMember("regexp = %S", regexp).build()
 }
 
-private val validAnnotation = AnnotationSpec.builder(Poet.Spring.Validation.valid).build()
+private val validAnnotation = AnnotationSpec.builder(Poet.Validation.valid).build()
 
 private fun <T : Any> MutableList<T>.addIfNotNull(value: T?) {
     if (value != null) add(value)
