@@ -54,6 +54,7 @@ internal sealed interface Component {
         sealed interface Primitiv : Schema {
             val type: Type
             val format: String?
+            val constraints: Constraints
             override val typeWithFormat get() = TypeWithFormat(type = type.name.lowercase(), format = format)
 
             data class Value(
@@ -61,14 +62,16 @@ internal sealed interface Component {
                 override val type: Type,
                 override val format: String?,
                 override val isNullable: Boolean,
+                override val constraints: Constraints = Constraints.NONE,
             ) : Primitiv, Schema.Value {
-                override fun toInline() = Inline(type, format, isNullable)
+                override fun toInline() = Inline(type, format, isNullable, constraints)
             }
 
             data class Inline(
                 override val type: Type,
                 override val format: String?,
                 override val isNullable: Boolean,
+                override val constraints: Constraints = Constraints.NONE,
             ) : Primitiv, Schema.Inline {
                 override val ref = null
             }
@@ -116,20 +119,23 @@ internal sealed interface Component {
 
         sealed interface MapS : Schema {
             val valueSchema: Schema.Inline
+            val constraints: Constraints
 
             data class Value(
                 override val name: ComponentName.Schema,
                 override val valueSchema: Schema.Inline,
                 override val isNullable: Boolean,
                 override val typeWithFormat: TypeWithFormat?,
+                override val constraints: Constraints = Constraints.NONE,
             ) : MapS, Schema.Value {
-                override fun toInline() = Inline(valueSchema, isNullable, typeWithFormat)
+                override fun toInline() = Inline(valueSchema, isNullable, typeWithFormat, constraints)
             }
 
             data class Inline(
                 override val valueSchema: Schema.Inline,
                 override val isNullable: Boolean,
                 override val typeWithFormat: TypeWithFormat?,
+                override val constraints: Constraints = Constraints.NONE,
             ) : MapS, Schema.Inline {
                 override val ref = null
             }
@@ -137,20 +143,23 @@ internal sealed interface Component {
 
         sealed interface Array : Schema {
             val items: Schema.Inline
+            val constraints: Constraints
 
             data class Value(
                 override val name: ComponentName.Schema,
                 override val items: Schema.Inline,
                 override val isNullable: Boolean,
                 override val typeWithFormat: TypeWithFormat?,
+                override val constraints: Constraints = Constraints.NONE,
             ) : Array, Schema.Value {
-                override fun toInline() = Inline(items, isNullable, typeWithFormat)
+                override fun toInline() = Inline(items, isNullable, typeWithFormat, constraints)
             }
 
             data class Inline(
                 override val items: Schema.Inline,
                 override val isNullable: Boolean,
                 override val typeWithFormat: TypeWithFormat?,
+                override val constraints: Constraints = Constraints.NONE,
             ) : Array, Schema.Inline {
                 override val ref = null
             }

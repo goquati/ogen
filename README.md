@@ -10,6 +10,8 @@
 - **Kotlin Multiplatform**: Seamlessly works with KMP projects, generating code into the appropriate source sets.
 - **Spring Boot Support**: Generates server interfaces for Spring Boot (WebFlux).
 - **Ktor Client Support**: Generates Ktor clients (a Ktor server generator is planned).
+- **Request Validation**: Optionally generates Jakarta Bean Validation annotations from the schemas' validation
+  keywords for the Spring server.
 - **Multipart Requests**: Supports `multipart/form-data` request bodies, including file uploads, in the Spring server and the Ktor client.
 - **OpenAPI Validation**: Built-in validator to ensure your OpenAPI specs follow best practices and naming conventions.
 - **Highly Configurable**: Custom type mappings, schema mappings, and naming convention enforcement.
@@ -81,6 +83,8 @@ ogen {
             contextIfAnySecurity("com.example.api.AuthContext")
             // Optional: Return typed ApiResponse classes instead of ResponseEntity (requires de.quati.ogen:server-spring)
             apiResponse = true
+            // Optional: Validate requests with Jakarta Bean Validation (requires spring-boot-starter-validation and de.quati.ogen:server-spring)
+            beanValidation = true
         }
 
         // Optional: Generate Ktor Client
@@ -172,6 +176,40 @@ sealed interface GetUserResponse : ApiResponse {
 The responses are written by `ApiResponseResultHandler` (a WebFlux `HandlerResultHandler`) from `server-spring`, which
 is registered by Spring Boot auto-configuration in reactive web applications. To customize it, define your own
 `ApiResponseResultHandler` bean; without Spring Boot, register it manually.
+
+### Spring Boot Request Validation
+
+With `beanValidation = true`, the validation keywords of the schemas become Jakarta Bean Validation annotations on the
+controller parameters and on the properties of the models generated for the same spec. Spring validates requests with
+them and answers invalid ones with `400 Bad Request`. This requires `spring-boot-starter-validation` and
+`de.quati.ogen:server-spring`, which registers a `ValueExtractor` for `Option`, so constraints apply to the values of
+optional properties.
+
+| OpenAPI                                                   | Annotation                                            |
+|-----------------------------------------------------------|-------------------------------------------------------|
+| `minLength`, `maxLength` (strings)                        | `@Size`                                               |
+| `pattern` (strings)                                       | `@Pattern`                                            |
+| `format: email` (strings)                                 | `@Email`                                              |
+| `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` (integers) | `@Min`, `@Max`, with exclusive and fractional bounds rounded to inclusive integers |
+| `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` (numbers, and types mapped to `BigDecimal` or `BigInteger`) | `@DecimalMin`, `@DecimalMax` |
+| `minItems`, `maxItems` (arrays)                           | `@Size`                                               |
+| `minProperties`, `maxProperties` (maps)                   | `@Size`                                               |
+| properties, items or values of a generated object type    | `@Valid`                                              |
+
+```kotlin
+public suspend fun getItem(
+    @PathVariable(value = "itemId", required = true) @Size(min = 2, max = 5) @Pattern(regexp = "^[a-z]+$") itemId: String,
+    @RequestParam(value = "limit", required = false) @Min(value = 1L) @Max(value = 100L) limit: Int?,
+): ResponseEntity<ItemDto>
+
+public suspend fun createItem(@RequestBody @Valid itemDto: ItemDto): ResponseEntity<ItemDto>
+```
+
+OpenAPI patterns match anywhere in a string, `@Pattern` only whole strings, so a pattern not anchored with `^` and `$`
+is wrapped to match anywhere. The constraints of a schema that only defines a value class (e.g. a `string` with a
+`pattern` under `components.schemas`) are checked where it is used. Constraints on the items of arrays and on the
+values of maps are not checked, nor are `multipleOf` and `uniqueItems`. Models generated in another module (with
+`skipGeneration`) carry no annotations, so only the controller parameters themselves are validated.
 
 ## Tasks
 

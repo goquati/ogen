@@ -46,7 +46,7 @@ internal fun Component.Schema.Ref.resolveAlias(): Component.Schema.Ref {
 }
 
 context(c: CodeGenContext)
-private fun Component.Schema.getMappingOrNull(): Type.NonPrimitiveType.Custom? {
+internal fun Component.Schema.getMappingOrNull(): Type.NonPrimitiveType.Custom? {
     if (this is Component.Schema.Ref) {
         val chain = aliasChain()
         chain.firstNotNullOfOrNull { c.schemaMappings[it.name] }?.also { return it }
@@ -243,6 +243,11 @@ private fun Component.Schema.Value.generateValueClassTypeSpec(): TypeSpec = buil
         addParameter(valueName, type.poet)
         addProperty(valueName, type.poet) {
             initializer(valueName)
+            addAnnotations(
+                this@generateValueClassTypeSpec.toInline()
+                    .validationAnnotations(nullable = false, inContainer = false)
+                    .onField()
+            )
         }
     }
     addFunction("toString") {
@@ -370,6 +375,12 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
                 }
                 addProperty(prettyFieldName, propType.poet) {
                     initializer(prettyFieldName)
+                    addAnnotations(
+                        prop.validationAnnotations(
+                            nullable = prop.isNullableResolved(),
+                            inContainer = !isRequired,
+                        ).onField()
+                    )
                     val propSerializer = propType.type.getSerializerTypeName(register = true)
                     if (propSerializer != null)
                         addAnnotation(Poet.serializable(propSerializer))

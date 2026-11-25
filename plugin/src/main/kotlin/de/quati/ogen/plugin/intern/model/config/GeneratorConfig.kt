@@ -26,6 +26,7 @@ internal sealed interface GeneratorConfig {
         val contextIfAnySecurity: ClassName?,
         val addOperationContext: Boolean,
         val apiResponse: Boolean,
+        val beanValidation: Boolean,
     ) : GeneratorConfig
 
     data class ClientKtor(

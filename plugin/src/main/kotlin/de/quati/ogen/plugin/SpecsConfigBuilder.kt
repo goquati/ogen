@@ -151,6 +151,14 @@ public open class SpecsConfigBuilder {
              * Requires the `de.quati.ogen:server-spring` library.
              */
             public var apiResponse: Boolean = false
+
+            /**
+             * Generates Jakarta Bean Validation annotations (`@Size`, `@Pattern`, `@Min`, `@DecimalMax`, `@Email`,
+             * `@Valid`, ...) from the schemas' validation keywords on the controller parameters and the models of
+             * this spec, so Spring validates requests and answers invalid ones with `400 Bad Request`.
+             * Requires `spring-boot-starter-validation` and the `de.quati.ogen:server-spring` library.
+             */
+            public var beanValidation: Boolean = false
             private var contextIfAnySecurity: ClassName? = null
 
             public fun contextIfAnySecurity(type: String): ServerSpringV4Config =
@@ -161,6 +169,7 @@ public open class SpecsConfigBuilder {
                 postfix = postfix,
                 addOperationContext = addOperationContext,
                 apiResponse = apiResponse,
+                beanValidation = beanValidation,
                 contextIfAnySecurity = contextIfAnySecurity,
                 skipGeneration = false,
             )

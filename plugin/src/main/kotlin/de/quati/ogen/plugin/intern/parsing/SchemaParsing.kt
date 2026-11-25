@@ -2,6 +2,7 @@ package de.quati.ogen.plugin.intern.parsing
 
 import de.quati.kotlin.util.poet.toCamelCase
 import de.quati.ogen.plugin.intern.model.Component
+import de.quati.ogen.plugin.intern.model.Constraints
 import de.quati.ogen.plugin.intern.model.RefString
 import de.quati.ogen.plugin.intern.model.Spec
 import de.quati.ogen.plugin.intern.model.TypeWithFormat
@@ -47,9 +48,10 @@ private fun createPrimitive(
     type: Component.Schema.Primitiv.Type,
     format: String?,
     isNullable: Boolean,
+    constraints: Constraints,
 ) = when (location.isValueSchema()) {
-    true -> Component.Schema.Primitiv.Value(location.name, type, format, isNullable)
-    false -> Component.Schema.Primitiv.Inline(type, format, isNullable)
+    true -> Component.Schema.Primitiv.Value(location.name, type, format, isNullable, constraints)
+    false -> Component.Schema.Primitiv.Inline(type, format, isNullable, constraints)
 }
 
 private fun createArray(
@@ -57,9 +59,10 @@ private fun createArray(
     items: Component.Schema.Inline,
     isNullable: Boolean,
     typeWithFormat: TypeWithFormat?,
+    constraints: Constraints,
 ) = when (location.isValueSchema()) {
-    true -> Component.Schema.Array.Value(location.name, items, isNullable, typeWithFormat)
-    false -> Component.Schema.Array.Inline(items, isNullable, typeWithFormat)
+    true -> Component.Schema.Array.Value(location.name, items, isNullable, typeWithFormat, constraints)
+    false -> Component.Schema.Array.Inline(items, isNullable, typeWithFormat, constraints)
 }
 
 private fun createMap(
@@ -67,10 +70,33 @@ private fun createMap(
     valueSchema: Component.Schema.Inline,
     isNullable: Boolean,
     typeWithFormat: TypeWithFormat?,
+    constraints: Constraints,
 ) = when (location.isValueSchema()) {
-    true -> Component.Schema.MapS.Value(location.name, valueSchema, isNullable, typeWithFormat)
-    false -> Component.Schema.MapS.Inline(valueSchema, isNullable, typeWithFormat)
+    true -> Component.Schema.MapS.Value(location.name, valueSchema, isNullable, typeWithFormat, constraints)
+    false -> Component.Schema.MapS.Inline(valueSchema, isNullable, typeWithFormat, constraints)
 }
+
+/**
+ * The validation keywords of this schema. In OpenAPI 3.0 `exclusiveMinimum` and `exclusiveMaximum` are flags
+ * on `minimum` and `maximum`; in 3.1 they are bounds of their own, of which the tighter one counts.
+ */
+private fun io.swagger.v3.oas.models.media.Schema<*>.toConstraints() = Constraints(
+    minLength = minLength,
+    maxLength = maxLength,
+    pattern = pattern,
+    minimum = Constraints.tighterMinimum(
+        minimum?.let { Constraints.Bound(it, inclusive = exclusiveMinimum != true) },
+        exclusiveMinimumValue?.let { Constraints.Bound(it, inclusive = false) },
+    ),
+    maximum = Constraints.tighterMaximum(
+        maximum?.let { Constraints.Bound(it, inclusive = exclusiveMaximum != true) },
+        exclusiveMaximumValue?.let { Constraints.Bound(it, inclusive = false) },
+    ),
+    minItems = minItems,
+    maxItems = maxItems,
+    minProperties = minProperties,
+    maxProperties = maxProperties,
+)
 
 private fun io.swagger.v3.oas.models.media.Schema<*>.toUnknown(location: SchemaLocation) = createUnknown(
     location = location,
@@ -194,7 +220,8 @@ internal fun io.swagger.v3.oas.models.media.Schema<*>.parse(
                             false -> location.updateLast { "${it}Value" }
                         },
                     ),
-                    typeWithFormat = toTypeWithFormatOrNull()
+                    typeWithFormat = toTypeWithFormatOrNull(),
+                    constraints = toConstraints(),
                 )
             }
 
@@ -209,7 +236,8 @@ internal fun io.swagger.v3.oas.models.media.Schema<*>.parse(
                             false -> location.updateLast { "${it}Item" }
                         },
                     ),
-                    typeWithFormat = toTypeWithFormatOrNull()
+                    typeWithFormat = toTypeWithFormatOrNull(),
+                    constraints = toConstraints(),
                 )
             }
 
@@ -223,6 +251,7 @@ internal fun io.swagger.v3.oas.models.media.Schema<*>.parse(
                     type = typeE,
                     format = format,
                     isNullable = isNullable(),
+                    constraints = toConstraints(),
                 )
             }
         }

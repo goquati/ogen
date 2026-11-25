@@ -27,6 +27,7 @@ import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.codegen.getTypeName
 import de.quati.ogen.plugin.intern.codegen.oGenCapitalize
+import de.quati.ogen.plugin.intern.codegen.validationAnnotations
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Endpoint
 import de.quati.ogen.plugin.intern.model.HttpCode
@@ -128,6 +129,9 @@ private fun TypeSpec.Builder.createController(
                         addMember("value = %S", parameter.name)
                         addMember("required = %L", !parameter.isNullable)
                     }
+                    addAnnotations(
+                        parameter.schema.validationAnnotations(nullable = parameter.isNullable, inContainer = false)
+                    )
                 }
             when {
                 requestBody == null -> Unit
@@ -141,6 +145,10 @@ private fun TypeSpec.Builder.createController(
                             addMember("value = %S", part.name)
                             addMember("required = %L", part.required)
                         }
+                        if (part.file == Endpoint.Part.File.NONE)
+                            addAnnotations(
+                                part.schema.validationAnnotations(nullable = !part.required, inContainer = false)
+                            )
                     }
                 }
 
@@ -153,6 +161,12 @@ private fun TypeSpec.Builder.createController(
                     },
                 ) {
                     addAnnotation(Poet.Spring.requestBody)
+                    if (requestBody.contentType is ContentType.Json)
+                        requestBody.schema?.also { schema ->
+                            addAnnotations(
+                                schema.validationAnnotations(nullable = !requestBody.required, inContainer = false)
+                            )
+                        }
                 }
             }
 

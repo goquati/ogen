@@ -145,6 +145,18 @@ internal object Poet {
             Endpoint.Parameter.Type.COOKIE -> "CookieValue"
         }.let { ClassName("org.springframework.web.bind.annotation", it) }
 
+        object Validation {
+            private const val PACKAGE = "jakarta.validation.constraints"
+            val valid = ClassName("jakarta.validation", "Valid")
+            val size = ClassName(PACKAGE, "Size")
+            val pattern = ClassName(PACKAGE, "Pattern")
+            val email = ClassName(PACKAGE, "Email")
+            val min = ClassName(PACKAGE, "Min")
+            val max = ClassName(PACKAGE, "Max")
+            val decimalMin = ClassName(PACKAGE, "DecimalMin")
+            val decimalMax = ClassName(PACKAGE, "DecimalMax")
+        }
+
         object WebFlux {
             val webFluxConfigurer =
                 ClassName("org.springframework.web.reactive.config", "WebFluxConfigurer")
