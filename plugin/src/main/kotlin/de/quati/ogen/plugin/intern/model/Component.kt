@@ -44,6 +44,19 @@ internal sealed interface Component {
             Null -> this
         }
 
+        /** This schema without the validation keywords of it and of its inline items and values. */
+        fun withoutConstraints(): Schema = when (this) {
+            is Primitiv.Inline -> copy(constraints = Constraints.NONE)
+            is Primitiv.Value -> copy(constraints = Constraints.NONE)
+            is Array.Inline -> copy(constraints = Constraints.NONE, items = items.withoutConstraints() as Inline)
+            is Array.Value -> copy(constraints = Constraints.NONE, items = items.withoutConstraints() as Inline)
+            is MapS.Inline ->
+                copy(constraints = Constraints.NONE, valueSchema = valueSchema.withoutConstraints() as Inline)
+            is MapS.Value ->
+                copy(constraints = Constraints.NONE, valueSchema = valueSchema.withoutConstraints() as Inline)
+            else -> this
+        }
+
         data class EnumString(
             val values: List<String>,
             override val name: ComponentName.Schema,

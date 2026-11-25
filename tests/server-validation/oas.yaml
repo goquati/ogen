@@ -124,8 +124,54 @@ paths:
               schema:
                 type: integer
                 format: int32
+  /api/edge-cases:
+    get:
+      tags:
+        - items
+      summary: Edge cases
+      description: Accepts parameters with edge-case constraints.
+      operationId: getEdgeCases
+      parameters:
+        - name: startOrEnd
+          in: query
+          description: Starts with 'foo' or ends with 'bar'.
+          schema:
+            type: string
+            pattern: '^foo|bar$'
+        - name: smallest
+          in: query
+          description: Bounded below by the smallest long.
+          schema:
+            type: integer
+            format: int64
+            minimum: -9223372036854775808
+        - name: beyondLong
+          in: query
+          description: Bounded below beyond the range of long, so no value is valid.
+          schema:
+            type: integer
+            format: int64
+            minimum: 10000000000000000000
+        - name: amount
+          in: query
+          description: A non-negative amount, referring to a type-mapped schema.
+          schema:
+            $ref: '#/components/schemas/Amount'
+      responses:
+        '204':
+          description: valid parameters
 components:
   schemas:
+    Amount:
+      description: A non-negative amount.
+      type: number
+      format: big-decimal
+      minimum: 0
+    Tree:
+      description: A tree of trees, which contains itself.
+      type: array
+      items:
+        $ref: '#/components/schemas/Tree'
     Code:
       description: Three upper-case letters.
       type: string
@@ -193,3 +239,5 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Child'
+        tree:
+          $ref: '#/components/schemas/Tree'

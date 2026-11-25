@@ -1,0 +1,72 @@
+openapi: 3.0.3
+info:
+  title: bean validation edge cases
+  version: 1.0.0
+paths:
+  /leaves:
+    get:
+      operationId: getLeaves
+      tags:
+        - leaves
+      responses:
+        '200':
+          description: leaves
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Leaf'
+        '201':
+          description: at most ten leaves
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 10
+                items:
+                  $ref: '#/components/schemas/Leaf'
+components:
+  schemas:
+    Leaf:
+      type: object
+      properties:
+        name:
+          type: string
+    Tree:
+      type: array
+      items:
+        $ref: '#/components/schemas/Tree'
+    Node:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/Node'
+    Amount:
+      type: number
+      format: big-decimal
+      minimum: 0
+    Edge:
+      type: object
+      properties:
+        amount:
+          $ref: '#/components/schemas/Amount'
+        startOrEnd:
+          type: string
+          pattern: '^foo|bar$'
+        anchored:
+          type: string
+          pattern: '^[a-z]+$'
+        groupedAlternation:
+          type: string
+          pattern: '^(foo|bar)$'
+        escapedDollar:
+          type: string
+          pattern: '^foo\$'
+        smallest:
+          type: integer
+          format: int64
+          minimum: -9223372036854775808
+        beyondLong:
+          type: integer
+          format: int64
+          minimum: 10000000000000000000

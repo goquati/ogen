@@ -4,6 +4,7 @@ import de.quati.ogen.gen.model.CodeDto
 import de.quati.ogen.gen.model.ItemDto
 import de.quati.ogen.gen.server.ItemsApi
 import org.springframework.http.ResponseEntity
+import java.math.BigDecimal
 import org.springframework.stereotype.Service
 
 @Service
@@ -22,6 +23,13 @@ class ItemsController : ItemsApi {
     )
 
     override suspend fun createItem(itemDto: ItemDto) = ResponseEntity.ok(itemDto)
+
+    override suspend fun getEdgeCases(
+        startOrEnd: String?,
+        smallest: Long?,
+        beyondLong: Long?,
+        amount: BigDecimal?,
+    ): ResponseEntity<Unit> = ResponseEntity.noContent().build()
 
     override suspend fun createItems(listItemDto: List<ItemDto>) = ResponseEntity.ok(listItemDto.size)
 }

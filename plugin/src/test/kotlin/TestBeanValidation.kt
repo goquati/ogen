@@ -102,6 +102,46 @@ class TestBeanValidation {
     }
 
     @Test
+    fun `responses differing only in validation keywords have one type`() {
+        listOf(true, false).forEach { enabled ->
+            val api = generate("bean-validation-edge-cases", modelBeanValidation = enabled, serverBeanValidation = enabled)
+                .file("LeavesApi.kt")
+            assertContains(api, "fun getLeaves(): ResponseEntity<Flow<LeafDto>>")
+        }
+    }
+
+    @Test
+    fun `self-referencing schemas generate`() {
+        // Tree and Node contain themselves; this would overflow the stack if the cascade check didn't end
+        val files = generate("bean-validation-edge-cases")
+        assertContains(files.keys, "TreeDto.kt")
+        assertContains(files.keys, "NodeDto.kt")
+    }
+
+    @Test
+    fun `reference to a type-mapped schema keeps its bounds`() {
+        val model = generate("bean-validation-edge-cases").file("EdgeDto.kt")
+        assertContains(model, "@field:DecimalMin(value = \"0\") @Serializable(with = Serializer.OptionBigDecimal::class) public val amount: Option<BigDecimal>")
+    }
+
+    @Test
+    fun `patterns are only kept unchanged when anchored as a whole`() {
+        val model = generate("bean-validation-edge-cases").file("EdgeDto.kt")
+        val any = "[\\\\s\\\\S]*"
+        assertContains(model, "@field:Pattern(regexp = \"$any(?:^foo|bar${'$'}{'${'$'}'})$any\")")
+        assertContains(model, "@field:Pattern(regexp = \"^[a-z]+${'$'}{'${'$'}'}\")")
+        assertContains(model, "@field:Pattern(regexp = \"^(foo|bar)${'$'}{'${'$'}'}\")")
+        assertContains(model, "@field:Pattern(regexp = \"$any(?:^foo\\\\${'$'}{'${'$'}'})$any\")")
+    }
+
+    @Test
+    fun `integer bounds at and beyond the range of Long`() {
+        val model = generate("bean-validation-edge-cases").file("EdgeDto.kt")
+        assertContains(model, "@field:Min(value = Long.MIN_VALUE)")
+        assertContains(model, "@field:DecimalMin(value = \"10000000000000000000\")")
+    }
+
+    @Test
     fun `large specs generate`() {
         listOf("compute", "identity", "image", "network", "storage", "keycloak-26.0.8").forEach {
             generate(it)

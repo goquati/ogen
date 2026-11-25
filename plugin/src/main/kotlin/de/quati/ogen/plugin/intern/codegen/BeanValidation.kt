@@ -3,6 +3,7 @@ package de.quati.ogen.plugin.intern.codegen
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import de.quati.ogen.plugin.intern.model.Component
+import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.Constraints
 import de.quati.ogen.plugin.intern.model.Type
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
@@ -36,9 +37,13 @@ internal fun Component.Schema.validationAnnotations(
     inContainer: Boolean,
 ): List<AnnotationSpec> {
     val mapping = getMappingOrNull()
-    if (mapping != null) return when (this) {
-        is Component.Schema.Primitiv -> constraints.numberAnnotations(mapping.className(), integral = false)
-        else -> emptyList()
+    if (mapping != null) {
+        // the keywords are those of the schema the mapping applies to, also when this refers to it
+        val mapped = if (this is Component.Schema.Ref) c.allSchemas[resolveAlias().name] else this
+        return when (mapped) {
+            is Component.Schema.Primitiv -> mapped.constraints.numberAnnotations(mapping.className(), integral = false)
+            else -> emptyList()
+        }
     }
     return when (this) {
         is Component.Schema.Primitiv -> primitiveAnnotations()
@@ -78,14 +83,23 @@ internal fun Component.Schema.validationAnnotations(
     }
 }
 
-/** Whether `@Valid` must cascade into values of this schema: they are, or contain, generated data classes. */
+/**
+ * Whether `@Valid` must cascade into values of this schema: they are, or contain, generated data classes.
+ * [visited] holds the referenced schemas already on the way, so a schema that contains itself ends the search.
+ */
 context(c: CodeGenContext)
-private fun Component.Schema.needsCascade(): Boolean {
+private fun Component.Schema.needsCascade(
+    visited: Set<ComponentName.Schema> = emptySet(),
+): Boolean {
     if (getMappingOrNull() != null) return false
     return when (this) {
-        is Component.Schema.Array -> items.needsCascade()
-        is Component.Schema.MapS -> valueSchema.needsCascade()
-        is Component.Schema.Ref -> c.allSchemas[resolveAlias().name]?.needsCascade() ?: false
+        is Component.Schema.Array -> items.needsCascade(visited)
+        is Component.Schema.MapS -> valueSchema.needsCascade(visited)
+        is Component.Schema.Ref -> {
+            val name = resolveAlias().name
+            name !in visited && c.allSchemas[name]?.needsCascade(visited + name) == true
+        }
+
         is Component.Schema.NonInline -> when (toTypeSpecData()) {
             is SchemaTypeSpecData.DataClass, is SchemaTypeSpecData.SealedInterface -> true
             is SchemaTypeSpecData.Enum, null -> false
@@ -135,11 +149,11 @@ private fun Constraints.numberAnnotations(type: ClassName, integral: Boolean): L
         return emptyList()
     return listOfNotNull(
         minimum?.let { bound ->
-            if (integral) integralBound(Poet.Validation.min, bound.integralMin())
+            if (integral) integralBound(Poet.Validation.min, Poet.Validation.decimalMin, bound.integralMin())
             else decimalBound(Poet.Validation.decimalMin, bound)
         },
         maximum?.let { bound ->
-            if (integral) integralBound(Poet.Validation.max, bound.integralMax())
+            if (integral) integralBound(Poet.Validation.max, Poet.Validation.decimalMax, bound.integralMax())
             else decimalBound(Poet.Validation.decimalMax, bound)
         },
     )
@@ -159,9 +173,16 @@ private fun Constraints.Bound.integralMax(): BigDecimal {
 
 private val longRange = BigDecimal(Long.MIN_VALUE)..BigDecimal(Long.MAX_VALUE)
 
-private fun integralBound(annotation: ClassName, value: BigDecimal): AnnotationSpec? {
-    if (value !in longRange) return null
-    return AnnotationSpec.builder(annotation).addMember("value = %LL", value.toBigInteger()).build()
+/**
+ * `@Min`/`@Max` with an inclusive integer bound; one beyond the range of `Long`, which these take, is written with
+ * [decimalAnnotation] instead, so it is still checked.
+ */
+private fun integralBound(annotation: ClassName, decimalAnnotation: ClassName, value: BigDecimal): AnnotationSpec {
+    if (value !in longRange) return decimalBound(decimalAnnotation, Constraints.Bound(value, inclusive = true))
+    val literal = value.longValueExact()
+        // `-9223372036854775808L` is not a valid literal: the minus applies to a number out of range
+        .let { if (it == Long.MIN_VALUE) "Long.MIN_VALUE" else "${it}L" }
+    return AnnotationSpec.builder(annotation).addMember("value = %L", literal).build()
 }
 
 private fun decimalBound(annotation: ClassName, bound: Constraints.Bound) =
@@ -183,9 +204,31 @@ private fun sizeAnnotation(min: Int?, max: Int?): AnnotationSpec? {
  * ends may be surrounded by any characters.
  */
 private fun patternAnnotation(pattern: String): AnnotationSpec {
-    val anchored = pattern.startsWith("^") && pattern.endsWith("$") && !pattern.endsWith("\\$")
-    val regexp = if (anchored) pattern else "[\\s\\S]*(?:$pattern)[\\s\\S]*"
+    val regexp = if (pattern.isAnchored()) pattern else "[\\s\\S]*(?:$pattern)[\\s\\S]*"
     return AnnotationSpec.builder(Poet.Validation.pattern).addMember("regexp = %S", regexp).build()
+}
+
+/**
+ * Whether the regex can only match a whole string: it starts with `^`, ends with an unescaped `$` and has no `|`
+ * outside of groups and character classes, as in `^a|b$` each anchor belongs to one alternative only.
+ */
+private fun String.isAnchored(): Boolean {
+    if (!startsWith("^") || !endsWith("$")) return false
+    var depth = 0
+    var inClass = false
+    var i = 0
+    while (i < length) {
+        when (this[i]) {
+            '\\' -> if (i == length - 2) return false else i++ // the last `$` is escaped
+            '[' -> inClass = true
+            ']' -> inClass = false
+            '(' -> if (!inClass) depth++
+            ')' -> if (!inClass) depth--
+            '|' -> if (!inClass && depth == 0) return false
+        }
+        i++
+    }
+    return true
 }
 
 private val validAnnotation = AnnotationSpec.builder(Poet.Validation.valid).build()

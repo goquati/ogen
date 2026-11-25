@@ -52,6 +52,7 @@ ogen {
         }
         model {
             beanValidation = true
+            typeMapping(type = "number+big-decimal", clazz = "java.math.BigDecimal")
         }
         serverSpringV4 {
             beanValidation = true

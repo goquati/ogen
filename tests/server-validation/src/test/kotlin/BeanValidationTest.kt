@@ -98,6 +98,29 @@ class BeanValidationTest {
     @Test
     fun `header parameter`() = getItem(headers = mapOf("x-request-id" to "12"), expectedStatus = 400)
 
+    private fun getEdgeCases(query: String, expectedStatus: Int) {
+        client.get().uri("/api/edge-cases?$query").exchange().expectStatus().isEqualTo(expectedStatus)
+    }
+
+    @Test
+    fun `pattern with top-level alternation`() {
+        getEdgeCases("startOrEnd=fooXYZ", expectedStatus = 204)
+        getEdgeCases("startOrEnd=XYZbar", expectedStatus = 204)
+        getEdgeCases("startOrEnd=XYZ", expectedStatus = 400)
+    }
+
+    @Test
+    fun `integer bounds at and beyond the range of long`() {
+        getEdgeCases("smallest=-9223372036854775808", expectedStatus = 204)
+        getEdgeCases("beyondLong=9223372036854775807", expectedStatus = 400)
+    }
+
+    @Test
+    fun `reference to a type-mapped schema`() {
+        getEdgeCases("amount=0", expectedStatus = 204)
+        getEdgeCases("amount=-0.01", expectedStatus = 400)
+    }
+
     @Test
     fun `valid body`() {
         post("/api/items", item(), expectedStatus = 200)
