@@ -109,6 +109,9 @@ Jede Phase endet mit grünem Build. Swagger bleibt bis Phase 7 drin, damit alt u
 - `kotlin("plugin.serialization")`, `kotlinx-serialization-json`, `snakeyaml-engine` in `plugin/gradle/libs.versions.toml`.
 - Prüfen, dass `kotlinx-serialization-json` auf dem Gradle-Buildscript-Classpath nicht mit anderen Plugins
   kollidiert (Plugins teilen sich den Classloader). Version konservativ wählen; Shading nur falls nötig.
+  **Erledigt:** `kotlinx-serialization-json` 1.9.0, weil Gradle Plugins mit seiner eingebetteten `kotlin-stdlib`
+  lädt und erst 1.9.x mit stdlib 2.2 auskommt (passt zu `apiVersion 2.2`; ab 1.11 wird 2.3+ gebraucht, ab 1.12
+  2.4+). Dazu `snakeyaml-engine` 3.2 und `json-schema-validator` 1.5.8 (nur Tests).
 - Test-Dependency: JSON-Schema-Validator + offizielle OAS-Schemas (3.0, 3.1, 3.2) als Test-Resources.
 
 ### Phase 1 – Lesen

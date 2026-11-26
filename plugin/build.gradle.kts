@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 plugins {
     alias(libs.plugins.gradlePluginPublish)
     alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 val groupStr = "de.quati.ogen"
@@ -20,11 +21,14 @@ dependencies {
     implementation(libs.poet)
     implementation(libs.goquati.base)
     implementation(libs.goquati.poet)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.snakeyaml.engine)
     implementation(libs.swagger.parser)
     implementation(libs.swagger.generator)
     compileOnly(kotlin("gradle-plugin"))
 
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation(libs.json.schema.validator)
 }
 
 kotlin {

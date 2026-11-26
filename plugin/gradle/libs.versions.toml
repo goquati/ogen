@@ -2,14 +2,22 @@
 kotlin = "2.4.21"
 kotlinpoet = "2.4.0"
 quati-util = "2.6.1"
+# Gradle loads plugins with its embedded kotlin-stdlib; 1.9.x needs only stdlib 2.2 (matches apiVersion).
+kotlinx-serialization = "1.9.0"
+snakeyaml-engine = "3.2"
+json-schema-validator = "1.5.8"
 
 [libraries]
 poet = { module = "com.squareup:kotlinpoet", version.ref = "kotlinpoet" }
 goquati-base = { module = "de.quati:kotlin-util", version.ref = "quati-util" }
 goquati-poet = { module = "de.quati:kotlin-util-poet", version.ref = "quati-util" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+snakeyaml-engine = { module = "org.snakeyaml:snakeyaml-engine", version.ref = "snakeyaml-engine" }
+json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
 swagger-parser = { module = "io.swagger.parser.v3:swagger-parser", version = "2.1.48" }
 swagger-generator = { module = "org.openapitools:openapi-generator", version = "7.27.0" }
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 gradlePluginPublish = { id = "com.gradle.plugin-publish", version = "2.2.1" }
