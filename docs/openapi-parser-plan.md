@@ -156,6 +156,17 @@ verschwindet schon hier aus dem Code.
   `merged.yaml` vergleicht. Dazu Unit-Tests für JSON-Ausgabe, `additional`-Konvertierung, unlesbare Dateien
   und Versionsauswahl.
 - Danach sind `com.fasterxml.jackson` und `OpenAPIParser` in `SpecMergeService.kt` weg.
+- **Erledigt** (`intern/SpecMergeService.kt`, `intern/oas/write/JsonTreeWriter.kt`). Befunde:
+  - YAML wird über den Emitter von snakeyaml-engine mit demselben Ereignisstrom und denselben Optionen wie
+    bei Jacksons `YAMLGenerator` geschrieben (Quoting-Regeln für Keys aus Jacksons `StringQuotingChecker` übernommen).
+    Ein Differenztest gegen Jackson mit vielen Sonderfällen ist byte-gleich. Einzige Ausnahme: U+2028/U+2029 schreibt
+    YAML 1.2 unverändert statt als `\L`/`\P`. Das liest sich als derselbe String zurück.
+  - `tests/oas-dir` baut mit `--rerun-tasks`, kein Diff an `merged.yaml`.
+  - Versionen werden semantisch verglichen; das Escaping des Pfads im `$ref` geht über `JsonPointer` (vorher
+    wurde `~` nicht escaped). Für übersprungene Dateien nennt die Warnung jetzt den Grund.
+  - Unverändert übernommen, aber vermutlich ein Bug: `specData.map { it.format }.singleOrNull()` wählt JSON nur,
+    wenn es genau **eine** Spec-Datei gibt (gemeint war wohl `distinct()`). Swagger-2.0-Dateien
+    (`swagger: "2.0"`) hat swagger-parser konvertiert, jetzt werden sie mangels `openapi` übersprungen.
 
 ### Phase 2 – Modell
 - Alle OAS-3.2-Objekte als `@Serializable data class`, neuere Felder nullable.
