@@ -98,3 +98,28 @@ public expect annotation class Pattern(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = [],
 )
+
+/**
+ * OpenAPI's `multipleOf`: the number must be a multiple of [value]; `null` is valid. Jakarta has no such constraint,
+ * so on the JVM this is a constraint of its own, checked by `MultipleOfValidator`.
+ */
+@OptionalExpectation
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
+public expect annotation class MultipleOf(
+    val value: String,
+    val message: String = "must be a multiple of {value}",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = [],
+)
+
+/**
+ * OpenAPI's `uniqueItems`: the collection must not contain equal elements; `null` is valid. Jakarta has no such
+ * constraint, so on the JVM this is a constraint of its own, checked by `UniqueItemsValidator`.
+ */
+@OptionalExpectation
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
+public expect annotation class UniqueItems(
+    val message: String = "must only contain unique elements",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = [],
+)

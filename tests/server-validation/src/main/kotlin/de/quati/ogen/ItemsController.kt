@@ -29,6 +29,8 @@ class ItemsController : ItemsApi {
         smallest: Long?,
         beyondLong: Long?,
         amount: BigDecimal?,
+        step: Long?,
+        ids: List<String>?,
         words: List<String>?,
     ): ResponseEntity<Unit> = ResponseEntity.noContent().build()
 

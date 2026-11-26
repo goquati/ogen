@@ -50,7 +50,10 @@ internal fun Component.Schema.validationAnnotations(
     return when (this) {
         is Component.Schema.Primitiv -> primitiveAnnotations()
         // the elements cascade with their own `@Valid`, see withElementConstraints
-        is Component.Schema.Array -> listOfNotNull(sizeAnnotation(constraints.minItems, constraints.maxItems))
+        is Component.Schema.Array -> listOfNotNull(
+            sizeAnnotation(constraints.minItems, constraints.maxItems),
+            AnnotationSpec.builder(Poet.Validation.uniqueItems).build().takeIf { constraints.uniqueItems },
+        )
         is Component.Schema.MapS ->
             listOfNotNull(sizeAnnotation(constraints.minProperties, constraints.maxProperties))
 
@@ -204,7 +207,7 @@ private val numberClasses = setOf("java.math.BigDecimal", "java.math.BigInteger"
 
 /**
  * `@Min`/`@Max` for integral types, whose bounds can all be written inclusively, otherwise
- * `@DecimalMin`/`@DecimalMax`. Types other than numbers get none.
+ * `@DecimalMin`/`@DecimalMax`, and `@MultipleOf`. Types other than numbers get none.
  */
 private fun Constraints.numberAnnotations(type: ClassName, integral: Boolean): List<AnnotationSpec> {
     if (!integral && type.canonicalName !in numberClasses + setOf("kotlin.Float", "kotlin.Double"))
@@ -217,6 +220,11 @@ private fun Constraints.numberAnnotations(type: ClassName, integral: Boolean): L
         maximum?.let { bound ->
             if (integral) integralBound(Poet.Validation.max, Poet.Validation.decimalMax, bound.integralMax())
             else decimalBound(Poet.Validation.decimalMax, bound)
+        },
+        multipleOf?.let {
+            AnnotationSpec.builder(Poet.Validation.multipleOf)
+                .addMember("value = %S", it.stripTrailingZeros().toPlainString())
+                .build()
         },
     )
 }

@@ -193,12 +193,14 @@ needs `jakarta.validation-api` at compile time; on other platforms the compiler 
 registers a value extractor, so constraints on optional (`Option`) properties apply to their values.
 
 They check `minLength`, `maxLength`, `pattern` and `format: email` of strings, `minimum`, `maximum`,
-`exclusiveMinimum` and `exclusiveMaximum` of integers and numbers (also those mapped to `BigDecimal` or
-`BigInteger`), `minItems` and `maxItems` of arrays and `minProperties` and `maxProperties` of maps, and cascade into
-generated objects. Constraints of the items of arrays and the values of maps go on the type arguments, e.g.
-`List<@Size(max = 3) String>`; Hibernate Validator reads them from JVM type annotations, so with `beanValidation` the
-plugin adds `-Xemit-jvm-type-annotations` to the Kotlin JVM compilations. `multipleOf` and `uniqueItems` are not
-checked.
+`exclusiveMinimum`, `exclusiveMaximum` and `multipleOf` of integers and numbers (also those mapped to `BigDecimal` or
+`BigInteger`), `minItems`, `maxItems` and `uniqueItems` of arrays and `minProperties` and `maxProperties` of maps, and
+cascade into generated objects. Jakarta has no constraints for `multipleOf` and `uniqueItems`, so these are
+`@MultipleOf` and `@UniqueItems` of `de.quati.ogen.core.validation`, on every platform.
+
+Constraints of the items of arrays and the values of maps go on the type arguments, e.g. `List<@Size(max = 3) String>`;
+Hibernate Validator reads them from JVM type annotations, so with `beanValidation` the plugin adds
+`-Xemit-jvm-type-annotations` to the Kotlin JVM compilations.
 
 ## Tasks
 

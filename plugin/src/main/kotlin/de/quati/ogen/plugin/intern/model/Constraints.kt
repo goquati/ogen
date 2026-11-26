@@ -9,8 +9,10 @@ internal data class Constraints(
     val pattern: String? = null,
     val minimum: Bound? = null,
     val maximum: Bound? = null,
+    val multipleOf: BigDecimal? = null,
     val minItems: Int? = null,
     val maxItems: Int? = null,
+    val uniqueItems: Boolean = false,
     val minProperties: Int? = null,
     val maxProperties: Int? = null,
 ) {

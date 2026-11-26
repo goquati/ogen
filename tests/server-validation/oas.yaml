@@ -157,6 +157,21 @@ paths:
           description: A non-negative amount, referring to a type-mapped schema.
           schema:
             $ref: '#/components/schemas/Amount'
+        - name: step
+          in: query
+          description: A multiple of ten.
+          schema:
+            type: integer
+            format: int64
+            multipleOf: 10
+        - name: ids
+          in: query
+          description: Unique IDs.
+          schema:
+            type: array
+            uniqueItems: true
+            items:
+              type: string
         - name: words
           in: query
           description: Words of at most three characters.
@@ -286,3 +301,24 @@ components:
           $ref: '#/components/schemas/ChildList'
         optionalChildList:
           $ref: '#/components/schemas/ChildList'
+        quantity:
+          type: integer
+          format: int32
+          multipleOf: 5
+        ratio:
+          type: number
+          format: double
+          multipleOf: 0.25
+        uniqueTags:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        uniqueRows:
+          type: array
+          items:
+            type: array
+            uniqueItems: true
+            items:
+              type: integer
+              format: int32

@@ -70,3 +70,15 @@ components:
           additionalProperties:
             type: integer
             maximum: 10
+        quantity:
+          type: integer
+          multipleOf: 5
+        price:
+          type: number
+          format: big-decimal
+          multipleOf: 0.010
+        tags:
+          type: array
+          uniqueItems: true
+          items:
+            type: string

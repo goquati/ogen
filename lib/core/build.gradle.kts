@@ -23,5 +23,9 @@ extensions.configure<KotlinMultiplatformExtension> {
         jvmMain.dependencies {
             compileOnly(libs.jakarta.validation.api)
         }
+        jvmTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.jakarta.validation.api)
+        }
     }
 }

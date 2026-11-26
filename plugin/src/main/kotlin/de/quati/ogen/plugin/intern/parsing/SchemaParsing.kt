@@ -92,8 +92,10 @@ private fun io.swagger.v3.oas.models.media.Schema<*>.toConstraints() = Constrain
         maximum?.let { Constraints.Bound(it, inclusive = exclusiveMaximum != true) },
         exclusiveMaximumValue?.let { Constraints.Bound(it, inclusive = false) },
     ),
+    multipleOf = multipleOf,
     minItems = minItems,
     maxItems = maxItems,
+    uniqueItems = uniqueItems == true,
     minProperties = minProperties,
     maxProperties = maxProperties,
 )

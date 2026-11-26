@@ -123,6 +123,31 @@ class BeanValidationTest {
     }
 
     @Test
+    fun `multipleOf and uniqueItems of query parameters`() {
+        getEdgeCases("step=-30&ids=a,b", expectedStatus = 204)
+        getEdgeCases("step=25", expectedStatus = 400)
+        getEdgeCases("ids=a,b,a", expectedStatus = 400)
+    }
+
+    @Test
+    fun `multipleOf and uniqueItems of body properties`() {
+        post(
+            "/api/items",
+            item(
+                "quantity" to "15",
+                "ratio" to "0.75",
+                "uniqueTags" to "[\"a\",\"b\"]",
+                "uniqueRows" to "[[1,2],[1,2]]",
+            ),
+            expectedStatus = 200,
+        )
+        post("/api/items", item("quantity" to "12"), expectedStatus = 400)
+        post("/api/items", item("ratio" to "0.3"), expectedStatus = 400)
+        post("/api/items", item("uniqueTags" to "[\"a\",\"a\"]"), expectedStatus = 400)
+        post("/api/items", item("uniqueRows" to "[[1,2,1]]"), expectedStatus = 400) // nested
+    }
+
+    @Test
     fun `items of a query parameter`() {
         getEdgeCases("words=abc,de", expectedStatus = 204)
         getEdgeCases("words=abc,defg", expectedStatus = 400)

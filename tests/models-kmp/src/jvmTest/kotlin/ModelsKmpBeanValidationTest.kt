@@ -43,4 +43,11 @@ class ModelsKmpBeanValidationTest {
         violations(valid.copy(scores = mapOf("a" to 11).toOption())) shouldBe setOf("scores[a].<map value>")
         violations(valid.copy(codes = listOf(ConstrainedCodeDto("abc")).toOption())) shouldBe setOf("codes[0].value")
     }
+
+    @Test
+    fun `multipleOf and uniqueItems`() {
+        violations(valid.copy(step = 1.5.toOption(), uniqueTags = listOf("a", "b").toOption())) shouldBe emptySet()
+        violations(valid.copy(step = 1.2.toOption())) shouldBe setOf("step")
+        violations(valid.copy(uniqueTags = listOf("a", "a").toOption())) shouldBe setOf("uniqueTags")
+    }
 }

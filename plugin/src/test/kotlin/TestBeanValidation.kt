@@ -95,7 +95,9 @@ class TestBeanValidation {
         generate("bean-validation-3.1").also {
             assertContains(it.getValue("ThingDto.kt"), "import jakarta.validation.constraints.Size")
             assertContains(it.getValue("ThingsApi.kt"), "import jakarta.validation.constraints.Min")
-            it.values.forEach { file -> assertFalse(file.contains("de.quati.ogen.core.validation")) }
+            // only MultipleOf and UniqueItems, which Jakarta has none for, come from core
+            val standIns = Regex("import de\\.quati\\.ogen\\.core\\.validation\\.(?!MultipleOf|UniqueItems)")
+            it.values.forEach { file -> assertFalse(standIns.containsMatchIn(file)) }
         }
         generate("bean-validation-3.1", multiplatform = true).also {
             val model = it.getValue("ThingDto.kt")
@@ -118,6 +120,19 @@ class TestBeanValidation {
         val kmpModel = generate("bean-validation-3.1", multiplatform = true).getValue("ThingDto.kt")
         assertContains(kmpModel, "import de.quati.ogen.core.validation.Max")
         assertFalse(kmpModel.contains("jakarta"))
+    }
+
+    @Test
+    fun `multipleOf and uniqueItems with the constraints of core`() {
+        listOf(false, true).forEach { multiplatform ->
+            val model = generate("bean-validation-3.1", multiplatform = multiplatform).file("ThingDto.kt")
+            assertContains(model, "import de.quati.ogen.core.validation.MultipleOf")
+            assertContains(model, "import de.quati.ogen.core.validation.UniqueItems")
+            assertContains(model, "@field:MultipleOf(value = \"5\")")
+            // also for a type mapped to BigDecimal, without trailing zeros
+            assertContains(model, "@field:MultipleOf(value = \"0.01\") @Serializable(with = Serializer.OptionBigDecimal::class) public val price: Option<BigDecimal>")
+            assertContains(model, "@field:UniqueItems")
+        }
     }
 
     @Test

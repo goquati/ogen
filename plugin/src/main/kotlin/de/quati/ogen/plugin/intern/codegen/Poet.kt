@@ -138,6 +138,10 @@ internal object Poet {
         val decimalMin = ClassName(PACKAGE, "DecimalMin")
         val decimalMax = ClassName(PACKAGE, "DecimalMax")
 
+        /** Constraints of `de.quati.ogen:core` for keywords Jakarta has none for, on all platforms. */
+        val multipleOf = ClassName(MULTIPLATFORM_PACKAGE, "MultipleOf")
+        val uniqueItems = ClassName(MULTIPLATFORM_PACKAGE, "UniqueItems")
+
         /**
          * The annotation of `de.quati.ogen:core` standing for this Jakarta one in multiplatform common code:
          * on the JVM it is the Jakarta annotation, on other platforms the compiler drops it.

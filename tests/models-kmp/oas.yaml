@@ -450,3 +450,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ConstrainedCode'
+        step:
+          description: A multiple of 0.5.
+          type: number
+          format: double
+          multipleOf: 0.5
+        uniqueTags:
+          description: Tags without duplicates.
+          type: array
+          uniqueItems: true
+          items:
+            type: string
