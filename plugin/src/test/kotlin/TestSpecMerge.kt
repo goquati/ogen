@@ -100,6 +100,22 @@ class TestSpecMerge {
     }
 
     @Test
+    fun `several json specs give a json merge`() {
+        val dir = tempDir()
+        dir.resolve("a.json").writeText("""{"openapi": "3.1.0", "paths": {"/a": {}}}""")
+        dir.resolve("b.json").writeText("""{"openapi": "3.1.0", "paths": {"/b": {}}}""")
+        assertEquals("merged.json", merge(dir, dataBase()).name)
+    }
+
+    @Test
+    fun `mixed formats give a yaml merge`() {
+        val dir = tempDir()
+        dir.resolve("a.json").writeText("""{"openapi": "3.1.0", "paths": {"/a": {}}}""")
+        dir.resolve("b.yaml").writeText("openapi: 3.1.0\npaths:\n  /b: {}\n")
+        assertEquals("merged.yaml", merge(dir, dataBase()).name)
+    }
+
+    @Test
     fun `a directory without spec fails`() {
         val dir = tempDir().also { it.resolve("sub").createDirectories() }
         dir.resolve("README.md").writeText("text")

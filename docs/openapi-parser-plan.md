@@ -164,8 +164,8 @@ verschwindet schon hier aus dem Code.
   - `tests/oas-dir` baut mit `--rerun-tasks`, kein Diff an `merged.yaml`.
   - Versionen werden semantisch verglichen; das Escaping des Pfads im `$ref` geht über `JsonPointer` (vorher
     wurde `~` nicht escaped). Für übersprungene Dateien nennt die Warnung jetzt den Grund.
-  - Unverändert übernommen, aber vermutlich ein Bug: `specData.map { it.format }.singleOrNull()` wählt JSON nur,
-    wenn es genau **eine** Spec-Datei gibt (gemeint war wohl `distinct()`). Swagger-2.0-Dateien
+  - Korrigiert: `specData.map { it.format }.singleOrNull()` wählte JSON nur,
+    wenn es genau **eine** Spec-Datei gab; jetzt mit `distinct()`, also JSON, wenn alle Specs JSON sind. Swagger-2.0-Dateien
     (`swagger: "2.0"`) hat swagger-parser konvertiert, jetzt werden sie mangels `openapi` übersprungen.
 
 ### Phase 2 – Modell

@@ -26,7 +26,7 @@ private val log = LoggerFactory.getLogger("SpecMerging")
 internal fun InputConfig.Merge.buildMergedSpec(): Path {
     InputConfig.Format.entries.forEach { format -> mergeFilePath(format = format).deleteIfExists() }
     val specData = getAllSpecDataInDirectory()
-    val format = specData.map { it.format }.singleOrNull() ?: InputConfig.Format.YAML
+    val format = specData.map { it.format }.distinct().singleOrNull() ?: InputConfig.Format.YAML
     val mergedFilePath = mergeFilePath(format = format)
 
     val mergedSpec = generateMergedSpec(specData)
