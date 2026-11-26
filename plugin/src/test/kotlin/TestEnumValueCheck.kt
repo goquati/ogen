@@ -3,22 +3,18 @@ import kotlin.test.Test
 
 class TestEnumValueCheck {
     companion object {
-        private const val CAST_HINT = " (swagger-parser also reads a value that is not a valid integer as null)"
-        private const val YAML_BOOLEAN_HINT =
-            " (swagger-parser may have made it: it reads unquoted yes, no, on and off as booleans; quote them)"
-        private const val BOOLEAN_CAST_HINT = " (swagger-parser may have made it: it reads unquoted yes, no, on and off as " +
-            "booleans, and casts every string of a boolean enum, where only 'true', in any case, becomes true)"
-
         private fun assertEnumErrors(spec: String, vararg expected: String) =
             assertErrors("enum-values-$spec", ::enumValueErrors, expected.toList())
 
         private fun assertEnumPasses(spec: String) = assertPasses("enum-values-$spec", ::enumValueErrors)
     }
 
-    // swagger-parser reads 'one' and 'two' as null.
     @Test
-    fun testIntegerMismatch30() =
-        assertEnumErrors("integer-mismatch", "enum value null in 'Count' is not allowed: the schema is not nullable$CAST_HINT")
+    fun testIntegerMismatch30() = assertEnumErrors(
+        "integer-mismatch",
+        "enum value 'one' in 'Count' does not match the schema's type integer",
+        "enum value 'two' in 'Count' does not match the schema's type integer",
+    )
 
     @Test
     fun testIntegerMismatch31() = assertEnumErrors(
@@ -52,10 +48,9 @@ class TestEnumValueCheck {
     fun testNullNotNullable31() =
         assertEnumErrors("null-not-nullable-3.1", "enum value null in 'Name' is not allowed: the schema is not nullable")
 
-    // swagger-parser reads 1.0 as null in an integer schema.
+    // 1.0 is the same JSON value as 1.
     @Test
-    fun testIntegerDecimal30() =
-        assertEnumErrors("integer-decimal", "enum value null in 'Count' is not allowed: the schema is not nullable$CAST_HINT")
+    fun testIntegerDecimal30() = assertEnumErrors("integer-decimal", "enum value 1 in 'Count' is listed more than once")
 
     @Test
     fun testDuplicate30() = assertEnumErrors("duplicate", "enum value 'open' in 'State' is listed more than once")
@@ -66,46 +61,39 @@ class TestEnumValueCheck {
     @Test
     fun testDuplicateNumber31() = assertEnumErrors("duplicate-number-3.1", "enum value 1 in 'Size' is listed more than once")
 
-    // swagger-parser reads 'low' as null.
     @Test
     fun testDuplicateNull30() =
-        assertEnumErrors("duplicate-null", "enum value null in 'Level' is listed more than once$CAST_HINT")
+        assertEnumErrors("duplicate-null", "enum value 'low' in 'Level' does not match the schema's type integer")
 
     @Test
     fun testDuplicateNull31() = assertEnumErrors("duplicate-null-3.1", "enum value null in 'Level' is listed more than once")
 
-    // The model can't show where a duplicate came from, so a literal one gets the hint too.
+    // Strings in a boolean enum are no booleans; unquoted no and off are strings in YAML 1.2.
     @Test
-    fun testDuplicateBooleanCast30() = assertEnumErrors(
+    fun testStringsInBooleanEnum30() = assertEnumErrors(
         "boolean-cast",
-        "enum value false in 'Flag' is listed more than once$BOOLEAN_CAST_HINT",
-        "enum value true in 'Flag' is listed more than once$BOOLEAN_CAST_HINT",
-        "enum value false in 'WordsOnly' is listed more than once$BOOLEAN_CAST_HINT",
-        "enum value true in 'Twice' is listed more than once$BOOLEAN_CAST_HINT",
+        "enum value '0' in 'Flag' does not match the schema's type boolean",
+        "enum value 'FALSE' in 'Flag' does not match the schema's type boolean",
+        "enum value 'True' in 'Flag' does not match the schema's type boolean",
+        "enum value 'no' in 'WordsOnly' does not match the schema's type boolean",
+        "enum value 'off' in 'WordsOnly' does not match the schema's type boolean",
+        "enum value true in 'Twice' is listed more than once",
     )
 
     @Test
-    fun testDuplicateBooleanCast31() = assertEnumErrors(
+    fun testStringsInBooleanEnum31() = assertEnumErrors(
         "boolean-cast-3.1",
-        "enum value false in 'Flag' is listed more than once$BOOLEAN_CAST_HINT",
-        "enum value true in 'Flag' is listed more than once$BOOLEAN_CAST_HINT",
+        "enum value '0' in 'Flag' does not match the schema's type boolean",
+        "enum value 'FALSE' in 'Flag' does not match the schema's type boolean",
+        "enum value 'True' in 'Flag' does not match the schema's type boolean",
     )
 
+    // YAML 1.2 reads unquoted yes, no, on and off as strings, so they are no duplicates of true and false.
     @Test
-    fun testDuplicateYamlBoolean30() = assertEnumErrors(
-        "yaml-booleans",
-        "enum value false in 'Untyped' is listed more than once$YAML_BOOLEAN_HINT",
-        "enum value true in 'Untyped' is listed more than once$YAML_BOOLEAN_HINT",
-        "enum value 'true' in 'Words' is listed more than once$YAML_BOOLEAN_HINT",
-        "enum value 'false' in 'Words' is listed more than once$YAML_BOOLEAN_HINT",
-    )
-
-    @Test
-    fun testDuplicateYamlBoolean31() = assertEnumErrors(
-        "yaml-booleans-3.1",
-        "enum value false in 'Switch' is listed more than once$YAML_BOOLEAN_HINT",
-        "enum value true in 'Switch' is listed more than once$YAML_BOOLEAN_HINT",
-    )
+    fun testYamlBooleanWordsAreStrings() {
+        assertEnumPasses("yaml-booleans")
+        assertEnumPasses("yaml-booleans-3.1")
+    }
 
     @Test
     fun testNestedProperty() =
@@ -124,15 +112,15 @@ class TestEnumValueCheck {
         "enum value 'm' in 'Map.additionalProperties' is listed more than once",
     )
 
-    // swagger-parser moves the path-level parameter into each operation; it is reported once.
+    // A parameter of the Path Item is reported where it is declared.
     @Test
     fun testParameter30() = assertEnumErrors(
         "parameter",
-        "enum value 'a' in '/items:GET.parameters.sort' is listed more than once",
+        "enum value 'a' in '/items.parameters.sort' is listed more than once",
         "enum value 'b' in '/items:GET.parameters.kind[]' is listed more than once",
     )
 
-    // swagger-parser replaces the references with the component parameter; it is reported once, as the component.
+    // A referenced parameter is reported once, as the component.
     @Test
     fun testParameterRef30() =
         assertEnumErrors("parameter-ref", "enum value 'a' in 'components.parameters.Kind' is listed more than once")

@@ -9,9 +9,6 @@ import de.quati.ogen.plugin.intern.oas.OasParseResult
 import de.quati.ogen.plugin.intern.oas.OasParser
 import de.quati.ogen.plugin.intern.oas.load.ResourceLoader
 import de.quati.ogen.plugin.intern.parsing.parse
-import io.swagger.parser.OpenAPIParser
-import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.parser.core.models.ParseOptions
 import org.gradle.api.GradleException
 
 internal data class SpecConfig(
@@ -34,24 +31,6 @@ internal data class SpecConfig(
     val oasParseResult: OasParseResult by lazy {
         OasParser.parse(path, ResourceLoader.default(httpAllowlist = remoteRefAllowlist))
     }
-
-    /** The spec as swagger-parser reads it; only the validator still uses it (plan, phase 7). */
-    val parseResult by lazy { parse(inferSchemaType = true) }
-
-    /**
-     * The spec with only the types it declares: in 3.0, swagger-parser otherwise infers a `type` from `items`,
-     * `additionalProperties` or an enum's first value, even over a declared one. Checks that compare types read this.
-     */
-    val declaredTypesSpec: OpenAPI? by lazy { parse(inferSchemaType = false).openAPI }
-
-    private fun parse(inferSchemaType: Boolean) = OpenAPIParser().readLocation(
-        path.toString(),
-        null,
-        ParseOptions().apply {
-            isResolve = true
-            isInferSchemaType = inferSchemaType
-        },
-    )!!
 
     context(c: GlobalGenContext)
     fun toCodeGenContext() = CodeGenContext(

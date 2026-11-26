@@ -21,14 +21,14 @@ class TestContradictoryConstraintCheck {
                 "'Choice.oneOf[0]': minLength 3 is above maxLength 2",
                 "'Choice.anyOf[0]': minimum 3 is above maximum 2",
                 "'Choice.not': minItems 3 is above maxItems 2",
-                // Reported once, as the component, although swagger-parser inlines it into both operations.
+                // Reported once, as the component.
                 "'components.parameters.Limit': minimum 5 is above maximum 1",
                 "'components.requestBodies.NewPet.application/json': minProperties 3 is above maxProperties 2",
                 "'components.responses.Error.application/json': minLength 9 is above maxLength 8",
                 "'components.headers.Trace.text/plain': minLength 7 is above maxLength 6",
                 "'components.callbacks.Notify.{\$request.body#/url}:POST.requestBody.application/json': minimum 6 is above maximum 5",
-                // In 3.0, swagger-parser moves path-level parameters into every operation; reported at the first.
-                "'/pets/{petId}:GET.parameters.petId': minimum 10 is above maximum 1",
+                // A parameter of the Path Item is reported where it is declared.
+                "'/pets/{petId}.parameters.petId': minimum 10 is above maximum 1",
                 "'/pets/{petId}:GET.parameters.size': minimum 5 equals maximum 5 (exclusiveMaximum: true)",
                 "'/pets/{petId}:GET.parameters.filter.application/json': minLength 4 is above maxLength 3",
                 "'/pets/{petId}:GET.responses.200.application/json': minItems 3 is above maxItems 1",

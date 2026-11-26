@@ -1,7 +1,6 @@
 package de.quati.ogen.plugin.intern.validation
 
-import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.media.Schema
+import de.quati.ogen.plugin.intern.oas.model.Schema
 
 /**
  * `required` names that the schema does not define. A schema that constrains its parent's value (an `allOf` member,
@@ -9,22 +8,25 @@ import io.swagger.v3.oas.models.media.Schema
  * and a schema that allows any name (`additionalProperties`, `patternProperties`, `unevaluatedProperties`) may require
  * any. Schemas under `not` are skipped.
  */
-internal fun undefinedRequiredPropertyErrors(spec: OpenAPI): List<String> {
-    val componentSchemas = spec.components?.schemas.orEmpty()
+internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> {
+    val componentSchemas = spec.api.components?.schemas.orEmpty()
 
-    fun Schema<*>?.allowsAnyName() = this != null && booleanSchemaValue != false
+    // `false` allows no name; `true` and any schema allow every name.
+    fun Schema?.allowsAnyName() = this != null && this != Schema.Bool(false)
 
     // Names this schema defines, its reference and allOf/oneOf/anyOf members included; null if it allows any name.
-    fun Schema<*>.definedNames(seenRefs: Set<String> = emptySet()): Set<String>? {
-        if (additionalProperties == true || (additionalProperties as? Schema<*>).allowsAnyName() ||
-            unevaluatedProperties.allowsAnyName() || !patternProperties.isNullOrEmpty()
+    fun Schema.definedNames(seenRefs: Set<String> = emptySet()): Set<String>? {
+        // A boolean schema defines no names of its own.
+        val schema = this as? Schema.Obj ?: return emptySet()
+        if (schema.additionalProperties.allowsAnyName() || schema.unevaluatedProperties.allowsAnyName() ||
+            !schema.patternProperties.isNullOrEmpty()
         ) return null
-        val names = properties.orEmpty().keys.toMutableSet()
-        `$ref`?.takeIf { it !in seenRefs }?.let { ref ->
+        val names = schema.properties.orEmpty().keys.toMutableSet()
+        schema.ref?.takeIf { it !in seenRefs }?.let { ref ->
             val target = ref.componentName("schemas")?.let { componentSchemas[it] } ?: return null
             names += target.definedNames(seenRefs + ref) ?: return null
         }
-        for (member in compositionMembers) names += member.definedNames(seenRefs) ?: return null
+        for (member in schema.compositionMembers) names += member.definedNames(seenRefs) ?: return null
         return names
     }
 
@@ -48,7 +50,7 @@ internal fun undefinedRequiredPropertyErrors(spec: OpenAPI): List<String> {
     val referencedMemberNames = mutableMapOf<String, Set<String>?>()
     allowedNames(componentInherited = { emptySet() }).forEach { (node, allowed) ->
         node.schema.compositionMembers
-            .mapNotNull { it.`$ref`?.componentName("schemas") }
+            .mapNotNull { (it as? Schema.Obj)?.ref?.componentName("schemas") }
             .forEach { name ->
                 referencedMemberNames[name] =
                     if (name in referencedMemberNames) referencedMemberNames[name]?.let { names -> allowed?.let { names + it } }

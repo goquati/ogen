@@ -72,6 +72,17 @@ internal sealed interface Schema {
         val anyOf: List<Schema>? = null,
         val oneOf: List<Schema>? = null,
         val not: Schema? = null,
+        @SerialName("if") val ifSchema: Schema? = null,
+        @SerialName("then") val thenSchema: Schema? = null,
+        @SerialName("else") val elseSchema: Schema? = null,
+        val dependentSchemas: Map<String, Schema>? = null,
+        val dependentRequired: Map<String, List<String>>? = null,
+        val propertyNames: Schema? = null,
+        val contains: Schema? = null,
+        val minContains: Int? = null,
+        val maxContains: Int? = null,
+        val unevaluatedItems: Schema? = null,
+        val unevaluatedProperties: Schema? = null,
         val readOnly: Boolean? = null,
         val writeOnly: Boolean? = null,
         val deprecated: Boolean? = null,
@@ -81,7 +92,7 @@ internal sealed interface Schema {
         val xml: Xml? = null,
         val externalDocs: ExternalDocs? = null,
         @SerialName(OasSerialNames.EXTENSIONS_KEY) override val extensions: Map<String, JsonElement> = emptyMap(),
-        /** Keywords without a field of their own, e.g. `if`, `$anchor` or, before migration, `nullable`. */
+        /** Keywords without a field of their own, e.g. `$anchor`, `$comment` or, before migration, `nullable`. */
         @SerialName(OasSerialNames.OTHER_KEY) val other: Map<String, JsonElement> = emptyMap(),
     ) : Schema, Extensible
 }

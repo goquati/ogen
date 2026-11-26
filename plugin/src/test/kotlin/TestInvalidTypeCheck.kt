@@ -16,10 +16,13 @@ class TestInvalidTypeCheck {
         )
     }
 
-    // swagger-parser rejects an invalid entry in a 3.1 type list itself, before this check runs.
+    // An invalid entry in a 3.1 type list is reported like a single invalid type.
     @Test
-    fun testInvalidTypeListIsAParserError() {
-        assertValidationFails("invalid-type-list-3.1", failedMessage("invalid-type-list-3.1"))
+    fun testInvalidTypeList() {
+        assertErrors(
+            "invalid-type-list-3.1", ::invalidTypeErrors,
+            listOf("type 'nul' in 'Pet.name' is not one of array, boolean, integer, null, number, object, string"),
+        )
     }
 
     @Test

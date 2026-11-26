@@ -314,6 +314,28 @@ verschwindet schon hier aus dem Code.
   Tests anpassen. Verhaltensänderung für Nutzer: `enum: [yes, no]` ohne Quotes ist jetzt eine String-Enum.
 - swagger-Messages → eigene `Diagnostic`s (YAML-, Struktur-, Ref-Fehler).
 - `OpenApiEvaluator` ersetzen: die genutzten Regeln selbst als Checks (siehe offene Frage 1).
+- **Erledigt.** `SpecWalker` und alle Checks laufen auf dem gebündelten, migrierten Modell (`ValidatedSpec`);
+  der Validator nutzt swagger und openapi-generator nicht mehr. Parser-Fehler (Datei:Zeile) brechen die Validierung
+  sofort ab, Parser-Warnungen werden mit den übrigen geloggt. `Schema.Obj` hat dafür weitere Keywords bekommen
+  (`if`/`then`/`else`, `dependentSchemas`, `dependentRequired`, `propertyNames`, `contains`, `min`/`maxContains`,
+  `unevaluatedItems`/`unevaluatedProperties`).
+  - Von openapi-generator übernommen (nur mit `recommendations`): unbenutzte Schemas, `properties` neben `oneOf`.
+    Neue Meldungstexte im Stil der ogen-Checks.
+  - Neu: Warnung für `query`-Operationen und `additionalOperations` (3.2), die nicht generiert werden.
+  - `NullableWithoutTypeCheck` ist jetzt die Warnung der Migration (mit Datei:Zeile statt `Pet.name`).
+  - Meldungen der ogen-Checks bleiben gleich, auch für 3.0-Quellen: exklusive Grenzen werden wie geschrieben benannt
+    (`minimum 3 (exclusiveMinimum: true)`), die `{type: null}`-Alternative aus der Migration zählt in
+    `CompositionTypeCheck` nicht mit, `TypeKeywordCheck` nennt bei 3.0 weiter `minimum` und `exclusiveMinimum`.
+  - Bewusste Verhaltensänderungen (Tests angepasst):
+    - Parameter des Path Items werden in 3.0 einmal am Pfad gemeldet statt pro Operation (swagger hatte sie kopiert).
+    - `enum`-Werte werden wie geschrieben geprüft statt nach swaggers Umwandlung: `'one'` in einer Integer-Enum ist
+      jetzt „does not match the schema's type integer“ statt „null … not allowed“; `[1, 1.0]` ist ein Duplikat;
+      Strings in einer Boolean-Enum sind Fehler. Die YAML-1.1-Hinweise entfallen.
+    - `default` außerhalb der `enum` wird auch in 3.0 gefunden, wenn der Typ nicht passt (swagger machte `null` daraus).
+    - Ein ungültiger Eintrag in einer 3.1-`type`-Liste und ein verschachteltes Path-Template sind Fehler der ogen-Checks
+      statt Parserfehler (Validierung schlägt weiter fehl, mit „Found N errors“).
+  - Bekannte Lücke: `type: null` in einer 3.0-Spec ist nicht mehr von der Nullbarkeit aus der Migration zu
+    unterscheiden und wird daher nicht als ungültiger 3.0-Typ gemeldet.
 
 ### Phase 8 – Aufräumen
 - swagger-parser und openapi-generator aus `build.gradle.kts`/`libs.versions.toml` entfernen;

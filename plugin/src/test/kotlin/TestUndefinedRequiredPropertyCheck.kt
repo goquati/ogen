@@ -20,7 +20,7 @@ class TestUndefinedRequiredPropertyCheck {
                 "size" to "components.parameters.Paging",
                 "label" to "components.requestBodies.NewItem.application/json",
                 "reason" to "components.responses.NotFound.application/json",
-                "region" to "/items:POST.parameters.scope",
+                "region" to "/items.parameters.scope",
                 "kind" to "/items:POST.parameters.filter",
                 "field" to "/items:POST.parameters.sort.application/json",
                 "title" to "/items:POST.requestBody.application/json",

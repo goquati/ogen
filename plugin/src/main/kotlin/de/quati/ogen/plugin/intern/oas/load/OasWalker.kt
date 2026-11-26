@@ -103,10 +103,8 @@ internal abstract class OasWalker {
         val SCHEMA: SerialDescriptor get() = SchemaSerializer.descriptor
         val DISCRIMINATOR = Discriminator.serializer().descriptor.serialName
         val SKIPPED_KEYS = setOf(OasSerialNames.EXTENSIONS_KEY, OasSerialNames.OTHER_KEY, OasSerialNames.REF_KEY)
-        val SUBSCHEMA_KEYWORDS = setOf(
-            "if", "then", "else", "contains", "propertyNames", "unevaluatedItems", "unevaluatedProperties",
-            "contentSchema", "additionalItems",
-        )
-        val SUBSCHEMA_MAP_KEYWORDS = setOf("dependentSchemas")
+        // Keywords with subschemas that the model has no field for; the others are walked as fields.
+        val SUBSCHEMA_KEYWORDS = setOf("contentSchema", "additionalItems")
+        val SUBSCHEMA_MAP_KEYWORDS = emptySet<String>()
     }
 }

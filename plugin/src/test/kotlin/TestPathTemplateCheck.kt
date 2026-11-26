@@ -20,12 +20,11 @@ class TestPathTemplateCheck {
         )
     }
 
-    // swagger-parser already fails this spec, with a message about a parameter named '{id'; ogen's message is logged with it.
     @Test
     fun testNestedPathTemplate() {
         val logger = CapturingLogger()
         val e = assertFailsWith<GradleException> { Validator(logger).validate(validatorConfigs("path-template-nested")) }
-        assertEquals(failedMessage("path-template-nested"), e.message)
+        assertEquals(errorsMessage("path-template-nested", 1), e.message)
         assertContains(logger.at(Level.ERROR).map { it.trim() }, "path '/carts/{{id}}' has a variable inside a variable")
     }
 

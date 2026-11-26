@@ -1,6 +1,5 @@
 package de.quati.ogen.plugin.intern.validation
 
-import io.swagger.v3.oas.models.OpenAPI
 import java.util.regex.Pattern
 import java.util.regex.PatternSyntaxException
 
@@ -8,7 +7,7 @@ import java.util.regex.PatternSyntaxException
  * `pattern` values and `patternProperties` keys that don't compile. OpenAPI patterns are ECMA-262 regexes, which the
  * JVM can only approximate: Java rejects some valid ones (`[^]`, `\u{41}`, a literal `{`). So these are warnings.
  */
-internal fun patternWarnings(spec: OpenAPI): List<String> {
+internal fun patternWarnings(spec: ValidatedSpec): List<String> {
     val warnings = mutableListOf<String>()
     fun check(kind: String, regex: String, location: String) {
         try {

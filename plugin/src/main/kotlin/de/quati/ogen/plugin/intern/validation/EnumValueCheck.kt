@@ -1,59 +1,35 @@
 package de.quati.ogen.plugin.intern.validation
 
-import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.SpecVersion
-import io.swagger.v3.oas.models.media.Schema
-import java.math.BigDecimal
-
-// swagger-parser reads YAML 1.1; in YAML 1.2, which OpenAPI recommends, these words are strings.
-private const val YAML_BOOLEAN_HINT =
-    " (swagger-parser may have made it: it reads unquoted yes, no, on and off as booleans; quote them)"
-
-// The cast applies in 3.0 and 3.1 alike; '1' and 'y' become false too.
-private const val BOOLEAN_CAST_HINT = " (swagger-parser may have made it: it reads unquoted yes, no, on and off as " +
-    "booleans, and casts every string of a boolean enum, where only 'true', in any case, becomes true)"
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * Enum values that do not match their schema's type or are listed twice, as far as swagger-parser's model shows them:
- * it casts 3.0 values to the type (null if it can't), and types a 3.1 schema without `type` by its first value. A
- * duplicate that swagger-parser's casts or its YAML 1.1 reading may have made names that cause.
+ * Enum values that do not match their schema's type, `null` in a schema that is not nullable, and values listed
+ * twice. Values are compared as written in the spec, read as YAML 1.2: `1` equals `1.0`, but not `"1"`.
  */
-internal fun enumValueErrors(spec: OpenAPI): List<String> {
-    val isV31 = spec.specVersion == SpecVersion.V31
+internal fun enumValueErrors(spec: ValidatedSpec): List<String> {
     val errors = mutableListOf<String>()
     spec.walkSchemas { node ->
         val schema = node.schema
         val values = schema.enum?.takeIf { it.isNotEmpty() } ?: return@walkSchemas
         val where = "'${node.location}'"
-        // In 3.0 a schema without `type` stays a plain Schema, typed only by inference.
-        val declared = if (!isV31 && schema::class == Schema::class) emptySet() else schema.declaredTypes(isV31)
-        val nullAllowed = if (isV31) "null" in declared else schema.nullable == true
+        val declared = schema.declaredTypes
+        val nullAllowed = "null" in declared
         val valueTypes = declared - "null"
-        val castHint = if (!isV31 && schema.type in numberTypes)
-            " (swagger-parser also reads a value that is not a valid ${schema.type} as null)"
-        else ""
-        val reported = mutableSetOf<Any?>()
+        val reported = mutableSetOf<Any>()
         values.forEach { value ->
             val key = value.enumKey()
             when {
                 key in reported -> Unit
-                value == null && !nullAllowed ->
-                    errors.add("enum value null in $where is not allowed: the schema is not nullable$castHint")
+                value is JsonNull && !nullAllowed ->
+                    errors.add("enum value null in $where is not allowed: the schema is not nullable")
 
-                value != null && valueTypes.isNotEmpty() && !value.matchesAny(valueTypes) -> errors.add(
+                value !is JsonNull && valueTypes.isNotEmpty() && !value.matchesAny(valueTypes) -> errors.add(
                     "enum value ${value.render()} in $where does not match the schema's type ${valueTypes.joinToString(" or ")}"
                 )
 
-                values.count { it.enumKey() == key } > 1 -> errors.add(
-                    "enum value ${value.render()} in $where is listed more than once" + when {
-                        value == null -> castHint
-                        value is Boolean && valueTypes == setOf("boolean") -> BOOLEAN_CAST_HINT
-                        value is Boolean -> YAML_BOOLEAN_HINT
-                        // A 3.0 string schema casts a YAML 1.1 boolean to 'true' or 'false'.
-                        !isV31 && value in setOf("true", "false") && "string" in valueTypes -> YAML_BOOLEAN_HINT
-                        else -> ""
-                    }
-                )
+                values.count { it.enumKey() == key } > 1 ->
+                    errors.add("enum value ${value.render()} in $where is listed more than once")
 
                 else -> return@forEach
             }
@@ -63,11 +39,9 @@ internal fun enumValueErrors(spec: OpenAPI): List<String> {
     return errors
 }
 
-private fun Any.matchesAny(types: Set<String>) = when (this) {
-    is String, is ByteArray -> "string" in types
-    is Boolean -> "boolean" in types
-    is Number -> "number" in types ||
-        ("integer" in types && BigDecimal(toString()).stripTrailingZeros().scale() <= 0)
-
+private fun kotlinx.serialization.json.JsonElement.matchesAny(types: Set<String>) = when (jsonType) {
+    "string" -> "string" in types
+    "boolean" -> "boolean" in types
+    "number" -> "number" in types || ("integer" in types && (this as JsonPrimitive).isWholeNumber())
     else -> true // An object or array value is not checked.
 }

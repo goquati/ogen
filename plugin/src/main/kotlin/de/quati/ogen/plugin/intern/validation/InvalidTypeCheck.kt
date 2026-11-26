@@ -1,18 +1,14 @@
 package de.quati.ogen.plugin.intern.validation
 
-import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.SpecVersion
-
-private val types30 = setOf("array", "boolean", "integer", "number", "object", "string")
-private val types31 = types30 + "null"
+// After migration a 3.0 schema may carry `null`, which stands for its `nullable`; so `null` is valid for every version.
+private val validTypes = setOf("array", "boolean", "integer", "null", "number", "object", "string")
 
 /** A `type` that isn't a JSON Schema type; the generator falls back to an untyped JSON value for it. */
-internal fun invalidTypeErrors(spec: OpenAPI): List<String> {
-    val isV31 = spec.specVersion == SpecVersion.V31
-    val valid = if (isV31) types31 else types30
+internal fun invalidTypeErrors(spec: ValidatedSpec): List<String> {
+    val valid = if (spec.is30) validTypes - "null" else validTypes
     val errors = mutableListOf<String>()
     spec.walkSchemas { node ->
-        node.schema.declaredTypes(isV31).filter { it !in valid }.forEach {
+        node.schema.declaredTypes.filter { it !in validTypes }.forEach {
             errors.add("type '$it' in '${node.location}' is not one of ${valid.sorted().joinToString()}")
         }
     }

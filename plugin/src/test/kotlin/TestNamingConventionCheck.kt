@@ -38,8 +38,8 @@ class TestNamingConventionCheck {
                 "tag 'Items' in '/items/{itemId}:POST' does not match the tag format camelCase",
                 "operationId 'On_Created' in '/items/{itemId}:POST.callbacks.onCreated.{\$request.body#/callbackUrl}:POST' does not match the operationId format camelCase",
                 "query parameter 'Sort_Order' in 'components.parameters.SortOrder' does not match the query parameter format camelCase",
-                // In 3.0, swagger-parser moves a path-level parameter into each operation; it is named at the first.
-                "query parameter 'Page_Size' in '/items/{itemId}:GET' does not match the query parameter format camelCase",
+                // A parameter of the Path Item is reported where it is declared.
+                "query parameter 'Page_Size' in '/items/{itemId}' does not match the query parameter format camelCase",
                 "header parameter 'x_trace_id' in '/items/{itemId}:GET' does not match the header parameter format camelCase",
                 "cookie parameter 'Session_Id' in '/items/{itemId}:GET' does not match the cookie parameter format camelCase",
                 "schema name 'item_model' in 'components.schemas' does not match the schema name format PascalCase",
