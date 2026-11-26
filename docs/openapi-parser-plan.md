@@ -203,6 +203,23 @@ verschwindet schon hier aus dem Code.
 - `Resolver`: `resolve(ref, expectedType)` mit korrekt decodiertem JSON Pointer; kein Vorab-Dereferenzieren.
 - Tests: relative Pfade (`../common.yaml`), Pointer mit `~0`/`~1`/`%20`, zirkuläre Schemas, Datei-Zyklen,
   fehlende Datei/fehlender Pointer → Diagnose mit Ort.
+- **Erledigt** (`intern/oas/load`, `intern/oas/ref`). Umsetzung und Befunde:
+  - `OasWalker` läuft wie die Strukturprüfung entlang der Descriptors über den Baum und meldet jede Referenz mit
+    ihrem Zieltyp. Daten (`example`, `default`, `enum`, `const`, `x-*`) werden nicht betreten, ein `$ref` darin
+    bleibt ein Wert. Subschemas in Keywords ohne eigenes Feld (`if`/`then`/`else`, `dependentSchemas`, …) und
+    **Discriminator-Mappings** (Werte mit `#` oder `/`) werden mit erfasst. Letztere muss der Bundler mit umschreiben,
+    sonst passen sie in Codegen nicht mehr zu den `oneOf`-Refs.
+  - Externe Dateien werden nur ab dem referenzierten Fragment und als dessen Zieltyp durchlaufen; jede
+    Kombination (Datei, Pointer, Typ) genau einmal.
+  - `$self` setzt die Basis-URI. Nachbardateien werden trotzdem dort geladen, wo das Dokument liegt
+    (Präfix-Abbildung `$self`-Verzeichnis → Ladeverzeichnis). `$id` in Schemas setzt die Basis und macht das Schema
+    unter dieser URI auffindbar.
+  - Bekannte Grenzen: Anker-Fragmente (`#name`, `$anchor`) und `$dynamicRef` werden nicht aufgelöst (Anker → Fehler
+    mit klarer Meldung). Beim Sprung in das Fragment einer externen Datei zählen `$id`s oberhalb des Fragments nicht.
+  - HTTP ist standardmäßig aus (`ResourceLoader.default(httpAllowlist)`). Eine DSL-Option dafür kommt mit der
+    Umstellung (Phase 6).
+  - Über alle Specs im Repo: 3226 Referenzen, alle aufgelöst und zum erwarteten Typ passend (bis auf die
+    booleschen Grenzen aus 3.0 → Phase 4).
 
 ### Phase 4 – Migration
 - `SchemaPositionWalker` auf `JsonElement`.

@@ -9,10 +9,15 @@ internal value class JsonPointer private constructor(val segments: List<String>)
     operator fun div(segment: String): JsonPointer = JsonPointer(segments + segment)
     operator fun div(index: Int): JsonPointer = div(index.toString())
 
+    operator fun plus(other: JsonPointer): JsonPointer = JsonPointer(segments + other.segments)
+
     val parent: JsonPointer? get() = if (segments.isEmpty()) null else JsonPointer(segments.dropLast(1))
     val isRoot: Boolean get() = segments.isEmpty()
 
     override fun toString(): String = segments.joinToString(separator = "") { "/" + escape(it) }
+
+    /** The pointer as URI fragment (without `#`): escaped, then percent-encoded where a fragment requires it. */
+    fun toUriFragment(): String = UriText.encode(toString(), UriText.FRAGMENT)
 
     companion object {
         val ROOT: JsonPointer = JsonPointer(emptyList())
