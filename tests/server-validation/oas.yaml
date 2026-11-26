@@ -183,8 +183,55 @@ paths:
       responses:
         '204':
           description: valid parameters
+  /api/pets:
+    post:
+      tags:
+        - items
+      summary: Create pets
+      description: Accepts a list of pets of a sealed interface.
+      operationId: createPets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Pet'
+      responses:
+        '204':
+          description: valid pets
 components:
   schemas:
+    Pet:
+      description: A cat or a dog.
+      oneOf:
+        - $ref: '#/components/schemas/Cat'
+        - $ref: '#/components/schemas/Dog'
+      discriminator:
+        propertyName: type
+    Cat:
+      description: A cat with a short name.
+      type: object
+      required:
+        - type
+        - name
+      properties:
+        type:
+          type: string
+        name:
+          type: string
+          maxLength: 3
+    Dog:
+      description: A dog.
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+        good:
+          type: boolean
     Amount:
       description: A non-negative amount.
       type: number

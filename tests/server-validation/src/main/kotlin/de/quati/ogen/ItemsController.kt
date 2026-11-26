@@ -2,6 +2,7 @@ package de.quati.ogen
 
 import de.quati.ogen.gen.model.CodeDto
 import de.quati.ogen.gen.model.ItemDto
+import de.quati.ogen.gen.model.PetDto
 import de.quati.ogen.gen.server.ItemsApi
 import org.springframework.http.ResponseEntity
 import java.math.BigDecimal
@@ -33,6 +34,9 @@ class ItemsController : ItemsApi {
         ids: List<String>?,
         words: List<String>?,
     ): ResponseEntity<Unit> = ResponseEntity.noContent().build()
+
+    override suspend fun createPets(listPetDto: List<PetDto>): ResponseEntity<Unit> =
+        ResponseEntity.noContent().build()
 
     override suspend fun createItems(listItemDto: List<ItemDto>) = ResponseEntity.ok(listItemDto.size)
 }

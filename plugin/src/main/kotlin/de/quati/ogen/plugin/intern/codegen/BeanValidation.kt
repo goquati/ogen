@@ -43,7 +43,7 @@ internal fun Component.Schema.validationAnnotations(
         // the keywords are those of the schema the mapping applies to, also when this refers to it
         val mapped = if (this is Component.Schema.Ref) c.allSchemas[resolveAlias().name] else this
         return when (mapped) {
-            is Component.Schema.Primitiv -> mapped.constraints.numberAnnotations(mapping.className(), integral = false)
+            is Component.Schema.Primitiv -> mapped.annotationsFor(mapping.className())
             else -> emptyList()
         }
     }
@@ -186,21 +186,21 @@ private fun Component.Schema.Value.isPrimitiveOnJvm() = toInline().getTypeName(w
 )
 
 context(_: CodeGenContext)
-private fun Component.Schema.Primitiv.primitiveAnnotations(): List<AnnotationSpec> =
-    when (val type = Component.Schema.Primitiv.Inline(this.type, format, isNullable).getTypeName(withFlow = false)) {
-        Type.PrimitiveType.String -> buildList {
+private fun Component.Schema.Primitiv.primitiveAnnotations(): List<AnnotationSpec> = annotationsFor(
+    Component.Schema.Primitiv.Inline(this.type, format, isNullable).getTypeName(withFlow = false).poet as ClassName
+)
+
+/** The annotations of this schema for a value of [type], also one a mapping chose; types they don't fit get none. */
+private fun Component.Schema.Primitiv.annotationsFor(type: ClassName): List<AnnotationSpec> =
+    when (type.canonicalName) {
+        "kotlin.String" -> buildList {
             addIfNotNull(sizeAnnotation(constraints.minLength, constraints.maxLength))
             constraints.pattern?.also { add(patternAnnotation(it)) }
             if (format == "email") add(AnnotationSpec.builder(Poet.Validation.email).build())
         }
 
-        Type.PrimitiveType.Int, Type.PrimitiveType.Long ->
-            constraints.numberAnnotations(type.poet as ClassName, integral = true)
-
-        Type.PrimitiveType.Float, Type.PrimitiveType.Double ->
-            constraints.numberAnnotations(type.poet as ClassName, integral = false)
-
-        else -> emptyList()
+        "kotlin.Int", "kotlin.Long", "kotlin.Short", "kotlin.Byte" -> constraints.numberAnnotations(type, integral = true)
+        else -> constraints.numberAnnotations(type, integral = false)
     }
 
 private val numberClasses = setOf("java.math.BigDecimal", "java.math.BigInteger")
@@ -285,16 +285,16 @@ private fun patternAnnotation(pattern: String): AnnotationSpec {
 private fun String.isAnchored(): Boolean {
     if (!startsWith("^") || !endsWith("$")) return false
     var depth = 0
-    var inClass = false
+    var classDepth = 0 // Java allows nested character classes, e.g. [a-z&&[^x]]
     var i = 0
     while (i < length) {
         when (this[i]) {
             '\\' -> if (i == length - 2) return false else i++ // the last `$` is escaped
-            '[' -> inClass = true
-            ']' -> inClass = false
-            '(' -> if (!inClass) depth++
-            ')' -> if (!inClass) depth--
-            '|' -> if (!inClass && depth == 0) return false
+            '[' -> classDepth++
+            ']' -> if (classDepth > 0) classDepth--
+            '(' -> if (classDepth == 0) depth++
+            ')' -> if (classDepth == 0) depth--
+            '|' -> if (classDepth == 0 && depth == 0) return false
         }
         i++
     }

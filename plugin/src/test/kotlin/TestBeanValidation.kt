@@ -38,6 +38,8 @@ class TestBeanValidation {
                 model {
                     typeMapping(type = "number+big-decimal", clazz = "java.math.BigDecimal")
                     typeMapping(type = "string+date-time", clazz = "java.time.OffsetDateTime")
+                    typeMapping(type = "integer+unix-time", clazz = "kotlin.Long")
+                    typeMapping(type = "string+secret", clazz = "kotlin.String")
                     beanValidation = modelBeanValidation
                 }
                 serverSpringV4 { beanValidation = serverBeanValidation }
@@ -178,6 +180,28 @@ class TestBeanValidation {
         assertContains(model, "@field:Pattern(regexp = \"^[a-z]+${'$'}{'${'$'}'}\")")
         assertContains(model, "@field:Pattern(regexp = \"^(foo|bar)${'$'}{'${'$'}'}\")")
         assertContains(model, "@field:Pattern(regexp = \"$any(?:^foo\\\\${'$'}{'${'$'}'})$any\")")
+    }
+
+    @Test
+    fun `nested character classes don't hide the anchors`() {
+        val model = generate("bean-validation-edge-cases").file("EdgeDto.kt")
+        assertContains(model, "@field:Pattern(regexp = \"^[a-z&&[^x]|]+${'$'}{'${'$'}'}\")")
+    }
+
+    @Test
+    fun `types mapped to Kotlin integers and strings keep their constraints`() {
+        val model = generate("bean-validation-edge-cases").file("EdgeDto.kt")
+        assertContains(model, Regex("@field:Max\\(value = 100L\\) @Serializable\\([^)]*\\) public val mappedToLong: Option<Long>"))
+        assertContains(model, Regex("@field:Size\\(max = 8\\) @Serializable\\([^)]*\\) public val mappedToString: Option<String>"))
+    }
+
+    @Test
+    fun `an optional JSON body without a schema stays nullable`() {
+        listOf(true, false).forEach { enabled ->
+            val api = generate("bean-validation-edge-cases", modelBeanValidation = enabled, serverBeanValidation = enabled)
+                .file("RawApi.kt")
+            assertContains(api, "fun postRaw(@RequestBody body: Any?)")
+        }
     }
 
     @Test

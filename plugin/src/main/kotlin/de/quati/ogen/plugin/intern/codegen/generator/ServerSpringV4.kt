@@ -154,9 +154,10 @@ private fun TypeSpec.Builder.createController(
                 }
 
                 else -> {
-                    val bodySchema = requestBody.schema.takeIf { requestBody.contentType is ContentType.Json }
-                    val (type, validation) = when (bodySchema) {
-                        null -> Any::class.asClassName() to emptyList()
+                    val isJson = requestBody.contentType is ContentType.Json
+                    val (type, validation) = when (val bodySchema = requestBody.schema.takeIf { isJson }) {
+                        // a JSON body without a schema is `Any`, nullable when it is optional
+                        null -> (if (isJson) requestBody.typeName else Any::class.asClassName()) to emptyList()
                         else -> bodySchema.validated(type = requestBody.typeName, nullable = !requestBody.required)
                     }
                     addParameter(name = paramNameResolver.resolve(requestBody.prettyBodyName), type = type) {

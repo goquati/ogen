@@ -181,6 +181,13 @@ class BeanValidationTest {
     }
 
     @Test
+    fun `array body of a sealed interface`() {
+        // the items' type isn't final, so a parameter's List<PetDto> is List<? extends PetDto> on the JVM
+        post("/api/pets", "[{\"type\":\"Cat\",\"name\":\"Tom\"},{\"type\":\"Dog\"}]", expectedStatus = 204)
+        post("/api/pets", "[{\"type\":\"Cat\",\"name\":\"Garfield\"}]", expectedStatus = 400)
+    }
+
+    @Test
     fun `valid body`() {
         post("/api/items", item(), expectedStatus = 200)
         post(

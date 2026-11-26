@@ -26,6 +26,18 @@ paths:
                 maxItems: 10
                 items:
                   $ref: '#/components/schemas/Leaf'
+  /raw:
+    post:
+      operationId: postRaw
+      tags:
+        - raw
+      requestBody:
+        required: false
+        content:
+          application/json: {}
+      responses:
+        '204':
+          description: no content
 components:
   schemas:
     Leaf:
@@ -70,3 +82,14 @@ components:
           type: integer
           format: int64
           minimum: 10000000000000000000
+        nestedClass:
+          type: string
+          pattern: '^[a-z&&[^x]|]+$'
+        mappedToLong:
+          type: integer
+          format: unix-time
+          maximum: 100
+        mappedToString:
+          type: string
+          format: secret
+          maxLength: 8
