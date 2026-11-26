@@ -122,6 +122,14 @@ Jede Phase endet mit grünem Build. Swagger bleibt bis Phase 7 drin, damit alt u
 - Positionen: Seitentabelle JSON Pointer → (Zeile, Spalte) aus den YAML-Marks, für Diagnosen.
 - Eingabe-Erkennung: erstes Nicht-Whitespace-Zeichen `{` → JSON, sonst YAML (BOM beachten).
 - Tests: Duplicate Keys, Anker, Nicht-String-Keys, JSON-Eingabe, `invalid-yaml.yaml`.
+- **Erledigt** (`intern/oas/read`, `intern/oas/ref/JsonPointer.kt`, `intern/oas/Diagnostic.kt`). Abweichungen und Befunde:
+  - JSON läuft ebenfalls über snakeyaml-engine (YAML 1.2 ist eine Obermenge von JSON). `Json.parseToJsonElement`
+    behält bei doppelten Keys stillschweigend den letzten Wert; so sind doppelte Keys auch in JSON ein Fehler,
+    und JSON-Specs bekommen Positionen. Die `{`-Erkennung bestimmt nur noch das gemeldete Format.
+  - snakeyaml-engine expandiert Merge-Keys (`<<: *anchor`), obwohl sie nicht zu YAML 1.2 gehören. Das bleibt so.
+  - Vergleichstest gegen Jackson über alle Specs im Repo (`TestSourceReaderCompat`, fällt in Phase 8 weg):
+    identisch bis auf YAML-1.1-Booleans (`yes`/`no`/`on`/`off` ohne Quotes sind jetzt Strings). Betroffen sind
+    genau die drei Test-Specs, die diesen Effekt prüfen → siehe Phase 7.
 
 ### Phase 1b – SpecMergeService ohne swagger und Jackson
 Braucht nur den Reader aus Phase 1, nicht das Modell. Deshalb kommt die Phase früh, und Jackson
@@ -194,6 +202,9 @@ verschwindet schon hier aus dem Code.
 - `SpecWalker` und alle Checks auf das neue Modell portieren. Tests bleiben inhaltlich gleich,
   `ValidatorTestSupport` liefert das neue Modell; `declaredTypesSpec` entfällt.
 - `NullableWithoutTypeCheck` wird Migrations-Diagnose (Meldungstext bleibt).
+- `EnumValueCheck`: Die Hinweise auf YAML 1.1 (`YAML_BOOLEAN_HINT`, Teile von `BOOLEAN_CAST_HINT`) entfallen,
+  weil der Reader YAML 1.2 liest. `enum-values-yaml-booleans*.yaml` und `enum-values-boolean-cast.yaml` samt
+  Tests anpassen. Verhaltensänderung für Nutzer: `enum: [yes, no]` ohne Quotes ist jetzt eine String-Enum.
 - swagger-Messages → eigene `Diagnostic`s (YAML-, Struktur-, Ref-Fehler).
 - `OpenApiEvaluator` ersetzen: die genutzten Regeln selbst als Checks (siehe offene Frage 1).
 
