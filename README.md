@@ -10,6 +10,8 @@
 - **Kotlin Multiplatform**: Seamlessly works with KMP projects, generating code into the appropriate source sets.
 - **Spring Boot Support**: Generates server interfaces for Spring Boot (WebFlux).
 - **Ktor Client Support**: Generates Ktor clients (a Ktor server generator is planned).
+- **Bean Validation**: Optionally generates Jakarta Bean Validation annotations from the schemas' validation
+  keywords, for models (also in multiplatform code) and the Spring server.
 - **Multipart Requests**: Supports `multipart/form-data` request bodies, including file uploads, in the Spring server and the Ktor client.
 - **OpenAPI Validation**: Built-in validator to ensure your OpenAPI specs follow best practices and naming conventions.
 - **Highly Configurable**: Custom type mappings, schema mappings, and naming convention enforcement.
@@ -71,6 +73,8 @@ ogen {
             )
             // Map specific schemas to existing classes
             schemaMapping(schema = "UserId", clazz = "com.example.models.UserId")
+            // Optional: Annotate the properties with Jakarta Bean Validation constraints (a JVM target needs jakarta.validation-api)
+            beanValidation = true
         }
 
         // Optional: Generate Spring Boot server interfaces
@@ -81,6 +85,8 @@ ogen {
             contextIfAnySecurity("com.example.api.AuthContext")
             // Optional: Return typed ApiResponse classes instead of ResponseEntity (requires de.quati.ogen:server-spring)
             apiResponse = true
+            // Optional: Validate parameters and request bodies with Jakarta Bean Validation (requires spring-boot-starter-validation)
+            beanValidation = true
         }
 
         // Optional: Generate Ktor Client
@@ -172,6 +178,29 @@ sealed interface GetUserResponse : ApiResponse {
 The responses are written by `ApiResponseResultHandler` (a WebFlux `HandlerResultHandler`) from `server-spring`, which
 is registered by Spring Boot auto-configuration in reactive web applications. To customize it, define your own
 `ApiResponseResultHandler` bean; without Spring Boot, register it manually.
+
+### Bean Validation
+
+`model { beanValidation = true }` annotates the model properties with the Jakarta Bean Validation constraints of their
+schemas, and `serverSpringV4 { beanValidation = true }` the controller parameters; request bodies get `@Valid`.
+Spring then answers invalid requests with `400 Bad Request`. The properties of request bodies are only validated when
+the models carry the annotations, so the generator warns when only the server option is set. If the models are
+generated in another module, set `beanValidation` in its `model` block and in the server module's `model` block.
+
+The annotations are those of Jakarta (`jakarta.validation:jakarta.validation-api`). Models in multiplatform common
+code use those of `de.quati.ogen.core.validation` instead: on the JVM they are the Jakarta annotations, which then
+needs `jakarta.validation-api` at compile time; on other platforms the compiler drops them. `de.quati.ogen:core`
+registers a value extractor, so constraints on optional (`Option`) properties apply to their values.
+
+They check `minLength`, `maxLength`, `pattern` and `format: email` of strings, `minimum`, `maximum`,
+`exclusiveMinimum`, `exclusiveMaximum` and `multipleOf` of integers and numbers (also those mapped to `BigDecimal` or
+`BigInteger`), `minItems`, `maxItems` and `uniqueItems` of arrays and `minProperties` and `maxProperties` of maps, and
+cascade into generated objects. Jakarta has no constraints for `multipleOf` and `uniqueItems`, so these are
+`@MultipleOf` and `@UniqueItems` of `de.quati.ogen.core.validation`, on every platform.
+
+Constraints of the items of arrays and the values of maps go on the type arguments, e.g. `List<@Size(max = 3) String>`;
+Hibernate Validator reads them from JVM type annotations, so with `beanValidation` the plugin adds
+`-Xemit-jvm-type-annotations` to the Kotlin JVM compilations.
 
 ## Tasks
 

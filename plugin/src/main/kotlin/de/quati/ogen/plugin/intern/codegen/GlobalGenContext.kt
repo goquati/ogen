@@ -12,6 +12,8 @@ import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 
 internal class GlobalGenContext(
     val specConfigs: SpecConfigs,
+    /** Whether the code is generated into multiplatform common code rather than for the JVM. */
+    val multiplatform: Boolean = false,
 ) {
     val utilConfig get() = specConfigs.util
     val serverSpringV4EnumConversionTypes = mutableListOf<Type>()

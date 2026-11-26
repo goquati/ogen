@@ -18,6 +18,13 @@ import kotlin.reflect.KClass
 public open class SpecsConfigBuilder {
     private val specs = mutableListOf<SpecConfig>()
     private var utilPackageName: PackageName? = null
+    /** Whether any spec generates Bean Validation annotations, for models or the Spring server. */
+    internal val beanValidation: Boolean
+        get() = specs.any { spec ->
+            spec.modelConfig.beanValidation ||
+                spec.generatorConfigs.any { it is GeneratorConfig.ServerSpringV4 && it.beanValidation }
+        }
+
     internal fun build() = SpecConfigs(
         specs = specs.toList(),
         util = SpecConfigs.Util(
@@ -151,6 +158,14 @@ public open class SpecsConfigBuilder {
              * Requires the `de.quati.ogen:server-spring` library.
              */
             public var apiResponse: Boolean = false
+
+            /**
+             * Annotates the controller parameters with the Jakarta Bean Validation constraints of their schemas and
+             * request bodies with `@Valid`, so Spring answers invalid requests with `400 Bad Request`. The properties
+             * of the bodies are only checked if the models are generated with `model { beanValidation = true }`.
+             * Requires `spring-boot-starter-validation`.
+             */
+            public var beanValidation: Boolean = false
             private var contextIfAnySecurity: ClassName? = null
 
             public fun contextIfAnySecurity(type: String): ServerSpringV4Config =
@@ -161,6 +176,7 @@ public open class SpecsConfigBuilder {
                 postfix = postfix,
                 addOperationContext = addOperationContext,
                 apiResponse = apiResponse,
+                beanValidation = beanValidation,
                 contextIfAnySecurity = contextIfAnySecurity,
                 skipGeneration = false,
             )
@@ -183,6 +199,14 @@ public open class SpecsConfigBuilder {
             private val schemaMappings = mutableMapOf<ComponentName.Schema, Type.NonPrimitiveType.Custom>()
             public var skipGeneration: Boolean = false
             public var postfix: String = "Dto"
+
+            /**
+             * Annotates the model properties with the Jakarta Bean Validation constraints of their schemas, which
+             * needs `jakarta.validation:jakarta.validation-api` for a JVM target. In multiplatform common code the
+             * annotations of `de.quati.ogen:core` stand for them: on the JVM they are the Jakarta annotations, on
+             * other platforms the compiler drops them.
+             */
+            public var beanValidation: Boolean = false
 
             public fun typeMapping(
                 type: String,
@@ -212,6 +236,7 @@ public open class SpecsConfigBuilder {
             internal fun build() = GeneratorConfig.Model(
                 packageName = packageName?.let(::PackageName) ?: error("packageName is required for model code"),
                 skipGeneration = skipGeneration,
+                beanValidation = beanValidation,
                 typeMappings = typeMappings,
                 schemaMappings = schemaMappings,
                 postfix = postfix,

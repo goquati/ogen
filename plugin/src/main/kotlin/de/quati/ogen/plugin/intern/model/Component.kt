@@ -44,6 +44,19 @@ internal sealed interface Component {
             Null -> this
         }
 
+        /** This schema without the validation keywords of it and of its inline items and values. */
+        fun withoutConstraints(): Schema = when (this) {
+            is Primitiv.Inline -> copy(constraints = Constraints.NONE)
+            is Primitiv.Value -> copy(constraints = Constraints.NONE)
+            is Array.Inline -> copy(constraints = Constraints.NONE, items = items.withoutConstraints() as Inline)
+            is Array.Value -> copy(constraints = Constraints.NONE, items = items.withoutConstraints() as Inline)
+            is MapS.Inline ->
+                copy(constraints = Constraints.NONE, valueSchema = valueSchema.withoutConstraints() as Inline)
+            is MapS.Value ->
+                copy(constraints = Constraints.NONE, valueSchema = valueSchema.withoutConstraints() as Inline)
+            else -> this
+        }
+
         data class EnumString(
             val values: List<String>,
             override val name: ComponentName.Schema,
@@ -54,6 +67,7 @@ internal sealed interface Component {
         sealed interface Primitiv : Schema {
             val type: Type
             val format: String?
+            val constraints: Constraints
             override val typeWithFormat get() = TypeWithFormat(type = type.name.lowercase(), format = format)
 
             data class Value(
@@ -61,14 +75,16 @@ internal sealed interface Component {
                 override val type: Type,
                 override val format: String?,
                 override val isNullable: Boolean,
+                override val constraints: Constraints = Constraints.NONE,
             ) : Primitiv, Schema.Value {
-                override fun toInline() = Inline(type, format, isNullable)
+                override fun toInline() = Inline(type, format, isNullable, constraints)
             }
 
             data class Inline(
                 override val type: Type,
                 override val format: String?,
                 override val isNullable: Boolean,
+                override val constraints: Constraints = Constraints.NONE,
             ) : Primitiv, Schema.Inline {
                 override val ref = null
             }
@@ -116,20 +132,23 @@ internal sealed interface Component {
 
         sealed interface MapS : Schema {
             val valueSchema: Schema.Inline
+            val constraints: Constraints
 
             data class Value(
                 override val name: ComponentName.Schema,
                 override val valueSchema: Schema.Inline,
                 override val isNullable: Boolean,
                 override val typeWithFormat: TypeWithFormat?,
+                override val constraints: Constraints = Constraints.NONE,
             ) : MapS, Schema.Value {
-                override fun toInline() = Inline(valueSchema, isNullable, typeWithFormat)
+                override fun toInline() = Inline(valueSchema, isNullable, typeWithFormat, constraints)
             }
 
             data class Inline(
                 override val valueSchema: Schema.Inline,
                 override val isNullable: Boolean,
                 override val typeWithFormat: TypeWithFormat?,
+                override val constraints: Constraints = Constraints.NONE,
             ) : MapS, Schema.Inline {
                 override val ref = null
             }
@@ -137,20 +156,23 @@ internal sealed interface Component {
 
         sealed interface Array : Schema {
             val items: Schema.Inline
+            val constraints: Constraints
 
             data class Value(
                 override val name: ComponentName.Schema,
                 override val items: Schema.Inline,
                 override val isNullable: Boolean,
                 override val typeWithFormat: TypeWithFormat?,
+                override val constraints: Constraints = Constraints.NONE,
             ) : Array, Schema.Value {
-                override fun toInline() = Inline(items, isNullable, typeWithFormat)
+                override fun toInline() = Inline(items, isNullable, typeWithFormat, constraints)
             }
 
             data class Inline(
                 override val items: Schema.Inline,
                 override val isNullable: Boolean,
                 override val typeWithFormat: TypeWithFormat?,
+                override val constraints: Constraints = Constraints.NONE,
             ) : Array, Schema.Inline {
                 override val ref = null
             }

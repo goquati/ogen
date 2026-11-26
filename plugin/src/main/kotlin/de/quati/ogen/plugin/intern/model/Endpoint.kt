@@ -175,6 +175,7 @@ internal data class Endpoint(
         val required get() = data.required
         val description get() = data.description
         val contentType get() = mediaType?.contentType
+        val schema get() = mediaType?.schema
         val typeName get() = (type?.poet ?: Any::class.asClassName()).copy(nullable = !data.required)
         val prettyBodyName get() = type?.prettyName(capitalized = false) ?: "body"
 

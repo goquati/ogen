@@ -402,3 +402,62 @@ components:
           bar:
             description: Sample integer field of the map value.
             type: integer
+    ConstrainedCode:
+      description: Three upper-case letters.
+      type: string
+      pattern: '^[A-Z]{3}$'
+    Constrained:
+      description: Object with validation keywords, checked by Bean Validation on the JVM.
+      type: object
+      required:
+        - name
+        - code
+      properties:
+        name:
+          description: Between two and five characters.
+          type: string
+          minLength: 2
+          maxLength: 5
+        age:
+          description: Optional age between 0 and 150.
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 150
+        code:
+          $ref: '#/components/schemas/ConstrainedCode'
+        tags:
+          description: At most two tags.
+          type: array
+          maxItems: 2
+          items:
+            type: string
+        labels:
+          description: Labels of at most three characters.
+          type: array
+          items:
+            type: string
+            maxLength: 3
+        scores:
+          description: Scores of at most ten.
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+            maximum: 10
+        codes:
+          description: Codes of three upper-case letters.
+          type: array
+          items:
+            $ref: '#/components/schemas/ConstrainedCode'
+        step:
+          description: A multiple of 0.5.
+          type: number
+          format: double
+          multipleOf: 0.5
+        uniqueTags:
+          description: Tags without duplicates.
+          type: array
+          uniqueItems: true
+          items:
+            type: string

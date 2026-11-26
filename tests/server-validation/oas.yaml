@@ -1,0 +1,371 @@
+openapi: 3.0.4
+info:
+  title: bean validation test spec
+  description: Exercises the Jakarta Bean Validation annotations of the generated Spring server.
+  version: 1.0.0
+paths:
+  /api/items/{itemId}:
+    parameters:
+      - name: itemId
+        in: path
+        description: ID of the item.
+        required: true
+        schema:
+          type: string
+          minLength: 2
+          maxLength: 5
+          pattern: '^[a-z]+$'
+    get:
+      tags:
+        - items
+      summary: Get item
+      description: Returns the parameters it received.
+      operationId: getItem
+      parameters:
+        - name: limit
+          in: query
+          description: An integer between 1 and 100.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: A long below 1000, exclusive.
+          schema:
+            type: integer
+            format: int64
+            maximum: 1000
+            exclusiveMaximum: true
+        - name: score
+          in: query
+          description: A number above 0, exclusive, and at most 1.5.
+          schema:
+            type: number
+            format: double
+            minimum: 0
+            exclusiveMinimum: true
+            maximum: 1.5
+        - name: search
+          in: query
+          description: A string containing 'foo'.
+          schema:
+            type: string
+            pattern: 'foo'
+        - name: tags
+          in: query
+          description: At most two tags.
+          schema:
+            type: array
+            maxItems: 2
+            items:
+              type: string
+        - name: code
+          in: query
+          description: A code.
+          schema:
+            $ref: '#/components/schemas/Code'
+        - name: x-request-id
+          in: header
+          description: A request ID of at least three characters.
+          schema:
+            type: string
+            minLength: 3
+      responses:
+        '200':
+          description: the parameters
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/items:
+    post:
+      tags:
+        - items
+      summary: Create item
+      description: Returns the created item.
+      operationId: createItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Item'
+      responses:
+        '200':
+          description: the item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+  /api/items/batch:
+    post:
+      tags:
+        - items
+      summary: Create items
+      description: Returns the number of created items.
+      operationId: createItems
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 1
+              maxItems: 2
+              items:
+                $ref: '#/components/schemas/Item'
+      responses:
+        '200':
+          description: the number of items
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: int32
+  /api/edge-cases:
+    get:
+      tags:
+        - items
+      summary: Edge cases
+      description: Accepts parameters with edge-case constraints.
+      operationId: getEdgeCases
+      parameters:
+        - name: startOrEnd
+          in: query
+          description: Starts with 'foo' or ends with 'bar'.
+          schema:
+            type: string
+            pattern: '^foo|bar$'
+        - name: smallest
+          in: query
+          description: Bounded below by the smallest long.
+          schema:
+            type: integer
+            format: int64
+            minimum: -9223372036854775808
+        - name: beyondLong
+          in: query
+          description: Bounded below beyond the range of long, so no value is valid.
+          schema:
+            type: integer
+            format: int64
+            minimum: 10000000000000000000
+        - name: amount
+          in: query
+          description: A non-negative amount, referring to a type-mapped schema.
+          schema:
+            $ref: '#/components/schemas/Amount'
+        - name: step
+          in: query
+          description: A multiple of ten.
+          schema:
+            type: integer
+            format: int64
+            multipleOf: 10
+        - name: ids
+          in: query
+          description: Unique IDs.
+          schema:
+            type: array
+            uniqueItems: true
+            items:
+              type: string
+        - name: words
+          in: query
+          description: Words of at most three characters.
+          schema:
+            type: array
+            items:
+              type: string
+              maxLength: 3
+      responses:
+        '204':
+          description: valid parameters
+  /api/pets:
+    post:
+      tags:
+        - items
+      summary: Create pets
+      description: Accepts a list of pets of a sealed interface.
+      operationId: createPets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Pet'
+      responses:
+        '204':
+          description: valid pets
+components:
+  schemas:
+    Pet:
+      description: A cat or a dog.
+      oneOf:
+        - $ref: '#/components/schemas/Cat'
+        - $ref: '#/components/schemas/Dog'
+      discriminator:
+        propertyName: type
+    Cat:
+      description: A cat with a short name.
+      type: object
+      required:
+        - type
+        - name
+      properties:
+        type:
+          type: string
+        name:
+          type: string
+          maxLength: 3
+    Dog:
+      description: A dog.
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+        good:
+          type: boolean
+    Amount:
+      description: A non-negative amount.
+      type: number
+      format: big-decimal
+      minimum: 0
+    ChildList:
+      description: A list of children, generated as a value class.
+      type: array
+      items:
+        $ref: '#/components/schemas/Child'
+    Tree:
+      description: A tree of trees, which contains itself.
+      type: array
+      items:
+        $ref: '#/components/schemas/Tree'
+    Code:
+      description: Three upper-case letters.
+      type: string
+      pattern: '^[A-Z]{3}$'
+    Percent:
+      description: A percentage.
+      type: integer
+      format: int32
+      minimum: 0
+      maximum: 100
+    Child:
+      description: A child of an item.
+      type: object
+      required:
+        - value
+      properties:
+        value:
+          type: string
+          maxLength: 3
+    Item:
+      description: An item with constrained properties.
+      type: object
+      required:
+        - name
+        - price
+        - code
+        - children
+        - childList
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 10
+        email:
+          type: string
+          format: email
+        age:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 150
+        price:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+        tags:
+          type: array
+          maxItems: 3
+          items:
+            type: string
+        attributes:
+          type: object
+          maxProperties: 2
+          additionalProperties:
+            type: string
+        code:
+          $ref: '#/components/schemas/Code'
+        otherCode:
+          $ref: '#/components/schemas/Code'
+        percent:
+          $ref: '#/components/schemas/Percent'
+        child:
+          $ref: '#/components/schemas/Child'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Child'
+        tree:
+          $ref: '#/components/schemas/Tree'
+        labels:
+          type: array
+          items:
+            type: string
+            maxLength: 3
+        scores:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+            maximum: 10
+        matrix:
+          type: array
+          items:
+            type: array
+            maxItems: 2
+            items:
+              type: string
+              pattern: '^[a-z]+$'
+        codes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Code'
+        optionalChildren:
+          type: array
+          items:
+            $ref: '#/components/schemas/Child'
+        childList:
+          $ref: '#/components/schemas/ChildList'
+        optionalChildList:
+          $ref: '#/components/schemas/ChildList'
+        quantity:
+          type: integer
+          format: int32
+          multipleOf: 5
+        ratio:
+          type: number
+          format: double
+          multipleOf: 0.25
+        uniqueTags:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        uniqueRows:
+          type: array
+          items:
+            type: array
+            uniqueItems: true
+            items:
+              type: integer
+              format: int32

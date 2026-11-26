@@ -1,5 +1,6 @@
 package de.quati.ogen.plugin.intern.codegen.generator
 
+import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
@@ -27,6 +28,9 @@ import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.codegen.getTypeName
 import de.quati.ogen.plugin.intern.codegen.oGenCapitalize
+import de.quati.ogen.plugin.intern.codegen.serverBeanValidation
+import de.quati.ogen.plugin.intern.codegen.parameterValidation
+import de.quati.ogen.plugin.intern.model.Component
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Endpoint
 import de.quati.ogen.plugin.intern.model.HttpCode
@@ -118,41 +122,48 @@ private fun TypeSpec.Builder.createController(
                 ) {
                     defaultValue(endpoint.operationNameContextName)
                 }
-            for (parameter in endpoint.parametersContents)
-                addParameter(
-                    name = paramNameResolver.resolve(parameter.prettyName),
-                    type = parameter.schema.getTypeName(withFlow = false)
-                        .poet.copy(nullable = parameter.isNullable),
-                ) {
+            for (parameter in endpoint.parametersContents) {
+                val (type, validation) = parameter.schema.validated(
+                    type = parameter.schema.getTypeName(withFlow = false).poet.copy(nullable = parameter.isNullable),
+                    nullable = parameter.isNullable,
+                )
+                addParameter(name = paramNameResolver.resolve(parameter.prettyName), type = type) {
                     addAnnotation(Poet.Spring.annotationClassName(parameter.type)) {
                         addMember("value = %S", parameter.name)
                         addMember("required = %L", !parameter.isNullable)
                     }
+                    addAnnotations(validation)
                 }
+            }
             when {
                 requestBody == null -> Unit
 
                 requestBodyParts.isNotEmpty() -> requestBodyParts.forEach { part ->
-                    addParameter(
-                        name = paramNameResolver.resolve(part.prettyName),
-                        type = part.springTypeName.copy(nullable = !part.required),
-                    ) {
+                    val partType = part.springTypeName.copy(nullable = !part.required)
+                    val (type, validation) = when (part.file) {
+                        Endpoint.Part.File.NONE -> part.schema.validated(type = partType, nullable = !part.required)
+                        else -> partType to emptyList()
+                    }
+                    addParameter(name = paramNameResolver.resolve(part.prettyName), type = type) {
                         addAnnotation(Poet.Spring.requestPart) {
                             addMember("value = %S", part.name)
                             addMember("required = %L", part.required)
                         }
+                        addAnnotations(validation)
                     }
                 }
 
-                else -> addParameter(
-                    name = paramNameResolver.resolve(requestBody.prettyBodyName),
-                    type = when (requestBody.contentType) {
-                        null -> Any::class.asClassName()
-                        is ContentType.Unknown, is ContentType.Multipart -> Any::class.asClassName()
-                        is ContentType.Json -> requestBody.typeName
-                    },
-                ) {
-                    addAnnotation(Poet.Spring.requestBody)
+                else -> {
+                    val isJson = requestBody.contentType is ContentType.Json
+                    val (type, validation) = when (val bodySchema = requestBody.schema.takeIf { isJson }) {
+                        // a JSON body without a schema is `Any`, nullable when it is optional
+                        null -> (if (isJson) requestBody.typeName else Any::class.asClassName()) to emptyList()
+                        else -> bodySchema.validated(type = requestBody.typeName, nullable = !requestBody.required)
+                    }
+                    addParameter(name = paramNameResolver.resolve(requestBody.prettyBodyName), type = type) {
+                        addAnnotation(Poet.Spring.requestBody)
+                        addAnnotations(validation)
+                    }
                 }
             }
 
@@ -167,6 +178,11 @@ private fun TypeSpec.Builder.createController(
     apiResponseTypes.forEach { addType(it) }
     operationContexts.forEach { addType(it) }
 }
+
+/** The type of a parameter of this schema and its annotations, both with the constraints if they are generated. */
+context(_: CodeGenContext)
+private fun Component.Schema.validated(type: TypeName, nullable: Boolean): Pair<TypeName, List<AnnotationSpec>> =
+    if (serverBeanValidation) parameterValidation(type = type, nullable = nullable) else type to emptyList()
 
 context(_: CodeGenContext)
 private fun Endpoint.Response.Content?.bodyTypeName(): TypeName? = this?.content

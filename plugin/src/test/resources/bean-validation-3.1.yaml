@@ -1,0 +1,84 @@
+openapi: 3.1.0
+info:
+  title: bean validation
+  version: 1.0.0
+paths:
+  /things/{id}:
+    get:
+      operationId: getThing
+      tags:
+        - things
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            exclusiveMinimum: 0
+        - name: ratio
+          in: query
+          schema:
+            type: number
+            minimum: 0.5
+            exclusiveMaximum: 2
+        - name: words
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              maxLength: 3
+        - name: fraction
+          in: query
+          schema:
+            type: integer
+            minimum: 1.5
+            maximum: 7.5
+      responses:
+        '204':
+          description: no content
+components:
+  schemas:
+    Thing:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: number
+          format: big-decimal
+          minimum: 10
+          exclusiveMinimum: 10
+        label:
+          type: [string, 'null']
+          maxLength: 4
+        when:
+          type: string
+          format: date-time
+          maxLength: 40
+        labels:
+          type: array
+          items:
+            type: array
+            maxItems: 2
+            items:
+              type: string
+              pattern: '^[a-z]+$'
+        scores:
+          type: object
+          additionalProperties:
+            type: integer
+            maximum: 10
+        quantity:
+          type: integer
+          multipleOf: 5
+        price:
+          type: number
+          format: big-decimal
+          multipleOf: 0.010
+        tags:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
