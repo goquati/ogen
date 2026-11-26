@@ -253,6 +253,25 @@ verschwindet schon hier aus dem Code.
 - Bundler gemäß Entscheidung oben; `OasParser` setzt die Pipeline zusammen.
 - Vergleichstest: für alle Specs in `plugin/src/test/resources` und `tests/` die Komponentennamen von
   swagger-parser und neuem Parser vergleichen.
+- **Erledigt** (`intern/oas/load/Bundler.kt`, Fassade `intern/oas/OasParser.kt`). Umsetzung und Befunde:
+  - Regeln aus swaggers Quellcode (`ExternalRefProcessor`, `ComponentNameAllocator`, `RefUtils.computeDefinitionName`):
+    letztes Pointer-Segment bzw. Dateiname (`a.b.yaml` → `ab`), Suffix `_1`… (bei Schemas ohne Rücksicht auf
+    Groß-/Kleinschreibung), gleiche Komponente wiederverwenden, Alias-Komponente der Root durch das Ziel ersetzen,
+    Path Items inline, Discriminator-Mappings umschreiben. Ergebnis: ein Dokument mit nur lokalen Refs.
+  - **Reihenfolge** der Komponenten wie bei swagger (zählt, weil `CodeGenContext` per `firstOrNull` sucht): Pfade vor
+    Komponenten; Refs aus der Root und in dieselbe Datei des gerade importierten Teils sofort, Refs in eine dritte
+    Datei in einem späteren Durchgang.
+  - Positionen bleiben erhalten: `Bundle.locate` bildet Stellen in verschobenen Komponenten auf Datei:Zeile:Spalte
+    der Quelle ab.
+  - swagger bündelt externe Refs nur bei **3.0**; bei 3.1 blieben sie extern (Codegen fand die Komponenten dann
+    nicht). Der neue Parser bündelt alle Versionen gleich.
+  - Bewusst nicht übernommen: Hat eine Root-Komponente denselben Namen und Inhalt wie ein importiertes Ziel, verliert
+    swagger die Root-Komponente, obwohl danach Refs auf sie zeigen. ogen behält sie.
+  - Tests: synthetische Fälle werden zusätzlich auf Platte geschrieben und von swagger geparst (swagger ist
+    Schiedsrichter); über alle 119 Specs im Repo gleiche Komponentennamen in gleicher Reihenfolge, und `OasParser`
+    liest jede fehlerfrei.
+  - Notiz für Phase 6: swagger kopiert Parameter des Path Items in jede Operation (`addParametersToEachOperation`);
+    prüfen, ob `PathsParsing` darauf angewiesen ist.
 
 ### Phase 6 – Umstellung von `parsing/`
 - `parsing/*.kt` auf das neue Modell umschreiben; `ParserContext`/`SchemaLocation` bleiben.
