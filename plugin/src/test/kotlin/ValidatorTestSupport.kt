@@ -42,7 +42,7 @@ internal fun validatorConfigs(
 internal fun parsedSpec(spec: String): ValidatedSpec {
     val result = validatorConfigs(spec).specs.single().oasParseResult
     val api = result.openApi ?: error("spec '$spec' does not parse: ${result.errors}")
-    return ValidatedSpec(api, result.sourceVersion!!)
+    return ValidatedSpec(api, result.sourceVersion!!, result.bundle)
 }
 
 /** The same as [parsedSpec]: there is only one model now, with the types the spec declares. */

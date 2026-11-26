@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 class TestRecommendationChecks {
     private fun spec(yaml: String): ValidatedSpec {
         val result = OasParser.parse(URI("mem:/spec.yaml"), ResourceLoader { ResourceLoader.Resource.Text(yaml, "spec.yaml") })
-        return ValidatedSpec(result.openApi ?: error(result.errors.toString()), result.sourceVersion!!)
+        return ValidatedSpec(result.openApi ?: error(result.errors.toString()), result.sourceVersion!!, result.bundle)
     }
 
     private val header = "openapi: 3.1.0\ninfo: {title: t, version: '1'}\n"

@@ -24,8 +24,18 @@ class TestValidatorWarningDetails {
     }
 
     @Test
+    fun testGetWithBody() {
+        assertContains(
+            warnings("validator-warnings"),
+            "\toperation '/pets:GET' has a request body, which GET requests should not have\n",
+        )
+    }
+
+    // Unused schemas are always reported, recommendations only when enabled.
+    @Test
     fun testRecommendationsCanBeDisabled() {
         val warnings = warnings("validator-warnings", recommendations = false)
-        assertEquals(emptyList(), warnings.filter { "is not used by any operation" in it })
+        assertEquals(emptyList(), warnings.filter { "request body" in it })
+        assertContains(warnings, "\tschema 'Orphan' is not used by any operation\n")
     }
 }

@@ -32,9 +32,8 @@ internal fun compositionTypeErrors(spec: ValidatedSpec): List<String> {
         allOf.filterNot { overlap(parent, it.value) }.forEach {
             errors.add("$type has no type in common with its allOf member ${it.value.member(it.index)}")
         }
-        for ((keyword, allMembers) in listOf("oneOf" to schema.oneOf, "anyOf" to schema.anyOf)) {
-            // 3.0 has no null type: a `{type: null}` member is how migration made the composition nullable.
-            val members = if (spec.is30) allMembers?.filterNot { it == NULL_ALTERNATIVE } else allMembers
+        // For 3.0, the walker leaves out the `{type: null}` alternative that migration added for `nullable`.
+        for ((keyword, members) in listOf("oneOf" to schema.oneOf, "anyOf" to schema.anyOf)) {
             if (members.isNullOrEmpty()) continue
             if (members.map { it.typed(spec) }.all { it.types.isNotEmpty() && !overlap(parent, it) })
                 errors.add("$type has no type in common with any of its $keyword members")
@@ -55,7 +54,5 @@ private fun Schema.typed(spec: ValidatedSpec): Typed {
     }
     return Typed(schema.declaredTypes, ref)
 }
-
-private val NULL_ALTERNATIVE = Schema.Obj(type = listOf("null"))
 
 private fun overlap(a: Typed, b: Typed) = a.types.any { x -> b.types.any { y -> x == y || setOf(x, y) == numberTypes } }

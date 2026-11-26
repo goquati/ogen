@@ -27,15 +27,24 @@ internal class Bundle(
     val diagnostics: List<Diagnostic>,
 ) {
     fun locate(pointer: JsonPointer, key: Boolean = false): SourceLocation {
+        val (document, source) = origin(pointer)
+        // Positions come from the original file; the pointer names the place in the bundle.
+        return document.locationOf(source, key).copy(pointer = pointer)
+    }
+
+    /** The document a place in the bundle came from, and the place there. */
+    fun origin(pointer: JsonPointer): Pair<Document, JsonPointer> {
         val (moved, origin) = origins.entries
             .filter { (at, _) -> pointer.segments.take(at.segments.size) == at.segments }
             .maxByOrNull { it.key.segments.size }
-            ?.toPair() ?: return root.locationOf(pointer, key)
+            ?.toPair() ?: return root to pointer
         val inner = JsonPointer.of(*pointer.segments.drop(moved.segments.size).toTypedArray())
-        val document = documents[origin.document] ?: return root.locationOf(pointer, key)
-        // Positions come from the original file; the pointer names the place in the bundle.
-        return document.locationOf(origin.pointer + inner, key).copy(pointer = pointer)
+        val document = documents[origin.document] ?: return root to pointer
+        return document to origin.pointer + inner
     }
+
+    /** What a place in the bundle was in its file, as written: before references were bundled and before migration. */
+    fun source(pointer: JsonPointer): JsonElement? = origin(pointer).let { (document, at) -> document.read.element?.at(at) }
 }
 
 /**
@@ -71,7 +80,9 @@ internal class Bundler(private val spec: LoadedSpec) {
                 else -> 2
             }
         }
-        val rewritten = rootElement.replace(rootSites.mapNotNull { replacement(it, JsonPointer.ROOT, from = null) }.toMap()) as JsonObject
+        val rewritten = rootElement.replace(
+            rootSites.mapNotNull { replacement(it, JsonPointer.ROOT, from = null, bundledAt = JsonPointer.ROOT) }.toMap()
+        ) as JsonObject
         // Deferred imports, in the order they were found; each may defer more.
         while (queue.isNotEmpty()) {
             val (kind, name, located) = queue.removeFirst()
@@ -98,13 +109,14 @@ internal class Bundler(private val spec: LoadedSpec) {
 
     /**
      * The new value at the place of [site], relative to [base] (the start of the part being rewritten);
-     * [from] is the document of that part, null for the root document.
+     * [from] is the document of that part, null for the root document, and [bundledAt] where the part lies in
+     * the bundle.
      */
-    private fun replacement(site: RefSite, base: JsonPointer, from: URI?): Pair<JsonPointer, JsonElement>? {
+    private fun replacement(site: RefSite, base: JsonPointer, from: URI?, bundledAt: JsonPointer): Pair<JsonPointer, JsonElement>? {
         val relative = site.pointer.relativeTo(base) ?: return null
         val target = site.target ?: return null
         if (kindOf(site.expected) == PATH_ITEM) {
-            val inlined = inlinePathItem(target) ?: return null
+            val inlined = inlinePathItem(target, bundledAt + relative.parent!!) ?: return null
             return relative.parent!! to inlined
         }
         return relative to JsonPrimitive(localRef(target, site.expected, from))
@@ -139,25 +151,26 @@ internal class Bundler(private val spec: LoadedSpec) {
         val entries = components.getValue(kind)
         // The name is in the components before the part is rewritten, so references back to it find it.
         entries[name] = element
-        entries[name] = rewrite(element, located)
+        entries[name] = rewrite(element, located, JsonPointer.of("components", kind, name))
     }
 
-    /** [element], a part of another document found at [located], with its references bundled. */
-    private fun rewrite(element: JsonElement, located: Located): JsonElement {
+    /** [element], a part of another document found at [located], with its references bundled; it goes to [bundledAt]. */
+    private fun rewrite(element: JsonElement, located: Located, bundledAt: JsonPointer): JsonElement {
         val replacements = sitesByDocument[located.document].orEmpty()
-            .mapNotNull { site -> replacement(site, located.pointer, from = located.document) }
+            .mapNotNull { site -> replacement(site, located.pointer, from = located.document, bundledAt = bundledAt) }
         return element.replace(replacements.toMap())
     }
 
-    private fun inlinePathItem(target: RefTarget): JsonElement? {
+    private fun inlinePathItem(target: RefTarget, bundledAt: JsonPointer): JsonElement? {
         val located = spec.locate(target) ?: return null
         val element = spec.documents[located.document]?.element?.at(located.pointer) ?: return null
         if (!inlining.add(located)) {
             diagnostics += Diagnostic.error("Path Item references form a cycle at '$target'", SourceLocation(target.toString()))
             return null
         }
+        if (located.document != spec.rootUri || located.pointer != bundledAt) origins[bundledAt] = located
         try {
-            return rewrite(element, located)
+            return rewrite(element, located, bundledAt)
         } finally {
             inlining -= located
         }

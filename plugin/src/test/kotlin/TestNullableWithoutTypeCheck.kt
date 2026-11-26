@@ -1,40 +1,34 @@
-import de.quati.ogen.plugin.intern.oas.Diagnostic
+import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
-/** `nullable: true` without a type is found by the migration of 3.0 specs; the validator reports its warning. */
 class TestNullableWithoutTypeCheck {
-    private fun nullableWarnings(spec: String) = validatorConfigs(spec).specs.single().oasParseResult.diagnostics
-        .filter { it.severity == Diagnostic.Severity.WARNING && "'nullable: true' without a 'type'" in it.message }
-        .map { it.location!!.pointer.toString() }
-
     @Test
     fun testNullableWithoutType() {
-        assertEquals(
-            listOf(
-                "/paths/~1pets/parameters/0/schema/nullable",
-                "/paths/~1pets/post/parameters/1/content/application~1json/schema/nullable",
-                "/paths/~1pets/post/requestBody/content/application~1json/schema/properties/name/nullable",
-                "/paths/~1pets/post/responses/200/headers/X-Rate/schema/nullable",
-                "/paths/~1pets/post/responses/200/content/application~1json/schema/items/nullable",
-                "/components/parameters/Limit/schema/nullable",
-                "/components/requestBodies/NewPet/content/application~1json/schema/nullable",
-                "/components/responses/Pets/content/application~1json/schema/nullable",
-                "/components/headers/Location/schema/nullable",
-                "/components/schemas/Pet/properties/name/nullable",
-                "/components/schemas/Pet/properties/labels/additionalProperties/nullable",
-                "/components/schemas/Pet/properties/other/not/nullable",
-                "/components/schemas/Dog/allOf/1/properties/breed/nullable",
-            ),
-            nullableWarnings("nullable-without-type"),
+        assertWarnings(
+            "nullable-without-type", ::nullableWithoutTypeWarnings, listOf(
+                "Pet.name",
+                "Pet.labels.additionalProperties",
+                "Pet.other.not",
+                "Dog.allOf[1].breed",
+                "components.parameters.Limit",
+                "components.requestBodies.NewPet.application/json",
+                "components.responses.Pets.application/json",
+                "components.headers.Location",
+                // A parameter of the Path Item is reported where it is declared.
+                "/pets.parameters.X-Trace",
+                "/pets:POST.parameters.filter.application/json",
+                "/pets:POST.requestBody.application/json.name",
+                "/pets:POST.responses.200.application/json[]",
+                "/pets:POST.responses.200.headers.X-Rate",
+            ).map {
+                "'nullable: true' without a 'type' in '$it': it only takes effect next to a 'type'; " +
+                    "a nullable \$ref goes in an 'allOf'"
+            }
         )
-        validate("nullable-without-type")
-        assertValidationFails("nullable-without-type", warningsMessage("nullable-without-type")) { failOnWarnings = true }
     }
 
     @Test
     fun testNullableWithTypeOrComposition() {
-        assertEquals(emptyList(), nullableWarnings("nullable-without-type-valid"))
-        validate("nullable-without-type-valid")
+        assertPasses("nullable-without-type-valid", ::nullableWithoutTypeWarnings)
     }
 }

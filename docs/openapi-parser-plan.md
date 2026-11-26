@@ -334,8 +334,18 @@ verschwindet schon hier aus dem Code.
     - `default` außerhalb der `enum` wird auch in 3.0 gefunden, wenn der Typ nicht passt (swagger machte `null` daraus).
     - Ein ungültiger Eintrag in einer 3.1-`type`-Liste und ein verschachteltes Path-Template sind Fehler der ogen-Checks
       statt Parserfehler (Validierung schlägt weiter fehl, mit „Found N errors“).
-  - Bekannte Lücke: `type: null` in einer 3.0-Spec ist nicht mehr von der Nullbarkeit aus der Migration zu
-    unterscheiden und wird daher nicht als ungültiger 3.0-Typ gemeldet.
+  - Nachtrag (Entscheidungen nach Phase 7): Parser und Migration melden keine Warnungen mehr; alles, was eine
+    Spec-Schwäche ist, ist ein eigener Validator-Check. Dafür kennt jeder Knoten des `SpecWalker` seine Stelle im
+    Bundle und den Inhalt seiner Datei vor der Migration (`SchemaNode.source`, `Bundle.source`); der Walker zeigt
+    3.0-Schemas so, wie sie geschrieben sind (ohne die `anyOf`-Hülle und `{type: null}`-Alternativen der Migration).
+    Damit wieder als ogen-Check im alten Format: `nullableWithoutTypeWarnings`; und `type: null` in 3.0 ist wieder
+    ein Fehler von `invalidTypeErrors`.
+  - Neue Checks: `ignoredNextToRefWarnings` (Keywords neben `$ref`: 3.0-Schemas und Reference Objects),
+    `exclusiveFlagWithoutBoundWarnings` (3.0), `nullableIn31Warnings`; aus openapi-generator portiert:
+    `unusedSchemaWarnings` (immer aktiv, wie zuvor), `oneOfWithPropertiesWarnings`, `getWithBodyWarnings`,
+    `headerUnderscoreWarnings` (diese drei nur mit `recommendations`).
+  - Alle Checks sind benannte Funktionen `(ValidatedSpec) -> List<String>` in `Validator`: die Grundlage für
+    `rules {}` mit Severity pro Regel (Issue #46, offen, kommt nach diesem PR vor dem nächsten Release; hängt an #44).
 
 ### Phase 8 – Aufräumen
 - swagger-parser und openapi-generator aus `build.gradle.kts`/`libs.versions.toml` entfernen;

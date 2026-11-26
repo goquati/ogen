@@ -217,15 +217,12 @@ class TestOasModel {
     }
 
     @Test
-    fun `siblings of a reference are ignored with a warning`() {
+    fun `siblings of a reference are ignored`() {
         val result = decode(
             header + "components:\n  parameters:\n    P:\n      \$ref: '#/components/parameters/Q'\n      name: p\n"
         )
         assertNotNull(result.value)
-        assertEquals(
-            listOf("spec.yaml:9:7 (#/components/parameters/P/name): 'name' next to '\$ref' is ignored"),
-            result.diagnostics.map { it.toString() },
-        )
+        assertEquals(emptyList(), result.diagnostics)
     }
 
     @Test

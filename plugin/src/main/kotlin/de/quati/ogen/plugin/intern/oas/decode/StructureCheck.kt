@@ -38,10 +38,6 @@ internal class StructureCheck(private val locate: (pointer: JsonPointer, key: Bo
         diagnostics += Diagnostic.error(message, locate(pointer, key))
     }
 
-    private fun warning(pointer: JsonPointer, message: String) {
-        diagnostics += Diagnostic.warning(message, locate(pointer, true))
-    }
-
     private fun checkValue(element: JsonElement, descriptor: SerialDescriptor, pointer: JsonPointer) {
         val name = descriptor.serialName.removeSuffix("?")
         if (element is JsonNull) {
@@ -121,7 +117,8 @@ internal class StructureCheck(private val locate: (pointer: JsonPointer, key: Bo
                 OasSerialNames.REF_KEY, "summary", "description" ->
                     if (value !is JsonPrimitive || value is JsonNull || value.isString.not())
                         mismatch(pointer / key, "a string", value)
-                else -> warning(pointer / key, "'$key' next to '\$ref' is ignored")
+                // Ignored, as the specification says; the validator warns about it.
+                else -> Unit
             }
         }
     }

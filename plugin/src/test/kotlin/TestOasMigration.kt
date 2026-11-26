@@ -117,13 +117,10 @@ class TestOasMigration {
     }
 
     @Test
-    fun `nullable without anything to attach to is removed with a warning`() {
+    fun `nullable without anything to attach to is removed`() {
         val spec = load(spec30("A: {nullable: true, description: a}"))
         assertEquals(json("""{"description": "a"}"""), spec.schema("A"))
-        assertEquals(
-            listOf("WARNING: root.yaml:6:9 (#/components/schemas/A/nullable): 'nullable: true' without a 'type' has no effect; a nullable \$ref goes in an 'allOf'"),
-            spec.messages(),
-        )
+        assertEquals(emptyList(), spec.messages())
     }
 
     @Test
@@ -134,10 +131,7 @@ class TestOasMigration {
         """))
         assertEquals(json("""{"type": "number", "maximum": 9, "exclusiveMinimum": 1}"""), spec.schema("A"))
         assertEquals(json("""{"type": "number"}"""), spec.schema("B"))
-        assertEquals(
-            listOf("WARNING: root.yaml:7:23 (#/components/schemas/B/exclusiveMaximum): 'exclusiveMaximum: true' without 'maximum' has no effect"),
-            spec.messages(),
-        )
+        assertEquals(emptyList(), spec.messages())
     }
 
     @Test
@@ -149,10 +143,7 @@ class TestOasMigration {
         """))
         assertEquals(json("""{"${'$'}ref": "mem:/root.yaml#/components/schemas/X", "x-a": 1}"""), spec.schema("A"))
         assertEquals(json("""{"${'$'}ref": "mem:/root.yaml#/components/schemas/X"}"""), spec.schema("B"))
-        assertEquals(
-            listOf("WARNING: root.yaml:7:5 (#/components/schemas/B): 'nullable', 'type' next to '\$ref' are ignored in OpenAPI 3.0; a nullable \$ref goes in an 'allOf'"),
-            spec.messages(),
-        )
+        assertEquals(emptyList(), spec.messages())
     }
 
     @Test

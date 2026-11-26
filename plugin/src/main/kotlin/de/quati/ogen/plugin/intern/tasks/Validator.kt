@@ -9,6 +9,12 @@ import de.quati.ogen.plugin.intern.validation.compositionTypeErrors
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
 import de.quati.ogen.plugin.intern.validation.defaultOutsideEnumErrors
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
+import de.quati.ogen.plugin.intern.validation.exclusiveFlagWithoutBoundWarnings
+import de.quati.ogen.plugin.intern.validation.getWithBodyWarnings
+import de.quati.ogen.plugin.intern.validation.headerUnderscoreWarnings
+import de.quati.ogen.plugin.intern.validation.ignoredNextToRefWarnings
+import de.quati.ogen.plugin.intern.validation.nullableIn31Warnings
+import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
 import de.quati.ogen.plugin.intern.validation.identicalPathErrors
 import de.quati.ogen.plugin.intern.validation.invalidTypeErrors
 import de.quati.ogen.plugin.intern.validation.namingConventionErrors
@@ -57,7 +63,7 @@ internal class Validator(
             logger.info("Validating $specName")
 
             val result = config.oasParseResult
-            val spec = result.openApi?.let { ValidatedSpec(it, result.sourceVersion!!) }
+            val spec = result.openApi?.let { ValidatedSpec(it, result.sourceVersion!!, result.bundle) }
             val recommendations = if (validatorConfig.recommendations) recommendationChecks else emptyList()
             val ogenWarnings = spec?.let { s -> (warningChecks + recommendations).flatMap { it(s) } }.orEmpty()
             val warnings = (result.warnings.map { it.toString() } + ogenWarnings).map(::formatIssue)
@@ -114,12 +120,18 @@ internal class Validator(
             ::redundantBoundWarnings,
             ::typeKeywordWarnings,
             ::unsupportedOperationWarnings,
+            ::nullableWithoutTypeWarnings,
+            ::exclusiveFlagWithoutBoundWarnings,
+            ::ignoredNextToRefWarnings,
+            ::nullableIn31Warnings,
+            ::unusedSchemaWarnings,
         )
 
-        // Recommendations, with `recommendations` enabled.
+        // Recommendations, with `recommendations` enabled: what may be intended, but often is a mistake.
         private val recommendationChecks: List<(ValidatedSpec) -> List<String>> = listOf(
-            ::unusedSchemaWarnings,
             ::oneOfWithPropertiesWarnings,
+            ::getWithBodyWarnings,
+            ::headerUnderscoreWarnings,
         )
 
         private fun formatIssue(issue: String) = "\t$issue\n"

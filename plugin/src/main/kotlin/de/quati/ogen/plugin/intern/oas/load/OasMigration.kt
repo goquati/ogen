@@ -22,11 +22,11 @@ import kotlinx.serialization.json.booleanOrNull
  * | `nullable: true` without `type` | the type swagger-parser inferred (from `items`, `additionalProperties`, `enum`) plus `"null"` |
  * | `nullable: true` next to `oneOf`/`anyOf` | a `{type: "null"}` alternative |
  * | `nullable: true` next to `allOf` | `anyOf: [{allOf: …}, {type: "null"}]` |
- * | `nullable: true` with nothing to attach to | removed, with a warning |
+ * | `nullable: true` with nothing to attach to | removed |
  * | `nullable: false` | removed |
  * | `minimum: n` + `exclusiveMinimum: true` | `exclusiveMinimum: n` (same for maximum) |
  * | `exclusiveMinimum: false` | removed |
- * | keywords next to `$ref` | removed, as 3.0 ignores them; a warning unless they only annotate |
+ * | keywords next to `$ref` | removed, as 3.0 ignores them |
  *
  * `example` and `format: binary` stay: both are still valid, and code generation reads `format`. An `enum` of a
  * nullable schema gets no `null`: code generation reads `null` in an enum as a value of no string type, as
@@ -64,12 +64,8 @@ internal class OasMigration(
         return if (pointer in schemas && rebuilt is JsonObject) migrateSchema30(rebuilt, pointer) else rebuilt
     }
 
-    private fun warning(pointer: JsonPointer, message: String) {
-        diagnostics += Diagnostic.warning(message, locate(pointer, true))
-    }
-
     private fun migrateSchema30(schema: JsonObject, pointer: JsonPointer): JsonObject {
-        if (OasSerialNames.REF_KEY in schema) return dropRefSiblings(schema, pointer)
+        if (OasSerialNames.REF_KEY in schema) return dropRefSiblings(schema)
         val result = LinkedHashMap(schema)
         migrateExclusiveBound(result, pointer, "exclusiveMinimum", "minimum")
         migrateExclusiveBound(result, pointer, "exclusiveMaximum", "maximum")
@@ -78,35 +74,24 @@ internal class OasMigration(
         return JsonObject(result)
     }
 
-    // 3.0 ignores everything next to `$ref`; annotations there are common and harmless, other keywords are a mistake.
-    private fun dropRefSiblings(schema: JsonObject, pointer: JsonPointer): JsonObject {
-        val ignored = schema.keys.filter { it != OasSerialNames.REF_KEY && !OasSerialNames.isExtension(it) }
-        if (ignored.isEmpty()) return schema
-        val meaningful = ignored.filterNot { it in ANNOTATIONS }
-        if (meaningful.isNotEmpty()) warning(
-            pointer,
-            "${meaningful.joinToString { "'$it'" }} next to '\$ref' ${if (meaningful.size == 1) "is" else "are"} " +
-                "ignored in OpenAPI 3.0" + if ("nullable" in meaningful) "; a nullable \$ref goes in an 'allOf'" else "",
-        )
-        return JsonObject(schema.filterKeys { it !in ignored })
-    }
+    // 3.0 ignores everything next to `$ref` (the validator warns about it, see ignoredNextToRefWarnings).
+    private fun dropRefSiblings(schema: JsonObject): JsonObject =
+        JsonObject(schema.filterKeys { it == OasSerialNames.REF_KEY || OasSerialNames.isExtension(it) })
 
     private fun migrateExclusiveBound(schema: MutableMap<String, JsonElement>, pointer: JsonPointer, exclusive: String, bound: String) {
         val flag = (schema[exclusive] as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull ?: return
         schema.remove(exclusive)
         if (!flag) return
         val value = schema.remove(bound)
-        if (value == null) warning(pointer / exclusive, "'$exclusive: true' without '$bound' has no effect")
-        else schema[exclusive] = value
+        // Without the bound the flag has no effect (the validator warns about it).
+        if (value != null) schema[exclusive] = value
     }
 
     private fun migrateNullable(schema: MutableMap<String, JsonElement>, pointer: JsonPointer) {
         val type = (schema["type"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: inferType(schema)
         val composition = COMPOSITIONS.firstOrNull { schema[it] is JsonArray }
-        if (type == null && composition == null) return warning(
-            pointer / "nullable",
-            "'nullable: true' without a 'type' has no effect; a nullable \$ref goes in an 'allOf'",
-        )
+        // Nothing to attach `null` to: `nullable` has no effect (the validator warns about it).
+        if (type == null && composition == null) return
         if (type != null) schema["type"] = JsonArray(listOf(JsonPrimitive(type), JsonPrimitive("null")))
         when (composition) {
             "oneOf", "anyOf" -> {
@@ -132,12 +117,6 @@ internal class OasMigration(
         const val TARGET_VERSION = "3.2.0"
         val NULL_TYPE = JsonObject(mapOf("type" to JsonPrimitive("null")))
         val COMPOSITIONS = listOf("oneOf", "anyOf", "allOf")
-
-        // Keywords that only describe a schema; next to `$ref` they are ignored without a warning.
-        val ANNOTATIONS = setOf(
-            "title", "description", "summary", "example", "examples", "default", "deprecated", "readOnly",
-            "writeOnly", "externalDocs", "xml",
-        )
 
         /**
          * The type swagger-parser infers in 3.0 when none is declared: `array` from `items`, else `object`
