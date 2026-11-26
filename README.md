@@ -6,7 +6,7 @@
 
 - **Type-safe Models**: Generates Kotlin data classes and enums with [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) support.
 - **Shared Models**: Core feature allowing models to be generated in a separate Gradle module, shared between server and client.
-- **Advanced OpenAPI Support**: Supports OpenAPI 3.0 and 3.1, including `oneOf` (via sealed interfaces), `allOf`, `anyOf`, and complex nested schemas.
+- **Advanced OpenAPI Support**: Supports OpenAPI 3.0, 3.1 and 3.2, including `oneOf` (via sealed interfaces), `allOf`, `anyOf`, and complex nested schemas.
 - **Kotlin Multiplatform**: Seamlessly works with KMP projects, generating code into the appropriate source sets.
 - **Spring Boot Support**: Generates server interfaces for Spring Boot (WebFlux).
 - **Ktor Client Support**: Generates Ktor clients (a Ktor server generator is planned).
@@ -106,6 +106,11 @@ ogen {
 - **Merging specs**: instead of `specFile`, `specMerge(path = "$projectDir/specs")` merges all specs in a directory.
   The merged spec's `info` is set with `mergedFileInfoTitle`, `mergedFileInfoVersion` and `mergedFileInfoDescription`,
   or taken from a base spec with `specMerge(path = ..., baseSpec = "$projectDir/specs/base.yaml")`.
+- **Reading specs**: ogen reads OpenAPI 3.0, 3.1 and 3.2 in YAML 1.2 or JSON with its own parser. `$ref`s to other
+  files are resolved relative to the file they stand in; a spec with structural errors (unknown fields, wrong types,
+  references that don't resolve) is not generated from, and the errors name file and line. Remote references are
+  not loaded unless allowed with `allowRemoteRefs("https://schemas.example.com/")`. In YAML 1.2, unquoted `yes`,
+  `no`, `on` and `off` are strings, not booleans.
 - **Operation IDs**: for operations without an `operationId`, `operationIdGenerator { info -> ... }` derives one
   from an `EndpointInfo` (`tag`, `path`, `relativePath`, `method`). If it returns `null` or isn't set, the name is
   derived from the path and method.
@@ -116,7 +121,7 @@ ogen {
   Besides the predefined conventions, `NameConvention.RegexFormat("...")` and `NameConvention.Custom { name -> ... }`
   define custom ones. The conventions apply to every schema and parameter the generator sees, inline request and
   response schemas, composition members and path-level parameters included.
-- **What the validator checks**: swagger-parser's errors, the naming conventions and these checks fail the build: broken
+- **What the validator checks**: the parser's errors, the naming conventions and these checks fail the build: broken
   path templates (an empty `{}`, an unclosed `{` or a stray `}`), a query string or fragment in a path key, path
   parameters missing from the path template, paths that differ only in their variables' names, security schemes not
   defined in `components.securitySchemes`, a `type` that isn't a JSON Schema type, enum values that don't match their
@@ -124,12 +129,16 @@ ogen {
   contradictory constraints such as `minimum` above `maximum`, and compositions no value can match: `allOf` members
   whose types exclude each other or the schema's own type, or a type that excludes every `oneOf` or `anyOf` member.
   These are warnings: paths with a trailing slash, operations without a 2xx or 3xx response, operation tags missing from
-  the top-level `tags` (when it declares any), `nullable` without a `type` in OpenAPI 3.0, `pattern` regexes and
+  the top-level `tags` (when it declares any), `nullable` without a `type` in OpenAPI 3.0, `nullable` in OpenAPI 3.1 and
+  later (which has no effect there), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without
+  `minimum` in 3.0, schemas no operation uses, operations ogen generates no code for (3.2's `query` and
+  `additionalOperations`), `pattern` regexes and
   `patternProperties` keys that don't compile as Java regexes (OpenAPI's are JavaScript's, which differ slightly),
   keywords that apply to none of the schema's declared types, such as `maxLength` on an integer, in OpenAPI 3.1
   `maximum` next to `exclusiveMaximum` or `minimum` next to `exclusiveMinimum`, where only the tighter bound has an
   effect, and ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and
-  `/books/{id}`). openapi-generator's recommendations are warnings too; `recommendations = false` turns off only those.
+  `/books/{id}`). Recommendations are warnings too, and `recommendations = false` turns off only those: `properties`
+  next to `oneOf`, a request body on GET or HEAD, and header names with `_`.
   `failOnWarnings = true` fails the build on any warning.
 
 ### Spring Boot Security Context

@@ -4,53 +4,27 @@ import de.quati.ogen.plugin.intern.oas.load.ResourceLoader
 import de.quati.ogen.plugin.intern.oas.read.SourceReader
 import de.quati.ogen.plugin.intern.oas.ref.JsonPointer
 import de.quati.ogen.plugin.intern.oas.ref.at
-import io.swagger.parser.OpenAPIParser
-import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.parser.core.models.ParseOptions
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import java.net.URI
-import java.nio.file.Files
-import kotlin.io.path.createDirectories
-import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 class TestBundler {
-    private val kinds = listOf("schemas", "responses", "parameters", "examples", "requestBodies", "headers", "securitySchemes", "links", "callbacks")
-
-    private fun parse(root: String, vararg others: Pair<String, String>, checkSwagger: Boolean = true): OasParseResult {
+    private fun parse(root: String, vararg others: Pair<String, String>): OasParseResult {
         val files = (others.toList() + ("api/root.yaml" to root)).associate { (name, text) -> URI("mem:/$name") to text }
-        val result = OasParser.parse(URI("mem:/api/root.yaml"), ResourceLoader { uri ->
+        return OasParser.parse(URI("mem:/api/root.yaml"), ResourceLoader { uri ->
             files[uri]?.let { ResourceLoader.Resource.Text(it, uri.path.removePrefix("/")) }
                 ?: ResourceLoader.Resource.Failure("no file $uri")
         })
-        // swagger-parser, given the same files on disk, must name and order the components the same way.
-        val dir = Files.createTempDirectory("ogen-bundle")
-        files.forEach { (uri, text) -> dir.resolve(uri.path.removePrefix("/")).also { it.parent.createDirectories() }.writeText(text) }
-        val swagger = OpenAPIParser().readLocation(dir.resolve("api/root.yaml").toString(), null, ParseOptions().apply { isResolve = true }).openAPI
-        if (checkSwagger && result.bundle != null && swagger != null) kinds.forEach { kind ->
-            assertEquals(swagger.componentNames(kind), result.names(kind).orEmpty(), "$kind as swagger-parser names them")
-        }
-        return result
     }
 
-    private fun OpenAPI.componentNames(kind: String): List<String> = when (kind) {
-        "schemas" -> components?.schemas
-        "responses" -> components?.responses
-        "parameters" -> components?.parameters
-        "examples" -> components?.examples
-        "requestBodies" -> components?.requestBodies
-        "headers" -> components?.headers
-        "securitySchemes" -> components?.securitySchemes
-        "links" -> components?.links
-        else -> components?.callbacks
-    }?.keys?.toList().orEmpty()
-
-    // 3.0: swagger-parser bundles external references only there, and those names are what code generation got.
+    // The expected names and their order were checked against swagger-parser while the plugin still used it (3.0,
+    // the only version it bundled external references for).
     private val header = "openapi: 3.0.3\ninfo: {title: API, version: '1'}\n"
 
     private fun OasParseResult.at(pointer: String): JsonElement? = bundle!!.element.at(JsonPointer.parse(pointer))
@@ -156,8 +130,7 @@ class TestBundler {
         // swagger-parser loses the existing component 'Same' here, although 'D' then refers to it; ogen keeps it.
         val result = parse(
             header + "components:\n  schemas:\n    Same: {type: integer}\n    D: {\$ref: 'c.yaml#/Same'}\n",
-            "api/c.yaml" to "Same: {type: integer}\n",
-            checkSwagger = false,
+            "api/c.yaml" to "Same: {type: integer}\n"
         )
         assertEquals(listOf("Same", "D"), result.names("schemas"))
         assertEquals(json("""{"${'$'}ref": "#/components/schemas/Same"}"""), result.at("/components/schemas/D"))
@@ -206,26 +179,20 @@ class TestBundler {
         )
     }
 
-    // --- the same component names as swagger-parser for every spec in the repository ---
+    // --- every spec of the repository ---
 
     @Test
-    fun `every spec parses, with the component names of swagger-parser`() {
+    fun `every spec parses`() {
         val problems = mutableListOf<String>()
-        var compared = 0
+        var parsed = 0
         for (path in repositorySpecFiles()) {
             val raw = SourceReader.read(path).element as? JsonObject ?: continue
             if ("openapi" !in raw) continue
-            val swagger = OpenAPIParser().readLocation(path.toString(), null, ParseOptions().apply { isResolve = true }).openAPI ?: continue
-            val ours = OasParser.parse(path)
-            val bundle = ours.bundle ?: continue.also { problems += "$path: not bundled: ${ours.errors}" }
-            if (ours.errors.isNotEmpty() || ours.openApi == null) problems += "$path: ${ours.errors}"
-            compared++
-            for (kind in kinds) {
-                val actual = (bundle.element.at(JsonPointer.of("components", kind)) as? JsonObject)?.keys?.toList().orEmpty()
-                if (swagger.componentNames(kind) != actual) problems += "$path: $kind: swagger ${swagger.componentNames(kind)}, ours $actual"
-            }
+            val result = OasParser.parse(path)
+            if (result.errors.isNotEmpty() || result.openApi == null) problems += "$path: ${result.errors}"
+            parsed++
         }
-        println("Compared $compared specs")
+        assertTrue(parsed > 50, "only $parsed specs")
         if (problems.isNotEmpty()) fail(problems.joinToString("\n"))
     }
 }

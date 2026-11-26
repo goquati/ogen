@@ -23,8 +23,6 @@ dependencies {
     implementation(libs.goquati.poet)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.snakeyaml.engine)
-    implementation(libs.swagger.parser)
-    implementation(libs.swagger.generator)
     compileOnly(kotlin("gradle-plugin"))
 
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
@@ -57,7 +55,7 @@ gradlePlugin {
         implementationClass = "$groupStr.plugin.OgenPlugin"
         displayName = "ogen: OpenAPI generator for Kotlin"
         description =
-            "Idiomatic OpenAPI generator for Kotlin and KMP, supporting kotlinx.serialization, OpenAPI 3.0/3.1, and Spring Boot."
+            "Idiomatic OpenAPI generator for Kotlin and KMP, supporting kotlinx.serialization, OpenAPI 3.0/3.1/3.2, and Spring Boot."
         tags = listOf(
             "openapi",
             "kotlin",

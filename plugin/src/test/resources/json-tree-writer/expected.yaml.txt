@@ -1,0 +1,72 @@
+openapi: "3.1.0"
+strings:
+- ""
+- "yes"
+- "No"
+- "200"
+- "-1"
+- "a: b"
+- "#c"
+- "- d"
+- " lead"
+- "trail "
+- "multi\nline\n"
+- "tab\there"
+- "quote \" and \\ backslash"
+- "äöü €"
+- "emoji 😀"
+- "bell \a"
+- "nel \N x"
+- "a long text with spaces that goes on and on and on, far beyond the eighty characters\
+  \ of a line"
+- "averylongwordwithoutanyspacesthatcannotbesplitanywhereatallbecauseithasnobreakingpointsinit"
+- "null"
+- "~"
+? ""
+: "empty key"
+"yes": 1
+"y": 2
+"on": 3
+"200": 4
+"-x": 5
+".x": 6
+"~": 7
+"+": 8
+'a: b': 9
+'#x': 10
+key with spaces: 11
+ü: 12
+? "multi\nline"
+: 13
+"tab\tkey": 14
+'[x]': 15
+? kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+: "long key"
+numbers:
+- 0
+- -5
+- 1.5
+- 12345678901234567890
+- -0.25
+literals:
+- true
+- false
+- null
+empty:
+  list: []
+  map: {}
+  listOfEmpty:
+  - []
+  - {}
+nested:
+- a: 1
+  b:
+  - c:
+    - 1
+    - 2
+- - - 1
+    - 2
+  - - 3
+- security:
+  - jwt: []
+$ref: "./x.yaml#/paths/~1a"

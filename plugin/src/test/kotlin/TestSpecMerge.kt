@@ -1,6 +1,3 @@
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import de.quati.ogen.plugin.intern.buildMergedSpec
 import de.quati.ogen.plugin.intern.maxOasVersion
 import de.quati.ogen.plugin.intern.model.config.InputConfig
@@ -158,35 +155,19 @@ class TestSpecMerge {
         assertFailsWith<IllegalArgumentException> { Double.NaN.toJsonElement("x") }
     }
 
-    // --- the writer writes what Jackson wrote; Jackson goes away with phase 8 ---
+    // --- the writer writes what Jackson wrote (pinned in json-tree-writer/, see its README) ---
 
-    private val jacksonYaml = ObjectMapper(YAMLFactory().disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER))
-    private val jacksonJson = ObjectMapper()
-
-    private val edgeCases: JsonElement = Json.parseToJsonElement(
-        """
-        {
-          "openapi": "3.1.0",
-          "strings": ["", "yes", "No", "200", "-1", "a: b", "#c", "- d", " lead", "trail ", "multi\nline\n",
-            "tab\there", "quote \" and \\ backslash", "äöü €", "emoji 😀", "bell \u0007", "nel \u0085 x",
-            "a long text with spaces that goes on and on and on, far beyond the eighty characters of a line",
-            "averylongwordwithoutanyspacesthatcannotbesplitanywhereatallbecauseithasnobreakingpointsinit", "null", "~"],
-          "": "empty key",
-          "yes": 1, "y": 2, "on": 3, "200": 4, "-x": 5, ".x": 6, "~": 7, "+": 8,
-          "a: b": 9, "#x": 10, "key with spaces": 11, "ü": 12, "multi\nline": 13, "tab\tkey": 14, "[x]": 15,
-          "${"k".repeat(130)}": "long key",
-          "numbers": [0, -5, 1.5, 12345678901234567890, -0.25],
-          "literals": [true, false, null],
-          "empty": {"list": [], "map": {}, "listOfEmpty": [[], {}]},
-          "nested": [{"a": 1, "b": [{"c": [1, 2]}]}, [[1, 2], [3]], {"security": [{"jwt": []}]}],
-          "${'$'}ref": "./x.yaml#/paths/~1a"
-        }
-        """.trimIndent()
-    )
+    private fun resource(name: String) = Path("src/test/resources/json-tree-writer/$name").readText()
+    private val edgeCases: JsonElement by lazy { Json.parseToJsonElement(resource("input.json.txt")) }
 
     @Test
-    fun `yaml output equals jackson`() {
-        assertEquals(jacksonYaml.writeValueAsString(jacksonJson.readTree(edgeCases.toString())), JsonTreeWriter.toYaml(edgeCases))
+    fun `yaml output equals what jackson wrote`() {
+        assertEquals(resource("expected.yaml.txt"), JsonTreeWriter.toYaml(edgeCases))
+    }
+
+    @Test
+    fun `json output equals what jackson wrote`() {
+        assertEquals(resource("expected.json.txt"), JsonTreeWriter.toJson(edgeCases))
     }
 
     @Test
@@ -196,10 +177,5 @@ class TestSpecMerge {
         val yaml = JsonTreeWriter.toYaml(value)
         assertEquals("s: \"a \u2028 b \u2029 c\"\n", yaml)
         assertEquals(value, SourceReader.read(yaml, "merged.yaml").element)
-    }
-
-    @Test
-    fun `json output equals jackson`() {
-        assertEquals(jacksonJson.writeValueAsString(jacksonJson.readTree(edgeCases.toString())), JsonTreeWriter.toJson(edgeCases))
     }
 }

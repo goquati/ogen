@@ -351,6 +351,15 @@ verschwindet schon hier aus dem Code.
 - swagger-parser und openapi-generator aus `build.gradle.kts`/`libs.versions.toml` entfernen;
   `grep -r "io.swagger\|openapitools\|jackson"` muss leer sein.
 - README: unterstützte Versionen 3.0/3.1/3.2 erwähnen.
+- **Erledigt.** swagger-parser und openapi-generator sind aus dem Build entfernt; der Laufzeit-Classpath des Plugins
+  ist kotlin-stdlib, kotlinpoet, kotlin-util, kotlinx-serialization-json und snakeyaml-engine (kein Jackson mehr).
+  `parsing/legacy`, `TestParsingGolden` und `TestSourceReaderCompat` sind gelöscht; der swagger-Abgleich in
+  `TestBundler` ist durch die zuvor gegen swagger geprüften festen Erwartungen ersetzt, der Jackson-Abgleich des
+  YAML-Writers durch Jacksons letzte Ausgabe als Test-Ressource (`json-tree-writer/`). Jackson bleibt nur als
+  Test-Abhängigkeit von `json-schema-validator`.
+  - Abschluss-Prüfung: generierter Code der 7 `tests/`-Projekte (183 Dateien) byte-gleich zum Stand vor Phase 6
+    (alter Parser), `tests/` baut grün.
+  - README: Versionen 3.0/3.1/3.2, eigener Parser, `allowRemoteRefs`, YAML 1.2, aktuelle Liste der Checks.
 
 ## Teststrategie (übergreifend)
 - Unit-Tests pro Baustein (Phasen 1–5).

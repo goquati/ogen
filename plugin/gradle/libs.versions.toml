@@ -14,8 +14,6 @@ goquati-poet = { module = "de.quati:kotlin-util-poet", version.ref = "quati-util
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 snakeyaml-engine = { module = "org.snakeyaml:snakeyaml-engine", version.ref = "snakeyaml-engine" }
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
-swagger-parser = { module = "io.swagger.parser.v3:swagger-parser", version = "2.1.48" }
-swagger-generator = { module = "org.openapitools:openapi-generator", version = "7.27.0" }
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
