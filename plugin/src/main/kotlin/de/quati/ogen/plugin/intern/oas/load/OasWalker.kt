@@ -23,10 +23,13 @@ internal abstract class OasWalker {
      * A reference at [pointer] (the `$ref` string itself, or a discriminator mapping value) that must point to
      * something of [expected]; [base] is the URI it is relative to.
      */
-    protected abstract fun onRef(pointer: JsonPointer, ref: String, expected: SerialDescriptor, base: URI)
+    protected open fun onRef(pointer: JsonPointer, ref: String, expected: SerialDescriptor, base: URI) {}
 
     /** A schema with `$id` at [pointer], identified by [uri]. */
     protected open fun onSchemaResource(pointer: JsonPointer, uri: URI) {}
+
+    /** A schema object (not a boolean schema) at [pointer]. */
+    protected open fun onSchema(pointer: JsonPointer) {}
 
     fun walk(element: JsonElement, descriptor: SerialDescriptor, pointer: JsonPointer, base: URI) {
         val name = descriptor.serialName.removeSuffix("?")
@@ -72,6 +75,7 @@ internal abstract class OasWalker {
 
     private fun walkSchema(element: JsonElement, objDescriptor: SerialDescriptor, pointer: JsonPointer, base: URI) {
         val obj = element as? JsonObject ?: return
+        onSchema(pointer)
         // `$id` sets the base for the schema's own `$ref` and for everything inside it.
         val schemaBase = obj.stringOrNull(ID_KEY)
             ?.let { runCatching { base.resolve(URI(it)).canonical() }.getOrNull() }

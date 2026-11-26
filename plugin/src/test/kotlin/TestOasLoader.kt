@@ -290,7 +290,7 @@ class TestOasLoader {
         var references = 0
         for (path in repositorySpecFiles()) {
             val element = de.quati.ogen.plugin.intern.oas.read.SourceReader.read(path).element as? JsonObject ?: continue
-            val version = (element["openapi"] as? JsonPrimitive)?.content ?: continue
+            if ("openapi" !in element) continue
             val spec = OasLoader().load(path.absolute().toUri())
             problems += spec.errors().map { "$path: $it" }
             for (site in spec.refs) {
@@ -301,8 +301,6 @@ class TestOasLoader {
                 val value = document.element.at(located.pointer) ?: continue
                 StructureCheck(document::locationOf).check(value, site.expected, located.pointer)
                     .filter { it.severity == Diagnostic.Severity.ERROR }
-                    // Until migration (phase 4), 3.0's boolean exclusive bounds do not fit the model.
-                    .filterNot { version.startsWith("3.0") && "found the boolean" in it.message && "exclusiveM" in it.toString() }
                     .forEach { problems += "$path: ${site.ref}: $it" }
             }
         }

@@ -226,6 +226,28 @@ verschwindet schon hier aus dem Code.
 - `Migration30To31` und `Migration31To32` gemäß Tabelle oben; Fragmente aus externen Dateien werden beim
   Auflösen nach Zieltyp migriert (genau einmal pro URI + Typ).
 - Tests pro Regel, plus: Ergebnis validiert gegen das 3.1-/3.2-Meta-Schema.
+- **Erledigt** (`intern/oas/OasVersion.kt`, `intern/oas/load/OasMigration.kt`, eingebunden in `OasLoader`).
+  Umsetzung und Befunde:
+  - Schema-Stellen liefert der `OasWalker` (Hook `onSchema`), also auch in externen Fragmenten; Daten wie
+    `example` oder `x-*` bleiben unberührt. Migriert wird bottom-up auf dem Baum, nach dem Absolutieren der Refs.
+  - `nullable: true` ohne `type`: Codegen las bisher den von swagger **abgeleiteten** Typ. Die Migration leitet in
+    genau diesem Fall nach swaggers Regeln ab (`items` → array, `additionalProperties` → object, erster `enum`-Wert)
+    und schreibt `type: [X, "null"]`. Nur wenn nichts abzuleiten ist, entfällt `nullable` mit der Warnung, die bisher
+    `NullableWithoutTypeCheck` gab.
+  - Nullbare Kompositionen: `oneOf`/`anyOf` bekommen `{type: "null"}` als Alternative, `allOf` wird zu
+    `anyOf: [{allOf: …}, {type: "null"}]` (korrekte 3.1-Semantik; der heutige Codegen-Algorithmus kommt damit auf
+    dasselbe Ergebnis).
+  - Nicht unterstützte Versionen (Swagger 2.0, 4.x) sind Fehler mit Position.
+  - Alle 119 Specs im Repo migrieren fehlerfrei, dekodieren und überstehen den Round-Trip. Wo das offizielle Schema
+    der Ausgangsversion die Spec akzeptiert, ist das Ergebnis auch für das **strenge** offizielle 3.2-Schema gültig
+    (`schema-base` + Dialekt, prüft Schema-Inhalte nach JSON Schema 2020-12).
+  - Folgen für Phase 6: `enum` einer nullbaren 3.0-Enum enthält jetzt `null`, das muss `SchemaParsing` herausfiltern.
+    Nullbarkeit kommt nur noch aus `type`-Arrays und `{type: "null"}`-Alternativen.
+  - Folgen für Phase 7: Die Checks auf deklarierte Typen (`TypeKeywordCheck`, `CompositionTypeCheck`) sehen bei
+    `nullable` ohne `type` jetzt den abgeleiteten Typ. Neu sind Warnungen für bedeutungstragende Keywords neben
+    `$ref` (z. B. `nullable`) und für `exclusiveMinimum: true` ohne `minimum`.
+  - Für Phase 5: `LoadedSpec.refs` kann Stellen enthalten, die die Migration entfernt hat (Keywords neben `$ref`);
+    der Bundler muss fehlende Pointer überspringen.
 
 ### Phase 5 – Bundler + Fassade
 - Bundler gemäß Entscheidung oben; `OasParser` setzt die Pipeline zusammen.

@@ -1,6 +1,7 @@
 package de.quati.ogen.plugin.intern.oas.load
 
 import de.quati.ogen.plugin.intern.oas.Diagnostic
+import de.quati.ogen.plugin.intern.oas.OasVersion
 import de.quati.ogen.plugin.intern.oas.SourceLocation
 import de.quati.ogen.plugin.intern.oas.model.OpenApi
 import de.quati.ogen.plugin.intern.oas.read.ReadResult
@@ -12,6 +13,7 @@ import de.quati.ogen.plugin.intern.oas.ref.canonical
 import de.quati.ogen.plugin.intern.oas.ref.replace
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.net.URI
@@ -42,6 +44,8 @@ internal class Document(val uri: URI, val base: URI, val read: ReadResult, val e
 /** The root document and everything its references reach. */
 internal class LoadedSpec(
     val rootUri: URI,
+    /** The version the root document was written in; all documents are migrated to [OasVersion.LATEST]. */
+    val sourceVersion: OasVersion?,
     val documents: Map<URI, Document>,
     /** Schemas with `$id`, by that URI. */
     val schemaResources: Map<URI, Located>,
@@ -63,6 +67,9 @@ internal class LoadedSpec(
  * against the base URI where it stands (`$self` of the document, `$id` of enclosing schemas). A referenced
  * document is loaded once, by its absolute URI, and only the referenced part of it is walked, as the type
  * the reference expects. Nothing is dereferenced: recursive schemas stay references.
+ *
+ * Then every document is migrated to OpenAPI 3.2 ([OasMigration]); fragments of other files are taken to be
+ * written in the root document's version.
  */
 internal class OasLoader(private val resources: ResourceLoader = ResourceLoader.default()) {
     private class Raw(val uri: URI, val base: URI, val read: ReadResult)
@@ -75,6 +82,7 @@ internal class OasLoader(private val resources: ResourceLoader = ResourceLoader.
     private val queue = ArrayDeque<Task>()
     private val sites = mutableListOf<RefSite>()
     private val pending = mutableListOf<RefSite>()
+    private val schemaPointers = mutableMapOf<URI, MutableSet<JsonPointer>>()
     private val diagnostics = mutableListOf<Diagnostic>()
 
     // A document with `$self` is identified by that URI, but its neighbours are still loaded from where it lies.
@@ -89,13 +97,21 @@ internal class OasLoader(private val resources: ResourceLoader = ResourceLoader.
             enqueue(Task(rootUri, JsonPointer.ROOT, OpenApi.serializer().descriptor, rootRaw.base))
             run()
         }
+        val sourceVersion = rootRaw?.let(::version)
         val replacements = sites.filter { it.target != null }.groupBy { it.document }
         val documents = raws.values.distinct().filter { it.read.element != null }.associateWith { raw ->
             val absolute = replacements[raw.uri].orEmpty().associate { it.pointer to JsonPrimitive(it.target.toString()) }
-            Document(raw.uri, raw.base, raw.read, raw.read.element!!.replace(absolute))
+            val element = raw.read.element!!.replace(absolute)
+            val migrated = if (sourceVersion == null) element else {
+                val migration = OasMigration(sourceVersion, raw.read::locationOf)
+                migration.migrate(element, schemaPointers[raw.uri].orEmpty(), isRoot = raw.uri == rootUri)
+                    .also { diagnostics += migration.diagnostics }
+            }
+            Document(raw.uri, raw.base, raw.read, migrated)
         }
         return LoadedSpec(
             rootUri = rootUri,
+            sourceVersion = sourceVersion,
             // A document with `$self` is found by that URI and by the one it was loaded from.
             documents = raws.entries.mapNotNull { (uri, raw) -> documents[raw]?.let { uri to it } }.toMap(),
             schemaResources = schemaResources.toMap(),
@@ -119,23 +135,29 @@ internal class OasLoader(private val resources: ResourceLoader = ResourceLoader.
 
     private fun walk(task: Task) {
         val raw = raws.getValue(task.document)
+        // A document with `$self` is known by two URIs; everything found in it is kept under the one it was loaded by.
+        val document = raw.uri
         val element = raw.read.element?.at(task.pointer) ?: return
         object : OasWalker() {
             override fun onRef(pointer: JsonPointer, ref: String, expected: SerialDescriptor, base: URI) {
                 val target = try {
                     RefTarget.parse(ref, base)
                 } catch (e: IllegalArgumentException) {
-                    val site = RefSite(task.document, pointer, ref, null, expected)
+                    val site = RefSite(document, pointer, ref, null, expected)
                     sites += site
                     return siteError(site, e.message ?: "invalid reference")
                 }
-                val site = RefSite(task.document, pointer, ref, target, expected)
+                val site = RefSite(document, pointer, ref, target, expected)
                 sites += site
                 locate(target)?.let { follow(site, it) } ?: run { pending += site }
             }
 
             override fun onSchemaResource(pointer: JsonPointer, uri: URI) {
-                schemaResources.putIfAbsent(uri, Located(task.document, pointer))
+                schemaResources.putIfAbsent(uri, Located(document, pointer))
+            }
+
+            override fun onSchema(pointer: JsonPointer) {
+                schemaPointers.getOrPut(document) { mutableSetOf() } += pointer
             }
         }.walk(element, task.expected, task.pointer, task.base)
     }
@@ -148,7 +170,7 @@ internal class OasLoader(private val resources: ResourceLoader = ResourceLoader.
         val raw = raws.getValue(located.document)
         if (raw.read.element?.at(located.pointer) == null)
             return siteError(site, "'${located.pointer}' does not exist in ${raw.read.source}")
-        enqueue(Task(located.document, located.pointer, site.expected, raw.base))
+        enqueue(Task(raw.uri, located.pointer, site.expected, raw.base))
     }
 
     private fun enqueue(task: Task) {
@@ -192,6 +214,25 @@ internal class OasLoader(private val resources: ResourceLoader = ResourceLoader.
         return runCatching { uri.resolve(URI(self)).canonical() }.getOrElse {
             diagnostics += Diagnostic.error("'\$self' is not a valid URI: $self", read.locationOf(JsonPointer.of(SELF_KEY)))
             uri
+        }
+    }
+
+    /** The version of the root document; an error if it is missing or not supported. */
+    private fun version(root: Raw): OasVersion? {
+        val element = root.read.element as? JsonObject ?: return null
+        val location = root.read.locationOf(JsonPointer.of("openapi"))
+        val openapi = (element["openapi"] as? JsonPrimitive)?.takeUnless { it is JsonNull }?.content
+        if (openapi == null) {
+            val message = if ("swagger" in element) "Swagger 2.0 is not supported; convert the spec to OpenAPI 3"
+            else "the spec has no 'openapi' field"
+            diagnostics += Diagnostic.error(message, root.read.locationOf(JsonPointer.ROOT))
+            return null
+        }
+        return OasVersion.parse(openapi) ?: null.also {
+            diagnostics += Diagnostic.error(
+                "OpenAPI $openapi is not supported; supported are ${OasVersion.entries.joinToString { it.minor }}",
+                location,
+            )
         }
     }
 
