@@ -18,6 +18,13 @@ import kotlin.reflect.KClass
 public open class SpecsConfigBuilder {
     private val specs = mutableListOf<SpecConfig>()
     private var utilPackageName: PackageName? = null
+    /** Whether any spec generates Bean Validation annotations, for models or the Spring server. */
+    internal val beanValidation: Boolean
+        get() = specs.any { spec ->
+            spec.modelConfig.beanValidation ||
+                spec.generatorConfigs.any { it is GeneratorConfig.ServerSpringV4 && it.beanValidation }
+        }
+
     internal fun build() = SpecConfigs(
         specs = specs.toList(),
         util = SpecConfigs.Util(

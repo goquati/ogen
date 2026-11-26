@@ -46,6 +46,7 @@ class BeanValidationTest {
             "price" to "1.5",
             "code" to "\"ABC\"",
             "children" to "[{\"value\":\"a\"}]",
+            "childList" to "[{\"value\":\"a\"}]",
         )
         overrides.forEach { (key, value) -> if (value == null) fields.remove(key) else fields[key] = value }
         return fields.entries.joinToString(",", prefix = "{", postfix = "}") { (k, v) -> "\"$k\":$v" }
@@ -119,6 +120,39 @@ class BeanValidationTest {
     fun `reference to a type-mapped schema`() {
         getEdgeCases("amount=0", expectedStatus = 204)
         getEdgeCases("amount=-0.01", expectedStatus = 400)
+    }
+
+    @Test
+    fun `items of a query parameter`() {
+        getEdgeCases("words=abc,de", expectedStatus = 204)
+        getEdgeCases("words=abc,defg", expectedStatus = 400)
+    }
+
+    @Test
+    fun `items and values of body properties`() {
+        post(
+            "/api/items",
+            item(
+                "labels" to "[\"abc\"]",
+                "scores" to "{\"a\":10}",
+                "matrix" to "[[\"ab\",\"c\"]]",
+                "codes" to "[\"ABC\"]",
+            ),
+            expectedStatus = 200,
+        )
+        post("/api/items", item("labels" to "[\"abc\",\"abcd\"]"), expectedStatus = 400) // optional list
+        post("/api/items", item("scores" to "{\"a\":11}"), expectedStatus = 400) // map value
+        post("/api/items", item("matrix" to "[[\"a\",\"b\",\"c\"]]"), expectedStatus = 400) // nested maxItems
+        post("/api/items", item("matrix" to "[[\"A\"]]"), expectedStatus = 400) // nested pattern
+        post("/api/items", item("codes" to "[\"abc\"]"), expectedStatus = 400) // value class items
+        post("/api/items", item("optionalChildren" to "[{\"value\":\"abcd\"}]"), expectedStatus = 400)
+        post("/api/items", item("childList" to "[{\"value\":\"abcd\"}]"), expectedStatus = 400) // unboxed
+        post("/api/items", item("optionalChildList" to "[{\"value\":\"abcd\"}]"), expectedStatus = 400) // boxed
+        post(
+            "/api/items",
+            item("optionalChildren" to "[{\"value\":\"a\"}]", "optionalChildList" to "[{\"value\":\"a\"}]"),
+            expectedStatus = 200,
+        )
     }
 
     @Test

@@ -21,12 +21,12 @@ public expect enum class PatternFlag {
 
 /** [jakarta.validation.Valid] on the JVM. */
 @OptionalExpectation
-@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
 public expect annotation class Valid()
 
 /** [jakarta.validation.constraints.Size] on the JVM. */
 @OptionalExpectation
-@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
 public expect annotation class Size(
     val message: String = "{jakarta.validation.constraints.Size.message}",
     val groups: Array<KClass<*>> = [],
@@ -37,7 +37,7 @@ public expect annotation class Size(
 
 /** [jakarta.validation.constraints.Min] on the JVM. */
 @OptionalExpectation
-@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
 public expect annotation class Min(
     val value: Long,
     val message: String = "{jakarta.validation.constraints.Min.message}",
@@ -47,7 +47,7 @@ public expect annotation class Min(
 
 /** [jakarta.validation.constraints.Max] on the JVM. */
 @OptionalExpectation
-@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
 public expect annotation class Max(
     val value: Long,
     val message: String = "{jakarta.validation.constraints.Max.message}",
@@ -57,7 +57,7 @@ public expect annotation class Max(
 
 /** [jakarta.validation.constraints.DecimalMin] on the JVM. */
 @OptionalExpectation
-@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
 public expect annotation class DecimalMin(
     val value: String,
     val message: String = "{jakarta.validation.constraints.DecimalMin.message}",
@@ -68,7 +68,7 @@ public expect annotation class DecimalMin(
 
 /** [jakarta.validation.constraints.DecimalMax] on the JVM. */
 @OptionalExpectation
-@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
 public expect annotation class DecimalMax(
     val value: String,
     val message: String = "{jakarta.validation.constraints.DecimalMax.message}",
@@ -79,7 +79,7 @@ public expect annotation class DecimalMax(
 
 /** [jakarta.validation.constraints.Email] on the JVM. */
 @OptionalExpectation
-@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
 public expect annotation class Email(
     val message: String = "{jakarta.validation.constraints.Email.message}",
     val groups: Array<KClass<*>> = [],
@@ -90,7 +90,7 @@ public expect annotation class Email(
 
 /** [jakarta.validation.constraints.Pattern] on the JVM. */
 @OptionalExpectation
-@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE)
 public expect annotation class Pattern(
     val regexp: String,
     val flags: Array<PatternFlag> = [],

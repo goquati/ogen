@@ -29,6 +29,7 @@ class ItemsController : ItemsApi {
         smallest: Long?,
         beyondLong: Long?,
         amount: BigDecimal?,
+        words: List<String>?,
     ): ResponseEntity<Unit> = ResponseEntity.noContent().build()
 
     override suspend fun createItems(listItemDto: List<ItemDto>) = ResponseEntity.ok(listItemDto.size)

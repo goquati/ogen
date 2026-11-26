@@ -2,6 +2,9 @@ package de.quati.ogen.plugin.intern.codegen
 
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.ParameterizedTypeName
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.TypeName
 import de.quati.ogen.plugin.intern.model.Component
 import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.Constraints
@@ -46,15 +49,10 @@ internal fun Component.Schema.validationAnnotations(
     }
     return when (this) {
         is Component.Schema.Primitiv -> primitiveAnnotations()
-        is Component.Schema.Array -> buildList {
-            addIfNotNull(sizeAnnotation(constraints.minItems, constraints.maxItems))
-            if (items.needsCascade()) add(validAnnotation)
-        }
-
-        is Component.Schema.MapS -> buildList {
-            addIfNotNull(sizeAnnotation(constraints.minProperties, constraints.maxProperties))
-            if (valueSchema.needsCascade()) add(validAnnotation)
-        }
+        // the elements cascade with their own `@Valid`, see withElementConstraints
+        is Component.Schema.Array -> listOfNotNull(sizeAnnotation(constraints.minItems, constraints.maxItems))
+        is Component.Schema.MapS ->
+            listOfNotNull(sizeAnnotation(constraints.minProperties, constraints.maxProperties))
 
         is Component.Schema.Ref -> {
             val target = c.allSchemas[resolveAlias().name] ?: return emptyList()
@@ -65,9 +63,12 @@ internal fun Component.Schema.validationAnnotations(
                     val inner = target.toInline().validationAnnotations(nullable = false, inContainer = false)
                     val unboxed = !inContainer && (!nullable || !target.isPrimitiveOnJvm())
                     when {
-                        inner.isEmpty() -> emptyList()
-                        unboxed -> inner
-                        else -> listOf(validAnnotation)
+                        // the type of the value class can't carry the elements' annotations, the JVM field is a
+                        // list or map, so `@Valid` on it cascades into the elements (not into nested ones)
+                        unboxed -> inner + listOfNotNull(validAnnotation.takeIf { target.elementsNeedCascade() })
+                        // the property of a value class of an array or map may also constrain its elements
+                        inner.isNotEmpty() || target !is Component.Schema.Primitiv -> listOf(validAnnotation)
+                        else -> emptyList()
                     }
                 }
 
@@ -96,7 +97,15 @@ private fun Component.Schema.needsCascade(
         is Component.Schema.MapS -> valueSchema.needsCascade(visited)
         is Component.Schema.Ref -> {
             val name = resolveAlias().name
-            name !in visited && c.allSchemas[name]?.needsCascade(visited + name) == true
+            when (val target = c.allSchemas[name]) {
+                // a boxed value class, whose property carries the constraints
+                is Component.Schema.Primitiv.Value ->
+                    target.toInline().validationAnnotations(nullable = false, inContainer = false).isNotEmpty()
+
+                is Component.Schema.Array.Value, is Component.Schema.MapS.Value -> true
+                null -> false
+                else -> name !in visited && target.needsCascade(visited + name)
+            }
         }
 
         is Component.Schema.NonInline -> when (toTypeSpecData()) {
@@ -107,6 +116,60 @@ private fun Component.Schema.needsCascade(
 
         is Component.Schema.Primitiv, Component.Schema.Null, is Component.Schema.Unknown -> false
     }
+}
+
+/**
+ * [type], the Kotlin type of a value of this schema, with the constraints of the items of its arrays and the values of
+ * its maps on the type arguments, e.g. `List<@Size(max = 3) String>`; [transform] maps these annotations.
+ * Hibernate Validator reads them from the JVM type annotations, which the compiler only writes with
+ * `-Xemit-jvm-type-annotations`.
+ */
+context(c: CodeGenContext)
+internal fun Component.Schema.withElementConstraints(
+    type: TypeName,
+    transform: (List<AnnotationSpec>) -> List<AnnotationSpec> = { it },
+): TypeName {
+    if (type !is ParameterizedTypeName || getMappingOrNull() != null) return type
+    val (index, element) = when (this) {
+        is Component.Schema.Array -> 0 to items
+        is Component.Schema.MapS -> 1 to valueSchema
+        else -> return type
+    }
+    val argument = type.typeArguments.getOrNull(index) ?: return type
+    val annotations = transform(element.elementAnnotations())
+    val annotated = element.withElementConstraints(argument, transform)
+        .let { it.copy(annotations = it.annotations + annotations) }
+    val arguments = type.typeArguments.toMutableList().also { it[index] = annotated }
+    return type.rawType.parameterizedBy(arguments).copy(nullable = type.isNullable, annotations = type.annotations)
+}
+
+/**
+ * The type of a controller parameter of this schema with its element constraints (see [withElementConstraints]), and
+ * the annotations of the parameter. Spring only validates a parameter with a constraint or `@Valid` on itself, so one
+ * whose elements alone are constrained gets `@Valid`.
+ */
+context(_: CodeGenContext)
+internal fun Component.Schema.parameterValidation(
+    type: TypeName,
+    nullable: Boolean,
+): Pair<TypeName, List<AnnotationSpec>> {
+    val annotations = validationAnnotations(nullable = nullable, inContainer = false)
+    val annotatedType = withElementConstraints(type)
+    val needsValid = annotatedType != type && annotations.none { it.typeName == Poet.Validation.valid }
+    return annotatedType to if (needsValid) annotations + validAnnotation else annotations
+}
+
+/** The annotations of an item of an array or a value of a map, including `@Valid` to cascade into it. */
+context(_: CodeGenContext)
+private fun Component.Schema.elementAnnotations(): List<AnnotationSpec> =
+    validationAnnotations(nullable = isNullableResolved(), inContainer = true)
+
+/** Whether the items or values of this array or map need `@Valid`. */
+context(_: CodeGenContext)
+private fun Component.Schema.elementsNeedCascade() = when (this) {
+    is Component.Schema.Array -> items.needsCascade()
+    is Component.Schema.MapS -> valueSchema.needsCascade()
+    else -> false
 }
 
 /** Whether the value class of this schema wraps a JVM primitive, so a nullable one is boxed. */
@@ -242,11 +305,17 @@ private fun Type.NonPrimitiveType.Custom.className() = packageName.className(sim
  * These annotations for a property of a model: with the use-site target `field`, and in multiplatform common code
  * the annotations of `de.quati.ogen:core` instead of the Jakarta ones, which exist on the JVM only.
  */
+context(_: CodeGenContext)
+internal fun List<AnnotationSpec>.forModelField() = forModelType().map {
+    it.toBuilder().useSiteTarget(AnnotationSpec.UseSiteTarget.FIELD).build()
+}
+
+/** These annotations for a type in a model, see [forModelField]. */
 context(c: CodeGenContext)
-internal fun List<AnnotationSpec>.forModelField() = map { annotation ->
+internal fun List<AnnotationSpec>.forModelType() = map { annotation ->
     val type = annotation.typeName as ClassName
-    AnnotationSpec.builder(if (c.globalGenContext.multiplatform) Poet.Validation.multiplatform(type) else type)
+    if (!c.globalGenContext.multiplatform) annotation
+    else AnnotationSpec.builder(Poet.Validation.multiplatform(type))
         .apply { annotation.members.forEach { addMember(it) } }
-        .useSiteTarget(AnnotationSpec.UseSiteTarget.FIELD)
         .build()
 }

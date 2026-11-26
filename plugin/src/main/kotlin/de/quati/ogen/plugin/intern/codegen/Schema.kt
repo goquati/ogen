@@ -239,15 +239,16 @@ private fun Component.Schema.Value.generateValueClassTypeSpec(): TypeSpec = buil
         this@generateValueClassTypeSpec.name.typename.nestedClass(serializerName)
     }
     addAnnotation(Poet.serializable(valueSerializer))
+    val inline = this@generateValueClassTypeSpec.toInline()
+    val typeName = if (!modelBeanValidation) type.poet
+    else inline.withElementConstraints(type.poet) { it.forModelType() }
     primaryConstructor {
-        addParameter(valueName, type.poet)
-        addProperty(valueName, type.poet) {
+        addParameter(valueName, typeName)
+        addProperty(valueName, typeName) {
             initializer(valueName)
             if (modelBeanValidation)
                 addAnnotations(
-                    this@generateValueClassTypeSpec.toInline()
-                        .validationAnnotations(nullable = false, inContainer = false)
-                        .forModelField()
+                    inline.validationAnnotations(nullable = false, inContainer = false).forModelField()
                 )
         }
     }
@@ -370,11 +371,16 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
                         else
                             Type.NonPrimitiveType.Option(it).nullable(false)
                     }
-                addParameter(prettyFieldName, propType.poet) {
+                val propTypeName = if (!modelBeanValidation) propType.poet else {
+                    val valueType = prop.getTypeName(withFlow = false).nullable(prop.isNullableResolved()).poet
+                        .let { prop.withElementConstraints(it) { annotations -> annotations.forModelType() } }
+                    if (isRequired) valueType else Poet.option.parameterizedBy(valueType)
+                }
+                addParameter(prettyFieldName, propTypeName) {
                     if (!isRequired)
                         defaultValue("%T", Poet.option.nestedClass("Undefined"))
                 }
-                addProperty(prettyFieldName, propType.poet) {
+                addProperty(prettyFieldName, propTypeName) {
                     initializer(prettyFieldName)
                     if (modelBeanValidation)
                         addAnnotations(

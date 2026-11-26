@@ -107,6 +107,20 @@ class TestBeanValidation {
     }
 
     @Test
+    fun `constraints of items and values on the type arguments`() {
+        val model = generate("bean-validation-3.1").file("ThingDto.kt")
+        assertContains(model, "Option<List<@Size(max = 2) List<@Pattern(regexp = \"^[a-z]+${'$'}{'${'$'}'}\") String>>>")
+        assertContains(model, "Option<Map<String, @Max(value = 10L) Int>>")
+        // Spring only validates a parameter with a constraint or `@Valid` on itself
+        val api = generate("bean-validation-3.1").file("ThingsApi.kt")
+        assertContains(api, "@RequestParam(value = \"words\", required = false) @Valid words: List<@Size(max = 3) String>?")
+        // in multiplatform code the type arguments carry the annotations of core, too
+        val kmpModel = generate("bean-validation-3.1", multiplatform = true).getValue("ThingDto.kt")
+        assertContains(kmpModel, "import de.quati.ogen.core.validation.Max")
+        assertFalse(kmpModel.contains("jakarta"))
+    }
+
+    @Test
     fun `warning when the server validates bodies whose models have no annotations`() {
         generate("bean-validation-3.1", modelBeanValidation = false)
         assertEquals(1, warnings.count { "model { beanValidation = true }" in it })

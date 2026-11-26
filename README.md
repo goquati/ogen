@@ -195,7 +195,9 @@ registers a value extractor, so constraints on optional (`Option`) properties ap
 They check `minLength`, `maxLength`, `pattern` and `format: email` of strings, `minimum`, `maximum`,
 `exclusiveMinimum` and `exclusiveMaximum` of integers and numbers (also those mapped to `BigDecimal` or
 `BigInteger`), `minItems` and `maxItems` of arrays and `minProperties` and `maxProperties` of maps, and cascade into
-generated objects. Constraints on the items of arrays and the values of maps, `multipleOf` and `uniqueItems` are not
+generated objects. Constraints of the items of arrays and the values of maps go on the type arguments, e.g.
+`List<@Size(max = 3) String>`; Hibernate Validator reads them from JVM type annotations, so with `beanValidation` the
+plugin adds `-Xemit-jvm-type-annotations` to the Kotlin JVM compilations. `multipleOf` and `uniqueItems` are not
 checked.
 
 ## Tasks

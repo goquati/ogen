@@ -157,6 +157,14 @@ paths:
           description: A non-negative amount, referring to a type-mapped schema.
           schema:
             $ref: '#/components/schemas/Amount'
+        - name: words
+          in: query
+          description: Words of at most three characters.
+          schema:
+            type: array
+            items:
+              type: string
+              maxLength: 3
       responses:
         '204':
           description: valid parameters
@@ -167,6 +175,11 @@ components:
       type: number
       format: big-decimal
       minimum: 0
+    ChildList:
+      description: A list of children, generated as a value class.
+      type: array
+      items:
+        $ref: '#/components/schemas/Child'
     Tree:
       description: A tree of trees, which contains itself.
       type: array
@@ -199,6 +212,7 @@ components:
         - price
         - code
         - children
+        - childList
       properties:
         name:
           type: string
@@ -241,3 +255,34 @@ components:
             $ref: '#/components/schemas/Child'
         tree:
           $ref: '#/components/schemas/Tree'
+        labels:
+          type: array
+          items:
+            type: string
+            maxLength: 3
+        scores:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+            maximum: 10
+        matrix:
+          type: array
+          items:
+            type: array
+            maxItems: 2
+            items:
+              type: string
+              pattern: '^[a-z]+$'
+        codes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Code'
+        optionalChildren:
+          type: array
+          items:
+            $ref: '#/components/schemas/Child'
+        childList:
+          $ref: '#/components/schemas/ChildList'
+        optionalChildList:
+          $ref: '#/components/schemas/ChildList'

@@ -432,3 +432,21 @@ components:
           maxItems: 2
           items:
             type: string
+        labels:
+          description: Labels of at most three characters.
+          type: array
+          items:
+            type: string
+            maxLength: 3
+        scores:
+          description: Scores of at most ten.
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+            maximum: 10
+        codes:
+          description: Codes of three upper-case letters.
+          type: array
+          items:
+            $ref: '#/components/schemas/ConstrainedCode'

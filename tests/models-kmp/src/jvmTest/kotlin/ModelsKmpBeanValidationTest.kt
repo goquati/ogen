@@ -29,4 +29,18 @@ class ModelsKmpBeanValidationTest {
         violations(valid.copy(age = 151.toOption())) shouldBe setOf("age")
         violations(valid.copy(tags = listOf("a", "b", "c").toOption())) shouldBe setOf("tags")
     }
+
+    @Test
+    fun `items and values`() {
+        violations(
+            valid.copy(
+                labels = listOf("abc").toOption(),
+                scores = mapOf("a" to 10).toOption(),
+                codes = listOf(ConstrainedCodeDto("ABC")).toOption(),
+            )
+        ) shouldBe emptySet()
+        violations(valid.copy(labels = listOf("abc", "abcd").toOption())) shouldBe setOf("labels[1].<list element>")
+        violations(valid.copy(scores = mapOf("a" to 11).toOption())) shouldBe setOf("scores[a].<map value>")
+        violations(valid.copy(codes = listOf(ConstrainedCodeDto("abc")).toOption())) shouldBe setOf("codes[0].value")
+    }
 }
