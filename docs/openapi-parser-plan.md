@@ -280,6 +280,30 @@ verschwindet schon hier aus dem Code.
 - **Golden-Test:** internes `Spec` (data classes) aus altem und neuem Pfad für alle Specs vergleichen —
   muss identisch sein. Danach `tests/`-Build: generierter Code ohne Diff.
 - Umschalten in `SpecConfig.toCodeGenContext()`.
+- **Erledigt.** Neues Parsing in `intern/parsing/` auf dem OAS-Modell; das alte liegt bis Phase 8 in
+  `intern/parsing/legacy/` als Referenz. `SpecConfig.toCodeGenContext()` nutzt den neuen Parser; eine Spec mit
+  Strukturfehlern bricht die Generierung mit allen Fehlern (Datei:Zeile) ab. Eigene Enums `HttpMethod` und
+  `SecuritySchemeType` statt der swagger-Typen. Neue DSL-Option `allowRemoteRefs(vararg uriPrefixes)`.
+  - **Golden-Test** (`TestParsingGolden`): internes `Spec` für alle 116 Specs identisch, mit und ohne
+    `operationIdGenerator` (ausgenommen die drei YAML-1.1-Boolean-Specs).
+  - **Generierter Code in `tests/` byte-gleich**: alter Stand per Git-Worktree generiert, neuer daneben,
+    `diff -r` über alle 7 Projekte (183 Dateien) ohne Unterschied; `tests/` baut mit 154 grünen Tests.
+  - swagger-Verhalten, das Codegen sah und das nachgebildet ist (aus swaggers Quellcode, jeweils kommentiert):
+    - 3.0: Typ-Ableitung (`items` → array, `additionalProperties` → object, auch über ein deklariertes `type`);
+      `types` nur für integer/number/boolean/string/object; `enum` einer string-Schema wird zu Text,
+      integer/number/boolean/Datums-/UUID-/Byte-Formate ergeben nie eine String-Enum; `null` in einer `enum` → Unknown.
+    - 3.1: das einzelne `type` bleibt leer (also `typeWithFormat = null`); Typ aus `enum` abgeleitet, nicht aus `items`.
+    - Parameter des Path Items vor denen der Operation (gleicher Name+`in` überschreibt); **nur in 3.0** werden
+      Parameter-Refs in Operationen durch den Parameter ersetzt (3.1: bleiben Refs).
+    - `additionalProperties: true/false`: in 3.0 ein Boolean (→ Unknown); in 3.1 ein boolesches Schema (→ Map) –
+      **außer** in Komponenten-Schemas, die swaggers 3.1-Dereferencer über einen `$ref` von den Pfaden aus erreicht
+      (→ Unknown). Das ist ein swagger-Quirk (`ParserContext.reachedFromPaths`); Kandidat zum Vereinheitlichen.
+  - Migration angepasst: `nullable` fügt `null` **nicht** mehr in `enum` ein (Codegen würde daraus Unknown machen).
+    Die Form `anyOf: [{allOf: …}, {type: "null"}]` aus der Migration liest `SchemaParsing` (nur bei 3.0-Quellen) als
+    nullbares `allOf`, sonst verschöbe die zusätzliche Ebene Namen (`X1` → `X11`).
+  - Bewusste Abweichung: Dezimalzahlen exakt (`multipleOf: 0.010` bleibt `0.010`); swagger rundete über `double`.
+  - Offen: `query`-Operationen und `additionalOperations` (3.2) werden nicht generiert, bisher ohne Hinweis →
+    Warnung in Phase 7.
 
 ### Phase 7 – Validator
 - `SpecWalker` und alle Checks auf das neue Modell portieren. Tests bleiben inhaltlich gleich,

@@ -54,12 +54,21 @@ public open class SpecsConfigBuilder {
         private val generatorConfigs = mutableMapOf<KClass<out GeneratorConfig>, GeneratorConfig>()
         private var validatorConfig: de.quati.ogen.plugin.intern.model.config.ValidatorConfig? = null
         private var operationIdGenerator: ((EndpointInfo) -> String?)? = null
+        private val remoteRefAllowlist = mutableListOf<String>()
         private fun addConfig(config: GeneratorConfig) {
             generatorConfigs[config::class] = config
         }
 
         public fun operationIdGenerator(generator: (EndpointInfo) -> String?): SpecConfingBuilder = apply {
             operationIdGenerator = generator
+        }
+
+        /**
+         * Lets `$ref`s load documents over HTTP(S) whose URI starts with one of [uriPrefixes], e.g.
+         * `"https://schemas.example.com/"`. Without it, remote references are errors.
+         */
+        public fun allowRemoteRefs(vararg uriPrefixes: String): SpecConfingBuilder = apply {
+            remoteRefAllowlist += uriPrefixes
         }
 
         public fun specFile(path: String): SpecConfingBuilder = apply {
@@ -144,6 +153,7 @@ public open class SpecsConfigBuilder {
                 validatorConfig = validatorConfig,
                 modelConfig = modelConfig,
                 operationIdGenerator = operationIdGenerator,
+                remoteRefAllowlist = remoteRefAllowlist.toList(),
             )
         }
 

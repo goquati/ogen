@@ -1,0 +1,109 @@
+package de.quati.ogen.plugin.intern.parsing.legacy
+
+import de.quati.ogen.plugin.intern.model.Component
+import de.quati.ogen.plugin.intern.model.ComponentName
+import de.quati.ogen.plugin.intern.model.Spec
+import de.quati.ogen.plugin.intern.model.SpecSecurityContext
+import de.quati.ogen.plugin.intern.model.config.SpecConfig
+import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
+import de.quati.ogen.plugin.intern.parsing.helper.SchemaLocation
+import de.quati.ogen.plugin.intern.parsing.helper.longestCommonPrefix
+import io.swagger.v3.oas.models.Components
+import io.swagger.v3.oas.models.Paths
+import io.swagger.v3.parser.core.models.SwaggerParseResult
+
+/**
+ * The parsing on swagger-parser's model, kept until phase 8 of docs/openapi-parser-plan.md as reference for the
+ * golden test of the new parser (`TestParsingGolden`).
+ */
+internal fun SwaggerParseResult.parseLegacy(config: SpecConfig): Spec {
+    val raw = openAPI!!
+    // Both sections are optional; a spec without one parses as if it were empty.
+    val rawComponents = raw.components ?: Components()
+    val rawPaths = raw.paths ?: Paths()
+    val version = if (isOpenapi31)
+        Spec.Version.V3_1
+    else
+        Spec.Version.V3_0
+
+    val securityRequirementObjects = rawComponents.securitySchemes?.parse() ?: emptyMap()
+    val defaultSecurity = object : SpecSecurityContext {
+        override val securityRequirementObjects = securityRequirementObjects
+    }.run { raw.security.parse() }
+
+    val parserContext = ParserContext(
+        version = version,
+        defaultSecurity = defaultSecurity,
+        securityRequirementObjects = securityRequirementObjects,
+        operationIdGenerator = config.operationIdGenerator,
+        tagPathPrefixes = rawPaths.getTagPathPrefixes(),
+    )
+
+    rawComponents.checkSchemaNameCollisions()
+    val spec = with(parserContext) {
+        rawComponents.schemas?.entries?.forEach { (name, obj) ->
+            val name = ComponentName.Schema.Root.parse(name)
+            val location = SchemaLocation.Root(
+                type = SchemaLocation.Root.Type.COMPONENTS_SCHEMA,
+                name = name,
+            )
+            val schema = obj.parse(location = location)
+            // A component that only refers to another schema is not registered under its own name
+            if (schema is Component.Schema.Ref && !isSchemaRegistered(name))
+                addSchemaAlias(name = name, ref = schema)
+        }
+        val components = rawComponents.parse()
+        val paths = rawPaths.parse()
+        Spec(
+            version = version,
+            paths = paths,
+            components = components,
+            security = defaultSecurity,
+            multipartBodySchemas = getMultipartBodySchemas(),
+        )
+    }
+    return spec.copy(
+        components = spec.components.copy(
+            schemas = parserContext.getSchemas(),
+            schemaAliases = parserContext.getSchemaAliases(),
+        ),
+    )
+}
+
+// References name a schema by its Kotlin name, so two schemas sharing one cannot be told apart
+private fun io.swagger.v3.oas.models.Components.checkSchemaNameCollisions() {
+    val collisions = schemas?.keys.orEmpty()
+        .groupBy(ComponentName.Schema.Root::parse)
+        .filterValues { it.size > 1 }
+    if (collisions.isEmpty()) return
+    error(collisions.entries.joinToString(separator = "\n") { (name, rawNames) ->
+        "Schemas ${rawNames.joinToString { "'$it'" }} share the Kotlin name '$name'; rename all but one of them"
+    })
+}
+
+context(_: ParserContext)
+private fun io.swagger.v3.oas.models.Components.parse() = Spec.Components(
+    schemas = emptyMap(), // ParserContext includes the actual schemas
+    schemaAliases = emptyMap(), // ParserContext includes the actual schema aliases
+    parameters = parameters?.entries?.associate { (name, obj) ->
+        val name = ComponentName.Parameter.parse(name)
+        name to obj.parse(name = name)
+    } ?: emptyMap(),
+    response = responses?.entries?.associate { (name, obj) ->
+        val name = ComponentName.Response.parse(name)
+        name to obj.parse(name = name)
+    } ?: emptyMap(),
+    requestBody = requestBodies?.entries?.associate { (name, obj) ->
+        val name = ComponentName.RequestBody.parse(name)
+        name to obj.parse(name = name)
+    } ?: emptyMap(),
+)
+
+private fun Paths.getTagPathPrefixes() = flatMap { (path, pathItem) ->
+    pathItem.readOperations().map { op ->
+        val tag = op.parseTag()
+        tag to path!!
+    }
+}.groupingBy { it.first }.fold(
+    initialValueSelector = { _, v -> v.second }
+) { _, a, b -> longestCommonPrefix(a, b.second) }

@@ -6,7 +6,6 @@ import de.quati.kotlin.util.poet.toCamelCase
 import de.quati.ogen.plugin.EndpointInfo
 import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.ComponentsContext
-import io.swagger.v3.oas.models.PathItem
 
 internal data class TypeWithFormat(
     val type: String,
@@ -100,7 +99,7 @@ internal value class OperationName private constructor(val name: String) {
 
     companion object {
         fun parse(value: String) = value.toCamelCase(capitalized = false).let(::OperationName)
-        fun parsePath(path: String, method: PathItem.HttpMethod) = path
+        fun parsePath(path: String, method: HttpMethod) = path
             .replace("{", "")
             .replace("}", "")
             .replace("/", "_")

@@ -6,28 +6,113 @@ import de.quati.ogen.plugin.intern.model.Constraints
 import de.quati.ogen.plugin.intern.model.RefString
 import de.quati.ogen.plugin.intern.model.Spec
 import de.quati.ogen.plugin.intern.model.TypeWithFormat
+import de.quati.ogen.plugin.intern.oas.model.Schema
 import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
 import de.quati.ogen.plugin.intern.parsing.helper.SchemaLocation
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 
-context(c: ParserContext)
-private fun io.swagger.v3.oas.models.media.Schema<*>.isNullable(): Boolean = when (c.version) {
-    Spec.Version.V3_0 -> nullable ?: false
-    Spec.Version.V3_1 -> types?.contains("null") ?: false
+/**
+ * A schema as code generation reads it: the fields swagger-parser's model had, derived from the OAS model.
+ *
+ * In 3.0, swagger-parser inferred the type (`items` → array, `additionalProperties` → object) and set `types`
+ * only for the types it has classes for; `type` held the effective type. In 3.1 it set only `types`, from the
+ * declared types or the first enum value. Nullability comes from a `"null"` type, which migration added for 3.0's
+ * `nullable`.
+ */
+private class SchemaView(val obj: Schema.Obj, is30: Boolean, nullable: Boolean = false) {
+    private val declared = obj.type
+    val isNullable = nullable || declared?.contains("null") == true
+
+    /** The effective type of 3.0, as swagger-parser's `type`; null in 3.1, where swagger-parser left it empty. */
+    val type: String? = if (!is30) null else when {
+        obj.items != null -> "array"
+        obj.additionalProperties != null -> "object"
+        declared != null -> declared.firstOrNull { it != "null" } ?: declared.firstOrNull()
+        else -> obj.enum?.let(::inferTypeFromEnum)
+    }
+
+    val types: List<String>? = if (is30) when {
+        obj.items != null -> listOf("array")
+        obj.additionalProperties != null -> listOf("object")
+        type in TYPED_IN_30 || type == "null" -> listOf(type!!)
+        else -> null
+    } else declared ?: obj.enum?.let { listOf(inferTypeFromEnum(it)) }
+
+    val format get() = obj.format
+    val ref get() = obj.ref
+
+    /**
+     * The enum values as swagger-parser's model had them: a 3.0 string schema cast them to text, unless its format
+     * made them dates, UUIDs or bytes; otherwise strings stay strings and anything else is no string.
+     */
+    val enum: List<Any?>? = obj.enum?.let { values ->
+        val declaredType = declared?.firstOrNull { it != "null" }.takeIf { is30 && obj.items == null && obj.additionalProperties == null }
+        val castToText = declaredType == "string"
+        values.map { value ->
+            when {
+                value is JsonNull -> null
+                // IntegerSchema, NumberSchema and BooleanSchema cast to their type, which is never a string.
+                declaredType in setOf("integer", "number", "boolean") -> NotAString
+                castToText && obj.format in NON_STRING_FORMATS -> NotAString
+                castToText && value is JsonPrimitive -> value.content
+                value is JsonPrimitive && value.isString -> value.content
+                else -> NotAString
+            }
+        }
+    }
+
+    val isExplicitNullType get() = (type == "null" || types?.singleOrNull() == "null") && format == null
+
+    private object NotAString
+
+    companion object {
+        val TYPED_IN_30 = setOf("integer", "number", "boolean", "string", "object")
+        val NON_STRING_FORMATS = setOf("date", "date-time", "uuid", "byte", "binary")
+
+        /** swagger-parser's inference: the type of the first value, string for anything but booleans and numbers. */
+        fun inferTypeFromEnum(values: List<JsonElement>): String {
+            val first = values.firstOrNull() as? JsonPrimitive
+            return when {
+                first == null || first is JsonNull || first.isString -> "string"
+                first.booleanOrNull != null -> "boolean"
+                else -> "number"
+            }
+        }
+    }
 }
 
-private fun io.swagger.v3.oas.models.media.Schema<*>.isExplicitNullType() =
-    (type == "null" || types?.singleOrNull() == "null") && format == null
+private val EMPTY = Schema.Obj()
+private fun Schema.obj() = when (this) {
+    is Schema.Obj -> this
+    // swagger-parser read a boolean schema as one without keywords.
+    is Schema.Bool -> EMPTY
+}
 
-private fun io.swagger.v3.oas.models.media.Schema<*>.refObjOrNull() = `$ref`?.let(RefString.Schema::parse)
-private fun io.swagger.v3.oas.models.media.Schema<*>.parseRefOrNull() = refObjOrNull()?.let {
+context(c: ParserContext)
+private fun Schema.view() = SchemaView(obj(), is30 = c.version == Spec.Version.V3_0)
+
+context(_: ParserContext)
+private fun Schema.isExplicitNullType() = view().isExplicitNullType
+
+private fun SchemaView.refObjOrNull() = ref?.let(RefString.Schema::parse)
+private fun SchemaView.parseRefOrNull() = refObjOrNull()?.let {
     Component.Schema.Ref.create(
         name = it.schemaName,
         isNullable = false,
     )
 }
 
+context(_: ParserContext)
+private fun Schema.refObjOrNull() = view().refObjOrNull()
+
+context(_: ParserContext)
+private fun Schema.parseRefOrNull() = view().parseRefOrNull()
+
 private fun SchemaLocation.isValueSchema() = when (this) {
-    is SchemaLocation.Root -> when(type) {
+    is SchemaLocation.Root -> when (type) {
         SchemaLocation.Root.Type.COMPONENTS_SCHEMA -> true
         SchemaLocation.Root.Type.COMPONENTS_PARAMETER -> false
         SchemaLocation.Root.Type.PATH_BODY -> false
@@ -76,70 +161,78 @@ private fun createMap(
     false -> Component.Schema.MapS.Inline(valueSchema, isNullable, typeWithFormat, constraints)
 }
 
-/**
- * The validation keywords of this schema. In OpenAPI 3.0 `exclusiveMinimum` and `exclusiveMaximum` are flags
- * on `minimum` and `maximum`; in 3.1 they are bounds of their own, of which the tighter one counts.
- */
-private fun io.swagger.v3.oas.models.media.Schema<*>.toConstraints() = Constraints(
-    minLength = minLength,
-    maxLength = maxLength,
-    pattern = pattern,
+/** The validation keywords; after migration, `exclusiveMinimum` and `exclusiveMaximum` are bounds of their own. */
+private fun SchemaView.toConstraints() = Constraints(
+    minLength = obj.minLength,
+    maxLength = obj.maxLength,
+    pattern = obj.pattern,
     minimum = Constraints.tighterMinimum(
-        minimum?.let { Constraints.Bound(it, inclusive = exclusiveMinimum != true) },
-        exclusiveMinimumValue?.let { Constraints.Bound(it, inclusive = false) },
+        obj.minimum?.let { Constraints.Bound(it, inclusive = true) },
+        obj.exclusiveMinimum?.let { Constraints.Bound(it, inclusive = false) },
     ),
     maximum = Constraints.tighterMaximum(
-        maximum?.let { Constraints.Bound(it, inclusive = exclusiveMaximum != true) },
-        exclusiveMaximumValue?.let { Constraints.Bound(it, inclusive = false) },
+        obj.maximum?.let { Constraints.Bound(it, inclusive = true) },
+        obj.exclusiveMaximum?.let { Constraints.Bound(it, inclusive = false) },
     ),
-    multipleOf = multipleOf,
-    minItems = minItems,
-    maxItems = maxItems,
-    uniqueItems = uniqueItems == true,
-    minProperties = minProperties,
-    maxProperties = maxProperties,
+    multipleOf = obj.multipleOf,
+    minItems = obj.minItems,
+    maxItems = obj.maxItems,
+    uniqueItems = obj.uniqueItems == true,
+    minProperties = obj.minProperties,
+    maxProperties = obj.maxProperties,
 )
 
-private fun io.swagger.v3.oas.models.media.Schema<*>.toUnknown(location: SchemaLocation) = createUnknown(
+private fun SchemaView.toTypeWithFormatOrNull() = type?.let { TypeWithFormat(type = it, format = format) }
+
+private fun SchemaView.toUnknown(location: SchemaLocation) = createUnknown(
     location = location,
     typeWithFormat = toTypeWithFormatOrNull(),
 )
 
-private fun io.swagger.v3.oas.models.media.Schema<*>.toTypeWithFormatOrNull() = type?.let {
-    TypeWithFormat(type = it, format = format)
+/**
+ * Migration writes a nullable `allOf` of 3.0 as `anyOf: [{allOf: [...]}, {type: "null"}]`; read back as the
+ * nullable `allOf` it was, so the nesting adds no level (and no name) that swagger-parser's model did not have.
+ */
+private fun Schema.Obj.unwrapMigratedNullableAllOf(): SchemaView? {
+    val alternatives = anyOf ?: return null
+    if (allOf != null || alternatives.size != 2) return null
+    val nullType = alternatives.firstOrNull { it is Schema.Obj && it == Schema.Obj(type = listOf("null")) } ?: return null
+    val inner = alternatives.first { it !== nullType } as? Schema.Obj ?: return null
+    if (inner.allOf == null || inner != Schema.Obj(allOf = inner.allOf)) return null
+    return SchemaView(copy(anyOf = null, allOf = inner.allOf), is30 = true, nullable = true)
 }
 
 context(pc: ParserContext)
-internal fun io.swagger.v3.oas.models.media.Schema<*>.parse(
+internal fun Schema.parse(
     location: SchemaLocation,
 ): Component.Schema.Inline = pc.registerSchema(location = location) { location ->
+    val s = (this as? Schema.Obj)?.takeIf { pc.version == Spec.Version.V3_0 }?.unwrapMigratedNullableAllOf() ?: view()
+    val o = s.obj
     when {
-        isExplicitNullType() -> Component.Schema.Null
-        `$ref` != null -> parseRefOrNull()!!
-        not != null -> toUnknown(location)
-        oneOf != null -> run {
-            val disc = discriminator?.let {
-                it.parse() ?: return@run toUnknown(location)
-            }
-            val isNullable = isNullable() || oneOf!!.any { it.isExplicitNullType() }
-            val rawSchemasNonNull = oneOf!!.filterNot { it.isExplicitNullType() }
-            if (additionalProperties != null) return@run toUnknown(location)
-            if (properties?.isNotEmpty() == true) return@run toUnknown(location)
+        s.isExplicitNullType -> Component.Schema.Null
+        s.ref != null -> s.parseRefOrNull()!!
+        o.not != null -> s.toUnknown(location)
+        o.oneOf != null -> run {
+            val disc = o.discriminator?.parse()
+            val isNullable = s.isNullable || o.oneOf.any { it.isExplicitNullType() }
+            val rawSchemasNonNull = o.oneOf.filterNot { it.isExplicitNullType() }
+            if (o.additionalProperties != null) return@run s.toUnknown(location)
+            if (o.properties?.isNotEmpty() == true) return@run s.toUnknown(location)
             if (disc == null)
                 return@run rawSchemasNonNull.singleOrNull()
                     ?.parse(location)
                     ?.copySchema { it || isNullable }
-                    ?: toUnknown(location)
+                    ?: s.toUnknown(location)
             if (disc.mapping != null && disc.mapping.size != rawSchemasNonNull.size)
-                return@run toUnknown(location)
+                return@run s.toUnknown(location)
             val mappingReversed = disc.mapping?.entries?.associate { it.value to it.key }
             val innerSchemas = rawSchemasNonNull.associate { schema ->
-                val refItem = schema.refObjOrNull() ?: return@run toUnknown(location)
+                val refItem = schema.refObjOrNull() ?: return@run s.toUnknown(location)
                 val itemName = if (mappingReversed == null)
                     refItem.schemaName.rawClassName
                 else
-                    mappingReversed[refItem] ?: return@run toUnknown(location)
-                val refSchema = schema.parseRefOrNull() ?: return@run toUnknown(location)
+                    mappingReversed[refItem] ?: return@run s.toUnknown(location)
+                val refSchema = schema.parseRefOrNull() ?: return@run s.toUnknown(location)
                 itemName to refSchema
             }
 
@@ -148,18 +241,18 @@ internal fun io.swagger.v3.oas.models.media.Schema<*>.parse(
                 schemas = innerSchemas,
                 discriminatorName = disc.propertyName,
                 name = location.name,
-                typeWithFormat = toTypeWithFormatOrNull()
+                typeWithFormat = s.toTypeWithFormatOrNull()
             )
         }
 
-        anyOf != null || allOf != null -> run {
-            if (anyOf != null && allOf != null) return@run toUnknown(location)
-            val (type, rawSchemas) = anyOf?.let { Component.Schema.Composed.Type.AnyOf to it }
-                ?: allOf!!.let { Component.Schema.Composed.Type.AllOf to it }
-            val isNullable = isNullable() || rawSchemas.any { it.isExplicitNullType() }
-            if (discriminator != null) return@run toUnknown(location)
-            if (additionalProperties != null) return@run toUnknown(location)
-            if (properties?.isNotEmpty() == true) return@run toUnknown(location)
+        o.anyOf != null || o.allOf != null -> run {
+            if (o.anyOf != null && o.allOf != null) return@run s.toUnknown(location)
+            val (type, rawSchemas) = o.anyOf?.let { Component.Schema.Composed.Type.AnyOf to it }
+                ?: o.allOf!!.let { Component.Schema.Composed.Type.AllOf to it }
+            val isNullable = s.isNullable || rawSchemas.any { it.isExplicitNullType() }
+            if (o.discriminator != null) return@run s.toUnknown(location)
+            if (o.additionalProperties != null) return@run s.toUnknown(location)
+            if (o.properties?.isNotEmpty() == true) return@run s.toUnknown(location)
             val nonNullSchemas = rawSchemas.filterNot { it.isExplicitNullType() }
             nonNullSchemas.singleOrNull()
                 ?.parse(location)
@@ -171,89 +264,92 @@ internal fun io.swagger.v3.oas.models.media.Schema<*>.parse(
                         schema.parse(location = location + "Part$index")
                     },
                     name = location.name,
-                    typeWithFormat = toTypeWithFormatOrNull(),
+                    typeWithFormat = s.toTypeWithFormatOrNull(),
                 )
         }
 
-        enum != null -> run {
-            val isNullable = isNullable()
-            if (enum!!.any { it !is String })
-                return@run toUnknown(location)
-            val values = enum!!.map { it as String }
+        s.enum != null -> run {
+            val isNullable = s.isNullable
+            if (s.enum.any { it !is String })
+                return@run s.toUnknown(location)
+            val values = s.enum.map { it as String }
                 .filterNot { isNullable && it == "null" }
             Component.Schema.EnumString(
-                isNullable = isNullable(),
+                isNullable = isNullable,
                 values = values,
                 name = location.name,
-                typeWithFormat = toTypeWithFormatOrNull(),
+                typeWithFormat = s.toTypeWithFormatOrNull(),
             )
         }
 
-        else -> when (val type = types?.singleOrNull() ?: types?.singleOrNull { it != "null" }) {
+        else -> when (val type = s.types?.singleOrNull() ?: s.types?.singleOrNull { it != "null" }) {
             "null" -> Component.Schema.Null
-            null -> toUnknown(location)
+            null -> s.toUnknown(location)
 
             "object" -> run {
-                val props = properties?.mapValues {
+                val props = o.properties?.mapValues {
                     it.value.parse(location = location + it.key.toCamelCase(capitalized = true))
                 } ?: emptyMap()
-                val additionalProps = additionalProperties ?: return@run if (props.isEmpty())
-                    toUnknown(location)
+                val additionalProps = o.additionalProperties ?: return@run if (props.isEmpty())
+                    s.toUnknown(location)
                 else
                     Component.Schema.Obj(
-                        isNullable = isNullable(),
-                        required = required?.toSet() ?: emptySet(),
+                        isNullable = s.isNullable,
+                        required = o.required?.toSet() ?: emptySet(),
                         properties = props,
                         name = location.name,
-                        typeWithFormat = toTypeWithFormatOrNull()
+                        typeWithFormat = s.toTypeWithFormatOrNull()
                     )
-                if (additionalProps == true)
-                    return@run toUnknown(location)
-                if (!(properties?.isEmpty() ?: true))
-                    return@run toUnknown(location)
-                if (additionalProps !is io.swagger.v3.oas.models.media.Schema<*>)
-                    return@run toUnknown(location)
+                // swagger-parser read `additionalProperties: true/false` as a Boolean in 3.0, and in 3.1 in component
+                // schemas its dereferencer reached from the paths; elsewhere in 3.1 as a boolean schema (ParserContext).
+                val asBoolean = pc.version == Spec.Version.V3_0 || pc.reachedFromPaths
+                if (asBoolean && additionalProps == Schema.Bool(true))
+                    return@run s.toUnknown(location)
+                if (!(o.properties?.isEmpty() ?: true))
+                    return@run s.toUnknown(location)
+                if (asBoolean && additionalProps !is Schema.Obj)
+                    return@run s.toUnknown(location)
                 createMap(
                     location = location,
-                    isNullable = isNullable(),
+                    isNullable = s.isNullable,
                     valueSchema = additionalProps.parse(
                         location = when (location.isValueSchema()) {
                             true -> location + "Value"
                             false -> location.updateLast { "${it}Value" }
                         },
                     ),
-                    typeWithFormat = toTypeWithFormatOrNull(),
-                    constraints = toConstraints(),
+                    typeWithFormat = s.toTypeWithFormatOrNull(),
+                    constraints = s.toConstraints(),
                 )
             }
 
             "array" -> run {
-                val items = items ?: return@run toUnknown(location)
+                val items = o.items ?: return@run s.toUnknown(location)
                 createArray(
                     location = location,
-                    isNullable = isNullable(),
+                    isNullable = s.isNullable,
                     items = items.parse(
                         location = when (location.isValueSchema()) {
                             true -> location + "Item"
                             false -> location.updateLast { "${it}Item" }
                         },
                     ),
-                    typeWithFormat = toTypeWithFormatOrNull(),
-                    constraints = toConstraints(),
+                    typeWithFormat = s.toTypeWithFormatOrNull(),
+                    constraints = s.toConstraints(),
                 )
             }
 
             else -> run {
                 val typeE = Component.Schema.Primitiv.Type.entries
                     .find { it.name.equals(type, ignoreCase = true) }
-                    ?: return@run toUnknown(location)
+                    ?: return@run s.toUnknown(location)
 
                 createPrimitive(
                     location = location,
                     type = typeE,
-                    format = format,
-                    isNullable = isNullable(),
-                    constraints = toConstraints(),
+                    format = s.format,
+                    isNullable = s.isNullable,
+                    constraints = s.toConstraints(),
                 )
             }
         }

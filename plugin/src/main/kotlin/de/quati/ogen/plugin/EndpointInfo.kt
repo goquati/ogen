@@ -1,6 +1,6 @@
 package de.quati.ogen.plugin
 
-import io.swagger.v3.oas.models.PathItem
+import de.quati.ogen.plugin.intern.model.HttpMethod
 
 public data class EndpointInfo(
     val tagPathPrefix: String,
@@ -22,15 +22,15 @@ public data class EndpointInfo(
         TRACE;
 
         internal companion object {
-            internal fun of(method: PathItem.HttpMethod) = when (method) {
-                PathItem.HttpMethod.POST -> POST
-                PathItem.HttpMethod.GET -> GET
-                PathItem.HttpMethod.PUT -> PUT
-                PathItem.HttpMethod.PATCH -> PATCH
-                PathItem.HttpMethod.DELETE -> DELETE
-                PathItem.HttpMethod.HEAD -> HEAD
-                PathItem.HttpMethod.OPTIONS -> OPTIONS
-                PathItem.HttpMethod.TRACE -> TRACE
+            internal fun of(method: HttpMethod) = when (method) {
+                HttpMethod.POST -> POST
+                HttpMethod.GET -> GET
+                HttpMethod.PUT -> PUT
+                HttpMethod.PATCH -> PATCH
+                HttpMethod.DELETE -> DELETE
+                HttpMethod.HEAD -> HEAD
+                HttpMethod.OPTIONS -> OPTIONS
+                HttpMethod.TRACE -> TRACE
             }
         }
     }

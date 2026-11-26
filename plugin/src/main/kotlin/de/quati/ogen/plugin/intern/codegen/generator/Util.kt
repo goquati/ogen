@@ -13,22 +13,22 @@ import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.model.Endpoint
 import de.quati.ogen.plugin.intern.model.Security
-import io.swagger.v3.oas.models.PathItem
-import io.swagger.v3.oas.models.security.SecurityScheme
+import de.quati.ogen.plugin.intern.model.HttpMethod
+import de.quati.ogen.plugin.intern.model.SecuritySchemeType
 
 
-internal val SecurityScheme.Type.prettyName get() = toString().replaceFirstChar(Char::titlecase)
+internal val SecuritySchemeType.prettyName get() = value.replaceFirstChar(Char::titlecase)
 
-internal val PathItem.HttpMethod.ktorName
+internal val HttpMethod.ktorName
     get() = when (this) {
-        PathItem.HttpMethod.POST -> "Post"
-        PathItem.HttpMethod.GET -> "Get"
-        PathItem.HttpMethod.PUT -> "Put"
-        PathItem.HttpMethod.DELETE -> "Delete"
-        PathItem.HttpMethod.HEAD -> "Head"
-        PathItem.HttpMethod.OPTIONS -> "Options"
-        PathItem.HttpMethod.TRACE -> "Trace"
-        PathItem.HttpMethod.PATCH -> "Patch"
+        HttpMethod.POST -> "Post"
+        HttpMethod.GET -> "Get"
+        HttpMethod.PUT -> "Put"
+        HttpMethod.DELETE -> "Delete"
+        HttpMethod.HEAD -> "Head"
+        HttpMethod.OPTIONS -> "Options"
+        HttpMethod.TRACE -> "Trace"
+        HttpMethod.PATCH -> "Patch"
     }
 
 context(c: CodeGenContext)

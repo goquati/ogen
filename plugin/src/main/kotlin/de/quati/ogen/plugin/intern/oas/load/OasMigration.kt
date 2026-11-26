@@ -18,7 +18,7 @@ import kotlinx.serialization.json.booleanOrNull
  *
  * | 3.0 | 3.1 |
  * |---|---|
- * | `nullable: true` next to `type: X` | `type: [X, "null"]`, and `null` in `enum` |
+ * | `nullable: true` next to `type: X` | `type: [X, "null"]` |
  * | `nullable: true` without `type` | the type swagger-parser inferred (from `items`, `additionalProperties`, `enum`) plus `"null"` |
  * | `nullable: true` next to `oneOf`/`anyOf` | a `{type: "null"}` alternative |
  * | `nullable: true` next to `allOf` | `anyOf: [{allOf: …}, {type: "null"}]` |
@@ -28,7 +28,9 @@ import kotlinx.serialization.json.booleanOrNull
  * | `exclusiveMinimum: false` | removed |
  * | keywords next to `$ref` | removed, as 3.0 ignores them; a warning unless they only annotate |
  *
- * `example` and `format: binary` stay: both are still valid, and code generation reads `format`.
+ * `example` and `format: binary` stay: both are still valid, and code generation reads `format`. An `enum` of a
+ * nullable schema gets no `null`: code generation reads `null` in an enum as a value of no string type, as
+ * swagger-parser did, and would no longer generate an enum class.
  */
 internal class OasMigration(
     private val from: OasVersion,
@@ -105,12 +107,7 @@ internal class OasMigration(
             pointer / "nullable",
             "'nullable: true' without a 'type' has no effect; a nullable \$ref goes in an 'allOf'",
         )
-        if (type != null) {
-            schema["type"] = JsonArray(listOf(JsonPrimitive(type), JsonPrimitive("null")))
-            (schema["enum"] as? JsonArray)?.let { values ->
-                if (JsonNull !in values) schema["enum"] = JsonArray(values + JsonNull)
-            }
-        }
+        if (type != null) schema["type"] = JsonArray(listOf(JsonPrimitive(type), JsonPrimitive("null")))
         when (composition) {
             "oneOf", "anyOf" -> {
                 val alternatives = schema.getValue(composition) as JsonArray

@@ -83,12 +83,12 @@ class TestOasMigration {
         assertEquals(emptyList(), spec.messages())
         assertEquals(json("""{"type": ["string", "null"], "maxLength": 3}"""), spec.schema("A"))
         assertEquals(json("""{"type": "string"}"""), spec.schema("B"))
-        assertEquals(json("""{"type": ["string", "null"], "enum": ["a", "b", null]}"""), spec.schema("C"))
+        assertEquals(json("""{"type": ["string", "null"], "enum": ["a", "b"]}"""), spec.schema("C"))
         assertEquals(json("""{"type": ["string", "null"], "enum": ["a", null]}"""), spec.schema("D"))
         assertEquals(json("""{"items": {"type": "string"}, "type": ["array", "null"]}"""), spec.schema("E"))
         assertEquals(json("""{"additionalProperties": {"type": "integer"}, "type": ["object", "null"]}"""), spec.schema("F"))
-        assertEquals(json("""{"enum": [1, 2, null], "type": ["number", "null"]}"""), spec.schema("G"))
-        assertEquals(json("""{"enum": [true, null], "type": ["boolean", "null"]}"""), spec.schema("H"))
+        assertEquals(json("""{"enum": [1, 2], "type": ["number", "null"]}"""), spec.schema("G"))
+        assertEquals(json("""{"enum": [true], "type": ["boolean", "null"]}"""), spec.schema("H"))
     }
 
     @Test
