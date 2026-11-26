@@ -21,8 +21,7 @@ internal val serverBeanValidation: Boolean
     get() = c.specConfig.generatorConfigs.any { it is GeneratorConfig.ServerSpringV4 && it.beanValidation }
 
 /**
- * The Jakarta Bean Validation annotations that check a value of this schema, without use-site target; the
- * multiplatform ones of `de.quati.ogen:core`, which are the Jakarta annotations on the JVM.
+ * The Jakarta Bean Validation annotations that check a value of this schema, without use-site target.
  *
  * A value class is only a class of its own on the JVM when it is boxed; otherwise the JVM holds the wrapped value.
  * Its constraints are then put on the value itself, and for a boxed one `@Valid` cascades into the value class,
@@ -239,6 +238,15 @@ private fun <T : Any> MutableList<T>.addIfNotNull(value: T?) {
 
 private fun Type.NonPrimitiveType.Custom.className() = packageName.className(simpleNames)
 
-/** These annotations with the use-site target `field`, for constructor properties. */
-internal fun List<AnnotationSpec>.onField() =
-    map { it.toBuilder().useSiteTarget(AnnotationSpec.UseSiteTarget.FIELD).build() }
+/**
+ * These annotations for a property of a model: with the use-site target `field`, and in multiplatform common code
+ * the annotations of `de.quati.ogen:core` instead of the Jakarta ones, which exist on the JVM only.
+ */
+context(c: CodeGenContext)
+internal fun List<AnnotationSpec>.forModelField() = map { annotation ->
+    val type = annotation.typeName as ClassName
+    AnnotationSpec.builder(if (c.globalGenContext.multiplatform) Poet.Validation.multiplatform(type) else type)
+        .apply { annotation.members.forEach { addMember(it) } }
+        .useSiteTarget(AnnotationSpec.UseSiteTarget.FIELD)
+        .build()
+}

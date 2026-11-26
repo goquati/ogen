@@ -125,10 +125,11 @@ internal object Poet {
         }
     }
 
-    /** Jakarta Bean Validation annotations, usable in multiplatform code. */
+    /** Jakarta Bean Validation annotations. */
     object Validation {
-        private const val PACKAGE = "de.quati.ogen.core.validation"
-        val valid = ClassName(PACKAGE, "Valid")
+        private const val PACKAGE = "jakarta.validation.constraints"
+        private const val MULTIPLATFORM_PACKAGE = "de.quati.ogen.core.validation"
+        val valid = ClassName("jakarta.validation", "Valid")
         val size = ClassName(PACKAGE, "Size")
         val pattern = ClassName(PACKAGE, "Pattern")
         val email = ClassName(PACKAGE, "Email")
@@ -136,6 +137,12 @@ internal object Poet {
         val max = ClassName(PACKAGE, "Max")
         val decimalMin = ClassName(PACKAGE, "DecimalMin")
         val decimalMax = ClassName(PACKAGE, "DecimalMax")
+
+        /**
+         * The annotation of `de.quati.ogen:core` standing for this Jakarta one in multiplatform common code:
+         * on the JVM it is the Jakarta annotation, on other platforms the compiler drops it.
+         */
+        fun multiplatform(jakarta: ClassName) = ClassName(MULTIPLATFORM_PACKAGE, jakarta.simpleNames)
     }
 
     object Spring {

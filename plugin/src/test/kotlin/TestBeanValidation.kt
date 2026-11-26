@@ -28,6 +28,7 @@ class TestBeanValidation {
         spec: String,
         modelBeanValidation: Boolean = true,
         serverBeanValidation: Boolean = true,
+        multiplatform: Boolean = false,
     ): Map<String, String> {
         val group = "de.quati.ogen.test"
         val configs = SpecsConfigBuilder().apply {
@@ -43,7 +44,7 @@ class TestBeanValidation {
             }
         }.build()
         return TestGeneration.withTempDirectory(prefix = "test-bean-validation") { dir ->
-            Generator(rootOutputDir = dir, logger = logger).generate(configs = configs)
+            Generator(rootOutputDir = dir, logger = logger, multiplatform = multiplatform).generate(configs = configs)
             dir.walk().filter { it.toString().endsWith(".kt") }
                 .associate { it.fileName.toString() to it.readText() }
         }
@@ -74,18 +75,34 @@ class TestBeanValidation {
     @Test
     fun `no annotations without beanValidation`() {
         val files = generate("bean-validation-3.1", modelBeanValidation = false, serverBeanValidation = false)
-        files.values.forEach { assertFalse(it.contains("de.quati.ogen.core.validation")) }
+        files.values.forEach { assertFalse(it.contains("validation")) }
     }
 
     @Test
     fun `model and server flags are independent`() {
         generate("bean-validation-3.1", serverBeanValidation = false).also {
             assertContains(it.file("ThingDto.kt"), "@field:Size(max = 4)")
-            assertFalse(it.file("ThingsApi.kt").contains("de.quati.ogen.core.validation"))
+            assertFalse(it.file("ThingsApi.kt").contains("jakarta.validation"))
         }
         generate("bean-validation-3.1", modelBeanValidation = false).also {
-            assertFalse(it.file("ThingDto.kt").contains("de.quati.ogen.core.validation"))
+            assertFalse(it.file("ThingDto.kt").contains("jakarta.validation"))
             assertContains(it.file("ThingsApi.kt"), "@Min(value = 1L) id: Long")
+        }
+    }
+
+    @Test
+    fun `Jakarta annotations for the JVM, those of core for multiplatform models`() {
+        generate("bean-validation-3.1").also {
+            assertContains(it.getValue("ThingDto.kt"), "import jakarta.validation.constraints.Size")
+            assertContains(it.getValue("ThingsApi.kt"), "import jakarta.validation.constraints.Min")
+            it.values.forEach { file -> assertFalse(file.contains("de.quati.ogen.core.validation")) }
+        }
+        generate("bean-validation-3.1", multiplatform = true).also {
+            val model = it.getValue("ThingDto.kt")
+            assertContains(model, "import de.quati.ogen.core.validation.Size")
+            assertFalse(model.contains("jakarta.validation"))
+            // the server is JVM code in any case
+            assertContains(it.getValue("ThingsApi.kt"), "import jakarta.validation.constraints.Min")
         }
     }
 

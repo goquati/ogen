@@ -12,10 +12,11 @@ import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 public class OgenPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val configBuilder = project.extensions.create("ogen", SpecsConfigBuilder::class.java)
-        val mainName = when (project.kotlinExtension) {
-            is KotlinMultiplatformExtension -> "commonMain"
-            is KotlinProjectExtension -> "main"
+        val multiplatform = when (project.kotlinExtension) {
+            is KotlinMultiplatformExtension -> true
+            is KotlinProjectExtension -> false
         }
+        val mainName = if (multiplatform) "commonMain" else "main"
         val genDir = project.layout.buildDirectory.dir("generated/sources/ogen/src/$mainName/kotlin")
 
         val ogenGenerate = project.tasks.register("ogenGenerate") { task ->
@@ -28,6 +29,7 @@ public class OgenPlugin : Plugin<Project> {
                 Generator(
                     rootOutputDir = genDir.get().asFile.toPath(),
                     logger = it.logger,
+                    multiplatform = multiplatform,
                 ).generate(configs = configs)
             }
         }

@@ -247,7 +247,7 @@ private fun Component.Schema.Value.generateValueClassTypeSpec(): TypeSpec = buil
                 addAnnotations(
                     this@generateValueClassTypeSpec.toInline()
                         .validationAnnotations(nullable = false, inContainer = false)
-                        .onField()
+                        .forModelField()
                 )
         }
     }
@@ -381,7 +381,7 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
                             prop.validationAnnotations(
                                 nullable = prop.isNullableResolved(),
                                 inContainer = !isRequired,
-                            ).onField()
+                            ).forModelField()
                         )
                     val propSerializer = propType.type.getSerializerTypeName(register = true)
                     if (propSerializer != null)

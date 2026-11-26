@@ -16,12 +16,14 @@ import java.nio.file.Path
 
 internal class Generator(
     private val logger: Logger,
-    private val rootOutputDir: Path
+    private val rootOutputDir: Path,
+    /** Whether [rootOutputDir] is multiplatform common code rather than JVM code. */
+    private val multiplatform: Boolean = false,
 ) {
     fun generate(
         configs: SpecConfigs
     ) {
-        with(GlobalGenContext(specConfigs = configs)) {
+        with(GlobalGenContext(specConfigs = configs, multiplatform = multiplatform)) {
             configs.specs.forEach { config ->
                 Validator.validate(config = config, logger = logger)
                 warnIfBodiesAreNotValidated(config)

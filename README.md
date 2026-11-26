@@ -187,10 +187,10 @@ Spring then answers invalid requests with `400 Bad Request`. The properties of r
 the models carry the annotations, so the generator warns when only the server option is set. If the models are
 generated in another module, set `beanValidation` in its `model` block and in the server module's `model` block.
 
-The annotations come from `de.quati.ogen.core.validation`: on the JVM they are the Jakarta annotations, which needs
-`jakarta.validation:jakarta.validation-api` at compile time; on other platforms the compiler drops them, so models in
-common code can carry them. `de.quati.ogen:core` registers a value extractor, so constraints on optional (`Option`)
-properties apply to their values.
+The annotations are those of Jakarta (`jakarta.validation:jakarta.validation-api`). Models in multiplatform common
+code use those of `de.quati.ogen.core.validation` instead: on the JVM they are the Jakarta annotations, which then
+needs `jakarta.validation-api` at compile time; on other platforms the compiler drops them. `de.quati.ogen:core`
+registers a value extractor, so constraints on optional (`Option`) properties apply to their values.
 
 They check `minLength`, `maxLength`, `pattern` and `format: email` of strings, `minimum`, `maximum`,
 `exclusiveMinimum` and `exclusiveMaximum` of integers and numbers (also those mapped to `BigDecimal` or

@@ -194,9 +194,10 @@ public open class SpecsConfigBuilder {
             public var postfix: String = "Dto"
 
             /**
-             * Annotates the model properties with the Jakarta Bean Validation constraints of their schemas, using the
-             * multiplatform annotations of `de.quati.ogen:core`: on the JVM they are the Jakarta annotations, on
-             * other platforms the compiler drops them. A JVM target needs `jakarta.validation:jakarta.validation-api`.
+             * Annotates the model properties with the Jakarta Bean Validation constraints of their schemas, which
+             * needs `jakarta.validation:jakarta.validation-api` for a JVM target. In multiplatform common code the
+             * annotations of `de.quati.ogen:core` stand for them: on the JVM they are the Jakarta annotations, on
+             * other platforms the compiler drops them.
              */
             public var beanValidation: Boolean = false
 
