@@ -40,6 +40,7 @@ kotlin {
         apiVersion.set(KotlinVersion.KOTLIN_2_2)
         languageVersion.set(KotlinVersion.KOTLIN_2_2)
         freeCompilerArgs.add("-Xcontext-parameters")
+        optIn.add("kotlinx.serialization.ExperimentalSerializationApi")
     }
 }
 

@@ -19,11 +19,17 @@ internal class ReadResult(
     val element: JsonElement?,
     val positions: Map<JsonPointer, SourcePosition>,
     val diagnostics: List<Diagnostic>,
+    /** Where the key of a mapping entry stands; [positions] has where its value starts. */
+    val keyPositions: Map<JsonPointer, SourcePosition> = emptyMap(),
 ) {
     enum class Format { JSON, YAML }
 
-    fun locationOf(pointer: JsonPointer): SourceLocation =
-        SourceLocation(source = source, pointer = pointer, position = positions[pointer])
+    /** The location of the value at [pointer], or with [key] of the key it stands under. */
+    fun locationOf(pointer: JsonPointer, key: Boolean = false): SourceLocation = SourceLocation(
+        source = source,
+        pointer = pointer,
+        position = (if (key) keyPositions[pointer] else null) ?: positions[pointer],
+    )
 
     companion object {
         fun failed(source: String, format: Format?, diagnostic: Diagnostic) = ReadResult(

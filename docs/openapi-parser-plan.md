@@ -181,6 +181,20 @@ verschwindet schon hier aus dem Code.
   plus `other: Map<String, JsonElement>`. `true`/`false` als Schema erlauben (3.1).
 - Tests: Round-Trip decode → encode == Eingabe (nach Migration) für alle Test-Resources;
   JSON-Schema-Validierung der Eingaben gegen das offizielle Meta-Schema.
+- **Erledigt** (`intern/oas/model`, `intern/oas/serial`, `intern/oas/decode`). Umsetzung und Befunde:
+  - Felder aus dem offiziellen 3.2-Schema übernommen. Neu gegenüber 3.0/3.1 u. a.: `content`-Werte sind
+    `RefOr<MediaType>`, `Response.description` ist optional, `components.mediaTypes`, `query`/`additionalOperations`.
+  - **Strukturprüfung** (`StructureCheck`) vor dem Dekodieren, abgeleitet aus den `SerialDescriptor`s des Modells:
+    sammelt alle unbekannten Felder, fehlenden Pflichtfelder, falschen Typen und Enum-Werte mit Datei:Zeile:Spalte
+    (bei Key-Problemen die Position des Keys). kotlinx bricht dagegen beim ersten Fehler ohne Position ab.
+    Tolerant wie swagger: Zahl/Boolean als String (`version: 1.0`), `null` gilt bei optionalen Feldern als fehlend,
+    Geschwister von `$ref` sind eine Warnung.
+  - Explizites `null` bei `default`/`const`/`example` bleibt `JsonNull` (≠ fehlend).
+  - `TestOasModelSpecs` prüft alle 119 Specs im Repo gegen die offiziellen Schemas (3.0/3.1/3.2, als Test-Ressourcen):
+    was das offizielle Schema akzeptiert, dekodiert fehlerfrei und übersteht den Round-Trip (114 Specs; die übrigen 5
+    sind 3.0 mit booleschem `exclusiveMinimum`/`exclusiveMaximum` → Phase 4). Bewusste Abweichungen vom offiziellen
+    Schema sind im Test fest aufgelistet: `2xx` in Kleinbuchstaben (wie `HttpCode.parse`), ungültige `type`-Werte und
+    ungültige Regex bleiben ogen's eigenen Checks überlassen.
 
 ### Phase 3 – Laden, Refs, Auflösen
 - `ResourceLoader` (interface) mit `FileResourceLoader`; HTTP standardmäßig aus, optional per Allowlist.

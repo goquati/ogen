@@ -75,6 +75,7 @@ internal object YamlReader {
             element = element.takeIf { converter.diagnostics.isEmpty() },
             positions = converter.positions,
             diagnostics = converter.diagnostics,
+            keyPositions = converter.keyPositions,
         )
     }
 
@@ -83,6 +84,7 @@ internal object YamlReader {
 
     private class NodeConverter(private val source: String) {
         val positions = LinkedHashMap<JsonPointer, SourcePosition>()
+        val keyPositions = LinkedHashMap<JsonPointer, SourcePosition>()
         val diagnostics = mutableListOf<Diagnostic>()
         private val inProgress: MutableSet<Node> = Collections.newSetFromMap(IdentityHashMap())
 
@@ -131,6 +133,7 @@ internal object YamlReader {
                     error("duplicate key '$key'$firstAt", pointer / key, keyNode)
                     continue
                 }
+                keyNode.position?.let { keyPositions[pointer / key] = it }
                 content[key] = convert(tuple.valueNode, pointer / key)
             }
             return JsonObject(content)
