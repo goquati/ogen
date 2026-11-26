@@ -31,7 +31,9 @@ internal fun namingConventionErrors(spec: ValidatedSpec, config: ValidatorConfig
 
     spec.parameters().forEach { node ->
         val parameter = node.parameter
-        val (placement, format) = when (parameter.location) {
+        // A parameter without name or location is reported by the parser.
+        val name = parameter.name ?: return@forEach
+        val (placement, format) = when (parameter.location ?: return@forEach) {
             Parameter.Location.PATH -> "path" to config.parameterFormat.path
             Parameter.Location.QUERY -> "query" to config.parameterFormat.query
             // The whole query string as one parameter (3.2) is named like a query parameter.
@@ -39,7 +41,7 @@ internal fun namingConventionErrors(spec: ValidatedSpec, config: ValidatorConfig
             Parameter.Location.HEADER -> "header" to config.parameterFormat.header
             Parameter.Location.COOKIE -> "cookie" to config.parameterFormat.cookie
         }
-        check("$placement parameter", parameter.name, node.ownerLocation, format)
+        check("$placement parameter", name, node.ownerLocation, format)
     }
 
     spec.api.components?.schemas.orEmpty().keys.forEach {

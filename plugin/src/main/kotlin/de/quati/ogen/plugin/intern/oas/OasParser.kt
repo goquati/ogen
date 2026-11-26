@@ -12,7 +12,8 @@ import java.net.URI
 import java.nio.file.Path
 
 /**
- * A parsed spec. [openApi] is null if [diagnostics] has an error. [bundle] is the self-contained document it was
+ * A parsed spec. [openApi] is what could be read; with [errors] it is incomplete. It is null only if the spec
+ * cannot be read at all (no YAML or JSON, an unsupported version). [bundle] is the self-contained document it was
  * decoded from, [loaded] the documents as they were read.
  */
 internal class OasParseResult(
@@ -41,7 +42,6 @@ internal object OasParser {
         val bundle = Bundler(loaded).bundle()
         val decoded = OasDecoder.decode(bundle.element, OpenApi.serializer(), JsonPointer.ROOT, bundle::locate)
         val diagnostics = loaded.diagnostics + bundle.diagnostics + decoded.diagnostics
-        val failed = diagnostics.any { it.severity == Diagnostic.Severity.ERROR }
-        return OasParseResult(decoded.value.takeUnless { failed }, loaded.sourceVersion, bundle, loaded, diagnostics)
+        return OasParseResult(decoded.value, loaded.sourceVersion, bundle, loaded, diagnostics)
     }
 }

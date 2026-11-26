@@ -69,6 +69,23 @@ internal fun JsonElement.replace(replacements: Map<JsonPointer, JsonElement>): J
     }
 }
 
+/** A copy without the values at the given pointers; the root itself cannot be removed. */
+internal fun JsonElement.remove(pointers: Set<JsonPointer>): JsonElement {
+    if (pointers.isEmpty()) return this
+    val byFirst = pointers.filter { !it.isRoot }.groupBy({ it.segments.first() }, { JsonPointer.of(*it.segments.drop(1).toTypedArray()) })
+    return when (this) {
+        is JsonObject -> JsonObject(mapNotNull { (key, value) ->
+            val inner = byFirst[key] ?: return@mapNotNull key to value
+            if (inner.any { it.isRoot }) null else key to value.remove(inner.toSet())
+        }.toMap())
+        is JsonArray -> JsonArray(mapIndexedNotNull { index, value ->
+            val inner = byFirst[index.toString()] ?: return@mapIndexedNotNull value
+            if (inner.any { it.isRoot }) null else value.remove(inner.toSet())
+        })
+        else -> this
+    }
+}
+
 private val ARRAY_INDEX = Regex("0|[1-9][0-9]*")
 
 /** Percent-encoding and -decoding of URI text. */

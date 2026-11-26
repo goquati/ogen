@@ -22,15 +22,15 @@ internal fun interface ResourceLoader {
 
     companion object {
         /**
-         * Files, and documents over HTTP(S) if their URI starts with one of [httpAllowlist]; with an empty
-         * allowlist, which is the default, remote references are not loaded.
+         * Files, and documents over HTTP(S), as swagger-parser loaded them; with an [httpAllowlist], only those whose
+         * URI starts with one of its prefixes.
          */
-        fun default(httpAllowlist: List<String> = emptyList()): ResourceLoader {
+        fun default(httpAllowlist: List<String>? = null): ResourceLoader {
             val http by lazy { HttpResourceLoader() }
             return ResourceLoader { uri ->
                 when (uri.scheme?.lowercase()) {
                     "file" -> FileResourceLoader.load(uri)
-                    "http", "https" -> if (httpAllowlist.any { uri.toString().startsWith(it) })
+                    "http", "https" -> if (httpAllowlist == null || httpAllowlist.any { uri.toString().startsWith(it) })
                         http.load(uri)
                     else
                         Resource.Failure("remote references are not loaded unless their URI is allowed")

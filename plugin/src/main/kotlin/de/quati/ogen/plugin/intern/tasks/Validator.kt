@@ -31,6 +31,7 @@ import de.quati.ogen.plugin.intern.validation.undefinedRequiredPropertyErrors
 import de.quati.ogen.plugin.intern.validation.undefinedSecuritySchemeErrors
 import de.quati.ogen.plugin.intern.validation.unsupportedOperationWarnings
 import de.quati.ogen.plugin.intern.validation.unusedSchemaWarnings
+import de.quati.ogen.plugin.intern.validation.versionRequirementErrors
 import org.gradle.api.GradleException
 import org.slf4j.Logger
 
@@ -97,6 +98,7 @@ internal class Validator(
 
         // ogen's own errors; they run once the parser found no errors.
         private val errorChecks: List<(ValidatedSpec) -> List<String>> = listOf(
+            ::versionRequirementErrors,
             ::brokenPathTemplateErrors,
             ::queryOrFragmentInPathErrors,
             ::pathParameterErrors,
@@ -123,12 +125,14 @@ internal class Validator(
             ::nullableWithoutTypeWarnings,
             ::exclusiveFlagWithoutBoundWarnings,
             ::ignoredNextToRefWarnings,
-            ::nullableIn31Warnings,
             ::unusedSchemaWarnings,
         )
 
         // Recommendations, with `recommendations` enabled: what may be intended, but often is a mistake.
+        // openapi-generator's recommendations, which `recommendations` switched on and off before, and `nullable` in 3.1
+        // (its "nullable-deprecated").
         private val recommendationChecks: List<(ValidatedSpec) -> List<String>> = listOf(
+            ::nullableIn31Warnings,
             ::oneOfWithPropertiesWarnings,
             ::getWithBodyWarnings,
             ::headerUnderscoreWarnings,

@@ -68,15 +68,14 @@ class TestEnumValueCheck {
     @Test
     fun testDuplicateNull31() = assertEnumErrors("duplicate-null-3.1", "enum value null in 'Level' is listed more than once")
 
-    // Strings in a boolean enum are no booleans; unquoted no and off are strings in YAML 1.2.
+    // Strings in a boolean enum are no booleans; unquoted no and off are booleans, as YAML 1.1 reads them.
     @Test
     fun testStringsInBooleanEnum30() = assertEnumErrors(
         "boolean-cast",
         "enum value '0' in 'Flag' does not match the schema's type boolean",
         "enum value 'FALSE' in 'Flag' does not match the schema's type boolean",
         "enum value 'True' in 'Flag' does not match the schema's type boolean",
-        "enum value 'no' in 'WordsOnly' does not match the schema's type boolean",
-        "enum value 'off' in 'WordsOnly' does not match the schema's type boolean",
+        "enum value false in 'WordsOnly' is listed more than once",
         "enum value true in 'Twice' is listed more than once",
     )
 
@@ -88,12 +87,22 @@ class TestEnumValueCheck {
         "enum value 'True' in 'Flag' does not match the schema's type boolean",
     )
 
-    // YAML 1.2 reads unquoted yes, no, on and off as strings, so they are no duplicates of true and false.
+    // Unquoted yes, no, on and off are booleans, as YAML 1.1 reads them: duplicates of true and false.
     @Test
-    fun testYamlBooleanWordsAreStrings() {
-        assertEnumPasses("yaml-booleans")
-        assertEnumPasses("yaml-booleans-3.1")
-    }
+    fun testYamlBooleans30() = assertEnumErrors(
+        "yaml-booleans",
+        "enum value false in 'Untyped' is listed more than once",
+        "enum value true in 'Untyped' is listed more than once",
+        "enum value true in 'Words' does not match the schema's type string",
+        "enum value false in 'Words' does not match the schema's type string",
+    )
+
+    @Test
+    fun testYamlBooleans31() = assertEnumErrors(
+        "yaml-booleans-3.1",
+        "enum value false in 'Switch' is listed more than once",
+        "enum value true in 'Switch' is listed more than once",
+    )
 
     @Test
     fun testNestedProperty() =

@@ -105,6 +105,8 @@ class TestOasModelSpecs {
             val raw = SourceReader.read(path).element as? JsonObject ?: continue
             val version = (raw["openapi"] as? JsonPrimitive)?.content ?: continue
             val official = officialSchema(version) ?: continue
+            // Mistakes on purpose, to show that code is still generated from them (TestLenientGeneration).
+            if (path.fileName.toString() == "lenient-generation.yaml") continue
             checked++
             val officialErrors = official.validate(jackson.readTree(raw.toString()))
             val loaded = OasLoader().load(path.toAbsolutePath().toUri())
@@ -120,7 +122,8 @@ class TestOasModelSpecs {
                 lenient += path.fileName.toString()
                 println("  lenient: $path: ${officialErrors.take(3).joinToString("; ") { it.message }}")
             }
-            val api = result.value
+            // A spec with errors is decoded without the parts that do not fit; it cannot round-trip.
+            val api = result.value.takeIf { errors.isEmpty() }
             if (api == null) {
                 println("  no round trip: $path: ${result.diagnostics.take(2).joinToString("; ")}")
                 continue

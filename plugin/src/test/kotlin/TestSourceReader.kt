@@ -75,46 +75,51 @@ class TestSourceReader {
     }
 
     @Test
-    fun `yaml scalars follow the 1_2 core schema`() {
+    fun `yaml scalars resolve as swagger-parser resolved them`() {
         val e = readOk(
             """
             s1: '1.0'
-            s2: yes
-            s3: on
-            s4: 2024-01-01
+            s2: 2024-01-01
+            s3: 0o17
             b1: true
             b2: False
+            b3: yes
+            b4: on
+            b5: Off
             n1: ~
             n2: null
             n3:
             i1: 42
             i2: +12
             i3: 007
-            i4: 0o17
+            i4: 010
             i5: 0x1F
             i6: 123456789012345678901234567890
+            i7: 1_000
+            i8: 1:30
             f1: 1.0
             f2: .5
             f3: 1.
             f4: 1e3
             f5: 0.1000000000000000055511151231257827
+            f6: 0.010
             """.trimIndent()
         ).jsonObject
         fun s(key: String) = (e.getValue(key) as JsonPrimitive).let { it.isString to it.content }
-        assertEquals(true to "1.0", s("s1"))
-        assertEquals(true to "yes", s("s2"))
-        assertEquals(true to "on", s("s3"))
-        assertEquals(true to "2024-01-01", s("s4"))
-        assertEquals(JsonPrimitive(true), e["b1"])
-        assertEquals(JsonPrimitive(false), e["b2"])
+        // No timestamps, as swagger-parser's resolver has none; `0o` is YAML 1.2 only.
+        assertEquals(listOf(true to "1.0", true to "2024-01-01", true to "0o17"), listOf(s("s1"), s("s2"), s("s3")))
+        // YAML 1.1 booleans.
+        assertEquals(listOf(true, false, true, true, false).map(::JsonPrimitive), (1..5).map { e["b$it"] })
         listOf("n1", "n2", "n3").forEach { assertEquals(JsonNull, e[it], it) }
+        // YAML 1.1 integers, exact: a leading 0 is octal, `_` separates digits, `:` is base 60.
         assertEquals(
-            listOf("42", "12", "7", "15", "31", "123456789012345678901234567890"),
-            (1..6).map { s("i$it").also { (isString, _) -> assertTrue(!isString) }.second },
+            listOf("42", "12", "7", "8", "31", "123456789012345678901234567890", "1000", "90"),
+            (1..8).map { s("i$it").also { (isString, _) -> assertTrue(!isString) }.second },
         )
+        // Floats are doubles, as swagger-parser read them through Jackson.
         assertEquals(
-            listOf("1.0", "0.5", "1", "1e3", "0.1000000000000000055511151231257827"),
-            (1..5).map { s("f$it").also { (isString, _) -> assertTrue(!isString) }.second },
+            listOf("1.0", "0.5", "1.0", "1000.0", "0.1", "0.01"),
+            (1..6).map { s("f$it").also { (isString, _) -> assertTrue(!isString) }.second },
         )
     }
 

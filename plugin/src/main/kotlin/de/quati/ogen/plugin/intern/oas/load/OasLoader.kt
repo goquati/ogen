@@ -223,10 +223,15 @@ internal class OasLoader(private val resources: ResourceLoader = ResourceLoader.
         val location = root.read.locationOf(JsonPointer.of("openapi"))
         val openapi = (element["openapi"] as? JsonPrimitive)?.takeUnless { it is JsonNull }?.content
         if (openapi == null) {
-            val message = if ("swagger" in element) "Swagger 2.0 is not supported; convert the spec to OpenAPI 3"
-            else "the spec has no 'openapi' field"
-            diagnostics += Diagnostic.error(message, root.read.locationOf(JsonPointer.ROOT))
-            return null
+            if ("swagger" in element) {
+                diagnostics += Diagnostic.error(
+                    "Swagger 2.0 is not supported; convert the spec to OpenAPI 3", root.read.locationOf(JsonPointer.ROOT)
+                )
+                return null
+            }
+            // swagger-parser read a document without `openapi` as 3.0, and code was generated from it.
+            diagnostics += Diagnostic.error("the spec has no 'openapi' field", root.read.locationOf(JsonPointer.ROOT))
+            return OasVersion.V3_0
         }
         return OasVersion.parse(openapi) ?: null.also {
             diagnostics += Diagnostic.error(

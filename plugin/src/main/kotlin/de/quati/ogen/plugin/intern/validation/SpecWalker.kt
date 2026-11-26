@@ -235,7 +235,7 @@ private class SpecWalker(
 
     private fun RefOr<RequestBody>.walkBody(location: String, pointer: JsonPointer) {
         if (isReference(location, pointer)) return
-        (this as RefOr.Value).value.content.walk(location, pointer / "content")
+        (this as RefOr.Value).value.content?.walk(location, pointer / "content")
     }
 
     private fun RefOr<Response>.walkResponse(location: String, pointer: JsonPointer) {

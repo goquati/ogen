@@ -40,8 +40,10 @@ internal fun PathItem.operations(): List<Pair<HttpMethod, Operation>> = listOfNo
  */
 context(c: ParserContext)
 private fun PathItem.parametersOf(operation: Operation): List<RefOr<Parameter>> {
-    val own = operation.parameters.orEmpty()
-    val shared = parameters.orEmpty().filterNot { candidate ->
+    // swagger-parser dropped a parameter whose `in` is missing or none of the locations.
+    fun List<RefOr<Parameter>>?.readable() = orEmpty().filter { it !is RefOr.Value || it.value.location != null }
+    val own = operation.parameters.readable()
+    val shared = parameters.readable().filterNot { candidate ->
         candidate is RefOr.Value && own.any {
             it is RefOr.Value && it.value.location == candidate.value.location && it.value.name == candidate.value.name
         }

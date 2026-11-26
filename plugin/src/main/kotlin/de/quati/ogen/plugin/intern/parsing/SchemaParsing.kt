@@ -213,7 +213,9 @@ internal fun Schema.parse(
         s.ref != null -> s.parseRefOrNull()!!
         o.not != null -> s.toUnknown(location)
         o.oneOf != null -> run {
-            val disc = o.discriminator?.parse()
+            val disc = o.discriminator?.let {
+                it.parse() ?: return@run s.toUnknown(location)
+            }
             val isNullable = s.isNullable || o.oneOf.any { it.isExplicitNullType() }
             val rawSchemasNonNull = o.oneOf.filterNot { it.isExplicitNullType() }
             if (o.additionalProperties != null) return@run s.toUnknown(location)

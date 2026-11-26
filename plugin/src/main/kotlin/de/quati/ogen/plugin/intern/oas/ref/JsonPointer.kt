@@ -11,6 +11,10 @@ internal value class JsonPointer private constructor(val segments: List<String>)
 
     operator fun plus(other: JsonPointer): JsonPointer = JsonPointer(segments + other.segments)
 
+    /** This pointer relative to [base], or null if it does not start with it. */
+    fun relativeTo(base: JsonPointer): JsonPointer? =
+        if (segments.take(base.segments.size) == base.segments) JsonPointer(segments.drop(base.segments.size)) else null
+
     val parent: JsonPointer? get() = if (segments.isEmpty()) null else JsonPointer(segments.dropLast(1))
     val isRoot: Boolean get() = segments.isEmpty()
 

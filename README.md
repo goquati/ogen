@@ -106,11 +106,9 @@ ogen {
 - **Merging specs**: instead of `specFile`, `specMerge(path = "$projectDir/specs")` merges all specs in a directory.
   The merged spec's `info` is set with `mergedFileInfoTitle`, `mergedFileInfoVersion` and `mergedFileInfoDescription`,
   or taken from a base spec with `specMerge(path = ..., baseSpec = "$projectDir/specs/base.yaml")`.
-- **Reading specs**: ogen reads OpenAPI 3.0, 3.1 and 3.2 in YAML 1.2 or JSON with its own parser. `$ref`s to other
-  files are resolved relative to the file they stand in; a spec with structural errors (unknown fields, wrong types,
-  references that don't resolve) is not generated from, and the errors name file and line. Remote references are
-  not loaded unless allowed with `allowRemoteRefs("https://schemas.example.com/")`. In YAML 1.2, unquoted `yes`,
-  `no`, `on` and `off` are strings, not booleans.
+- **Reading specs**: ogen reads OpenAPI 3.0, 3.1 and 3.2 in YAML or JSON with its own parser. `$ref`s to other
+  files and URLs are resolved relative to the file they stand in. The validator reports problems in a spec with
+  file and line.
 - **Operation IDs**: for operations without an `operationId`, `operationIdGenerator { info -> ... }` derives one
   from an `EndpointInfo` (`tag`, `path`, `relativePath`, `method`). If it returns `null` or isn't set, the name is
   derived from the path and method.

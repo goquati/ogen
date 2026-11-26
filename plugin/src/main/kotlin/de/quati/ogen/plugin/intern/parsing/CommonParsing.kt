@@ -37,7 +37,7 @@ internal fun MediaType.parse(
     )
 }
 
-internal fun de.quati.ogen.plugin.intern.oas.model.Discriminator.parse(): Discriminator = Discriminator(
-    propertyName = propertyName,
-    mapping = mapping?.mapValues { RefString.Schema.parse(it.value) },
-)
+/** The discriminator; null without `propertyName`, which makes the schema an untyped value. */
+internal fun de.quati.ogen.plugin.intern.oas.model.Discriminator.parse(): Discriminator? = propertyName?.let {
+    Discriminator(propertyName = it, mapping = mapping?.mapValues { (_, ref) -> RefString.Schema.parse(ref) })
+}

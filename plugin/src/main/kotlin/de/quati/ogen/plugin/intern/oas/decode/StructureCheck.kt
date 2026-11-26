@@ -3,6 +3,7 @@ package de.quati.ogen.plugin.intern.oas.decode
 import de.quati.ogen.plugin.intern.oas.Diagnostic
 import de.quati.ogen.plugin.intern.oas.SourceLocation
 import de.quati.ogen.plugin.intern.oas.ref.JsonPointer
+import de.quati.ogen.plugin.intern.oas.serial.OasRequired
 import de.quati.ogen.plugin.intern.oas.serial.OasSerialNames
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -27,8 +28,12 @@ import kotlinx.serialization.json.booleanOrNull
 internal class StructureCheck(private val locate: (pointer: JsonPointer, key: Boolean) -> SourceLocation) {
     private val diagnostics = mutableListOf<Diagnostic>()
 
+    /** The values of the last check that do not fit the model; decoding leaves them out, as swagger-parser did. */
+    val invalidValues = mutableListOf<JsonPointer>()
+
     fun check(element: JsonElement, descriptor: SerialDescriptor, pointer: JsonPointer = JsonPointer.ROOT): List<Diagnostic> {
         diagnostics.clear()
+        invalidValues.clear()
         checkValue(element, descriptor, pointer)
         return diagnostics.toList()
     }
@@ -70,8 +75,10 @@ internal class StructureCheck(private val locate: (pointer: JsonPointer, key: Bo
                 val allowed = descriptor.elementNames.toList()
                 if (element !is JsonPrimitive || !element.isString && element.booleanOrNull != null)
                     mismatch(pointer, "one of ${allowed.joinToString()}", element)
-                else if (element.content !in allowed)
+                else if (element.content !in allowed) {
                     error(pointer, "'${element.content}' is not one of ${allowed.joinToString()}")
+                    invalidValues += pointer
+                }
             }
             StructureKind.CLASS -> checkObject(element, descriptor, pointer, allowUnknown = false)
             StructureKind.LIST -> {
@@ -104,7 +111,8 @@ internal class StructureCheck(private val locate: (pointer: JsonPointer, key: Bo
         }
         for (index in 0 until descriptor.elementsCount) {
             val key = descriptor.getElementName(index)
-            if (!descriptor.isElementOptional(index) && element[key].let { it == null || it is JsonNull })
+            val required = !descriptor.isElementOptional(index) || descriptor.getElementAnnotations(index).any { it is OasRequired }
+            if (required && element[key].let { it == null || it is JsonNull })
                 error(pointer, "missing required field '$key' in $type")
         }
     }
@@ -154,8 +162,10 @@ internal class StructureCheck(private val locate: (pointer: JsonPointer, key: Bo
         }
     }
 
-    private fun mismatch(pointer: JsonPointer, expected: String, found: JsonElement) =
+    private fun mismatch(pointer: JsonPointer, expected: String, found: JsonElement) {
         error(pointer, "expected $expected, found ${describe(found)}")
+        invalidValues += pointer
+    }
 
     private fun expected(descriptor: SerialDescriptor) = when (descriptor.kind) {
         PrimitiveKind.STRING -> "a string"

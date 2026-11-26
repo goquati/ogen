@@ -13,7 +13,8 @@ internal fun Map<String, RefOr<SecurityScheme>>.parse(): Map<String, Security.Re
     entries.associate { (name, scheme) ->
         name to Security.RequirementObject(
             name = ComponentName.Security.parse(name),
-            type = SecuritySchemeType.valueOf(resolve(name, scheme).type.name),
+            type = resolve(name, scheme).type?.let { SecuritySchemeType.valueOf(it.name) }
+                ?: error("Security scheme '$name' has no type"),
         )
     }
 

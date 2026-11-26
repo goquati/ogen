@@ -15,8 +15,8 @@ internal fun headerUnderscoreWarnings(spec: ValidatedSpec): List<String> {
     fun message(name: String, location: String) =
         "header '$name' in '$location' contains '_'; Apache and Nginx drop such headers by default"
     val parameters = spec.parameters()
-        .filter { it.parameter.location == Parameter.Location.HEADER && '_' in it.parameter.name }
-        .map { message(it.parameter.name, it.ownerLocation) }
+        .filter { it.parameter.location == Parameter.Location.HEADER && '_' in it.parameter.name.orEmpty() }
+        .map { message(it.parameter.name!!, it.ownerLocation) }
     val schemes = spec.api.components?.securitySchemes.orEmpty().mapNotNull { (key, scheme) ->
         val value = (scheme as? RefOr.Value)?.value ?: return@mapNotNull null
         val name = value.name ?: return@mapNotNull null

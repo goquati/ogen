@@ -21,26 +21,25 @@ import org.snakeyaml.engine.v2.nodes.Node
 import org.snakeyaml.engine.v2.nodes.ScalarNode
 import org.snakeyaml.engine.v2.nodes.SequenceNode
 import org.snakeyaml.engine.v2.nodes.Tag
-import org.snakeyaml.engine.v2.schema.CoreSchema
-import java.math.BigDecimal
-import java.math.BigInteger
 import java.util.Collections
 import java.util.IdentityHashMap
 
 /**
- * Reads YAML 1.2 (core schema), and with it JSON, straight into a JSON tree, keeping the position of every value.
- * Duplicate keys are errors; non-string keys become strings; numbers keep their exact value.
+ * Reads YAML, and with it JSON, straight into a JSON tree, keeping the position of every value. Scalars resolve as
+ * swagger-parser resolved them ([Yaml11Schema]); like swagger-parser, which read them through Jackson, floats are
+ * doubles, while integers keep their exact value. Duplicate keys are errors, as in swagger-parser; non-string keys
+ * become strings.
  */
 internal object YamlReader {
     // Large specs exceed snakeyaml-engine's default limit of 3 MB.
     private const val CODE_POINT_LIMIT = 64 * 1024 * 1024
-    // Guards against alias bombs ("billion laughs").
-    private const val MAX_ALIASES_FOR_COLLECTIONS = 50
+    // swagger-parser allowed any number of aliases (`maxYamlAliasesForCollections`).
+    private const val MAX_ALIASES_FOR_COLLECTIONS = Int.MAX_VALUE
 
     fun read(text: String, source: String, format: ReadResult.Format = ReadResult.Format.YAML): ReadResult {
         val settings = LoadSettings.builder()
             .setLabel(source)
-            .setSchema(CoreSchema())
+            .setSchema(Yaml11Schema)
             .setUseMarks(true)
             .setCodePointLimit(CODE_POINT_LIMIT)
             .setMaxAliasesForCollections(MAX_ALIASES_FOR_COLLECTIONS)
@@ -141,9 +140,10 @@ internal object YamlReader {
 
         private fun scalar(node: ScalarNode, pointer: JsonPointer): JsonElement = when (node.tag) {
             Tag.NULL -> JsonNull
-            Tag.BOOL -> JsonPrimitive(node.value.equals("true", ignoreCase = true))
-            Tag.INT -> number(integerLiteral(node.value))
-            Tag.FLOAT -> floatLiteral(node.value)?.let(::number) ?: JsonNull.also {
+            Tag.BOOL -> JsonPrimitive(Yaml11Schema.toBoolean(node.value))
+            Tag.INT -> number(Yaml11Schema.toInteger(node.value).toString())
+            // A double, as swagger-parser read it: `0.010` is 0.01.
+            Tag.FLOAT -> Yaml11Schema.toDouble(node.value)?.let { number(it.toString()) } ?: JsonNull.also {
                 error("'${node.value}' has no JSON representation", pointer, node)
             }
             // Strings, and scalars with any other tag, keep their text.
@@ -152,23 +152,5 @@ internal object YamlReader {
 
         @OptIn(ExperimentalSerializationApi::class)
         private fun number(literal: String) = JsonUnquotedLiteral(literal)
-    }
-
-    private val jsonNumber = Regex("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][-+]?[0-9]+)?")
-    private val specialFloat = Regex("[-+]?\\.(inf|Inf|INF)|\\.(nan|NaN|NAN)")
-
-    // The core schema also allows '+1', '007', '0o17' and '0x1F'; JSON only decimal without leading zeros.
-    private fun integerLiteral(value: String): String = when {
-        jsonNumber.matches(value) -> value
-        value.startsWith("0o") -> BigInteger(value.substring(2), 8).toString()
-        value.startsWith("0x") -> BigInteger(value.substring(2), 16).toString()
-        else -> BigInteger(value.removePrefix("+")).toString()
-    }
-
-    // The core schema also allows '.5', '1.' and '+1.5'; infinity and NaN have no JSON form.
-    private fun floatLiteral(value: String): String? = when {
-        jsonNumber.matches(value) -> value
-        specialFloat.matches(value) -> null
-        else -> BigDecimal(value.removePrefix("+")).toString()
     }
 }

@@ -22,7 +22,7 @@ internal fun RefOr<RequestBody>?.parse(
         key = name,
         required = body.required ?: false,
         description = body.description,
-        content = body.content.map { (key, value) ->
+        content = (body.content ?: return Endpoint.RequestBody.Empty).map { (key, value) ->
             val contentType = ContentType.parse(key)
             val registeredBefore = c.getSchemas().keys
             value.parse(

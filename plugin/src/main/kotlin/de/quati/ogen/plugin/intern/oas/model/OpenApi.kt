@@ -4,6 +4,7 @@ import de.quati.ogen.plugin.intern.oas.serial.AnyValueSerializer
 import de.quati.ogen.plugin.intern.oas.serial.Extensible
 import de.quati.ogen.plugin.intern.oas.serial.ExtensibleMapSerializer
 import de.quati.ogen.plugin.intern.oas.serial.ExtensibleSerializer
+import de.quati.ogen.plugin.intern.oas.serial.OasRequired
 import de.quati.ogen.plugin.intern.oas.serial.OasSerialNames
 import kotlinx.serialization.KeepGeneratedSerializer
 import kotlinx.serialization.SerialName
@@ -22,9 +23,9 @@ internal typealias Content = Map<String, RefOr<MediaType>>
 @Serializable(with = OpenApi.Serializer::class)
 @KeepGeneratedSerializer
 internal data class OpenApi(
-    val openapi: String,
+    @OasRequired val openapi: String? = null,
     @SerialName($$"$self") val self: String? = null,
-    val info: Info,
+    @OasRequired val info: Info? = null,
     val jsonSchemaDialect: String? = null,
     val servers: List<Server>? = null,
     val paths: Paths? = null,
@@ -41,13 +42,13 @@ internal data class OpenApi(
 @Serializable(with = Info.Serializer::class)
 @KeepGeneratedSerializer
 internal data class Info(
-    val title: String,
+    @OasRequired val title: String? = null,
     val summary: String? = null,
     val description: String? = null,
     val termsOfService: String? = null,
     val contact: Contact? = null,
     val license: License? = null,
-    val version: String,
+    @OasRequired val version: String? = null,
     @SerialName(OasSerialNames.EXTENSIONS_KEY) override val extensions: Map<String, JsonElement> = emptyMap(),
 ) : Extensible {
     internal object Serializer : ExtensibleSerializer<Info>(generatedSerializer())
@@ -67,7 +68,7 @@ internal data class Contact(
 @Serializable(with = License.Serializer::class)
 @KeepGeneratedSerializer
 internal data class License(
-    val name: String,
+    @OasRequired val name: String? = null,
     val identifier: String? = null,
     val url: String? = null,
     @SerialName(OasSerialNames.EXTENSIONS_KEY) override val extensions: Map<String, JsonElement> = emptyMap(),
@@ -78,7 +79,7 @@ internal data class License(
 @Serializable(with = Server.Serializer::class)
 @KeepGeneratedSerializer
 internal data class Server(
-    val url: String,
+    @OasRequired val url: String? = null,
     val description: String? = null,
     val name: String? = null,
     val variables: Map<String, ServerVariable>? = null,
@@ -91,7 +92,7 @@ internal data class Server(
 @KeepGeneratedSerializer
 internal data class ServerVariable(
     val enum: List<String>? = null,
-    val default: String,
+    @OasRequired val default: String? = null,
     val description: String? = null,
     @SerialName(OasSerialNames.EXTENSIONS_KEY) override val extensions: Map<String, JsonElement> = emptyMap(),
 ) : Extensible {
@@ -102,7 +103,7 @@ internal data class ServerVariable(
 @KeepGeneratedSerializer
 internal data class ExternalDocs(
     val description: String? = null,
-    val url: String,
+    @OasRequired val url: String? = null,
     @SerialName(OasSerialNames.EXTENSIONS_KEY) override val extensions: Map<String, JsonElement> = emptyMap(),
 ) : Extensible {
     internal object Serializer : ExtensibleSerializer<ExternalDocs>(generatedSerializer())
@@ -111,7 +112,7 @@ internal data class ExternalDocs(
 @Serializable(with = Tag.Serializer::class)
 @KeepGeneratedSerializer
 internal data class Tag(
-    val name: String,
+    @OasRequired val name: String? = null,
     val summary: String? = null,
     val description: String? = null,
     val externalDocs: ExternalDocs? = null,
@@ -199,8 +200,8 @@ internal data class Operation(
 @Serializable(with = Parameter.Serializer::class)
 @KeepGeneratedSerializer
 internal data class Parameter(
-    val name: String,
-    @SerialName("in") val location: Location,
+    @OasRequired val name: String? = null,
+    @OasRequired @SerialName("in") val location: Location? = null,
     val description: String? = null,
     val required: Boolean? = null,
     val deprecated: Boolean? = null,
@@ -230,7 +231,7 @@ internal data class Parameter(
 @KeepGeneratedSerializer
 internal data class RequestBody(
     val description: String? = null,
-    val content: Content,
+    @OasRequired val content: Content? = null,
     val required: Boolean? = null,
     @SerialName(OasSerialNames.EXTENSIONS_KEY) override val extensions: Map<String, JsonElement> = emptyMap(),
 ) : Extensible {
@@ -357,7 +358,7 @@ internal data class Header(
 @Serializable(with = SecurityScheme.Serializer::class)
 @KeepGeneratedSerializer
 internal data class SecurityScheme(
-    val type: Type,
+    @OasRequired val type: Type? = null,
     val description: String? = null,
     val name: String? = null,
     @SerialName("in") val location: Location? = null,
@@ -409,7 +410,7 @@ internal data class OAuthFlow(
     val deviceAuthorizationUrl: String? = null,
     val tokenUrl: String? = null,
     val refreshUrl: String? = null,
-    val scopes: Map<String, String>,
+    @OasRequired val scopes: Map<String, String>? = null,
     @SerialName(OasSerialNames.EXTENSIONS_KEY) override val extensions: Map<String, JsonElement> = emptyMap(),
 ) : Extensible {
     internal object Serializer : ExtensibleSerializer<OAuthFlow>(generatedSerializer())

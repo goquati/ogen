@@ -4,6 +4,7 @@ import de.quati.ogen.plugin.intern.oas.serial.AnyValueSerializer
 import de.quati.ogen.plugin.intern.oas.serial.BigDecimalSerializer
 import de.quati.ogen.plugin.intern.oas.serial.Extensible
 import de.quati.ogen.plugin.intern.oas.serial.ExtensibleSerializer
+import de.quati.ogen.plugin.intern.oas.serial.OasRequired
 import de.quati.ogen.plugin.intern.oas.serial.OasSerialNames
 import de.quati.ogen.plugin.intern.oas.serial.StringOrListSerializer
 import kotlinx.serialization.KSerializer
@@ -154,7 +155,7 @@ internal object SchemaSerializer : KSerializer<Schema> {
 @Serializable(with = Discriminator.Serializer::class)
 @KeepGeneratedSerializer
 internal data class Discriminator(
-    val propertyName: String,
+    @OasRequired val propertyName: String? = null,
     val mapping: Map<String, String>? = null,
     val defaultMapping: String? = null,
     @SerialName(OasSerialNames.EXTENSIONS_KEY) override val extensions: Map<String, JsonElement> = emptyMap(),

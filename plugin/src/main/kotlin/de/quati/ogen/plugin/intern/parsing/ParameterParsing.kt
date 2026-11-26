@@ -18,14 +18,14 @@ internal fun RefOr<Parameter>.parse(
 
 context(_: ParserContext)
 private fun Parameter.parse(name: ComponentName.Parameter): Endpoint.Parameter {
-    val paramName = this.name
+    val paramName = this.name ?: error("Parameter '${name.schemaName}' has no name")
     val schema = (schema ?: error("Parameter '$paramName' has no schema")).parse(
         location = SchemaLocation.Root(
             type = SchemaLocation.Root.Type.COMPONENTS_PARAMETER,
             name = name.schemaName,
         )
     )
-    val type = Endpoint.Parameter.Type.entries.firstOrNull { it.name == location.name }
+    val type = Endpoint.Parameter.Type.entries.firstOrNull { it.name == location?.name }
         ?: error("Parameter in-type '$paramName' is invalid")
     return Endpoint.Parameter.Content(
         key = name,

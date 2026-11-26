@@ -181,13 +181,16 @@ class TestBundler {
 
     // --- every spec of the repository ---
 
+    // Specs with mistakes, to show that code is still generated from them.
+    private val invalidOnPurpose = setOf("lenient-generation.yaml")
+
     @Test
     fun `every spec parses`() {
         val problems = mutableListOf<String>()
         var parsed = 0
         for (path in repositorySpecFiles()) {
             val raw = SourceReader.read(path).element as? JsonObject ?: continue
-            if ("openapi" !in raw) continue
+            if ("openapi" !in raw || path.fileName.toString() in invalidOnPurpose) continue
             val result = OasParser.parse(path)
             if (result.errors.isNotEmpty() || result.openApi == null) problems += "$path: ${result.errors}"
             parsed++

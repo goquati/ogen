@@ -7,6 +7,7 @@ import de.quati.ogen.plugin.intern.validation.headerUnderscoreWarnings
 import de.quati.ogen.plugin.intern.validation.ignoredNextToRefWarnings
 import de.quati.ogen.plugin.intern.validation.invalidTypeErrors
 import de.quati.ogen.plugin.intern.validation.nullableIn31Warnings
+import de.quati.ogen.plugin.intern.validation.versionRequirementErrors
 import de.quati.ogen.plugin.intern.validation.walkSchemas
 import java.net.URI
 import kotlin.test.Test
@@ -116,6 +117,42 @@ class TestSourceChecks {
         val locations = mutableListOf<String>()
         spec.walkSchemas { locations += it.location }
         assertEquals(listOf("A", "A.allOf[0]", "A.allOf[1]", "B", "B.oneOf[0]", "X"), locations)
+    }
+
+    @Test
+    fun `fields 3_0 and 3_1 require that 3_2 does not`() {
+        val spec30 = spec(
+            "openapi: 3.0.3\ninfo: {title: t, version: '1'}\n" + """
+            components:
+              schemas:
+                List: {type: array}
+              responses:
+                Plain: {content: {}}
+            """.trimIndent()
+        )
+        assertEquals(
+            listOf(
+                "the spec has no 'paths', which OpenAPI 3.0 requires",
+                "array schema 'List' has no 'items', which OpenAPI 3.0 requires",
+                "response 'components.responses.Plain' has no 'description', which OpenAPI 3.0 requires",
+            ),
+            versionRequirementErrors(spec30),
+        )
+        val spec31 = spec(
+            "openapi: 3.1.0\ninfo: {title: t, version: '1'}\n" + """
+            paths:
+              /a:
+                get: {responses: {'200': {content: {}}}}
+                put: {}
+            components:
+              schemas:
+                List: {type: array}
+            """.trimIndent()
+        )
+        assertEquals(
+            listOf("response '/a:GET.responses.200' has no 'description', which OpenAPI 3.1 requires"),
+            versionRequirementErrors(spec31),
+        )
     }
 
     @Test

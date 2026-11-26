@@ -41,6 +41,14 @@ internal object OasSerialNames {
     fun isExtension(key: String) = key.startsWith("x-")
 }
 
+/**
+ * A field the specification requires. It is nullable in the model, so a spec without it is still read (as
+ * swagger-parser read it, and code is generated from it); the structure check reports it as missing.
+ */
+@kotlinx.serialization.SerialInfo
+@Target(AnnotationTarget.PROPERTY)
+internal annotation class OasRequired
+
 /** An object that may carry specification extensions (`x-*`). */
 internal interface Extensible {
     val extensions: Map<String, JsonElement>

@@ -94,7 +94,8 @@ private fun InputConfig.Merge.generateMergedSpec(
     val paths = specData.map { data ->
         data.paths.associateWith { path ->
             val pointer = JsonPointer.ROOT / "paths" / path
-            JsonObject(mapOf($$"$ref" to JsonPrimitive("./${data.specRelatedPath}#$pointer")))
+            // `%` starts an escape in a URI fragment, so a path containing it is encoded.
+            JsonObject(mapOf($$"$ref" to JsonPrimitive("./${data.specRelatedPath}#${pointer.toString().replace("%", "%25")}")))
         }
     }.flatten()
     return JsonObject(baseSpec + mapOf("paths" to JsonObject(paths)))

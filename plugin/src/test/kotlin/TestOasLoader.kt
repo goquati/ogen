@@ -197,13 +197,12 @@ class TestOasLoader {
     }
 
     @Test
-    fun `remote references need an allowlist`() {
-        val loader = ResourceLoader.default()
-        val failure = assertIs<ResourceLoader.Resource.Failure>(loader.load(URI("https://example.com/a.yaml")))
-        assertContains(failure.reason, "remote references are not loaded")
+    fun `remote references can be limited to an allowlist`() {
+        // Without an allowlist, remote references are loaded, as swagger-parser did (not called here: no network).
         val notAllowed = ResourceLoader.default(httpAllowlist = listOf("https://example.org/"))
-        assertIs<ResourceLoader.Resource.Failure>(notAllowed.load(URI("https://example.com/a.yaml")))
-        assertIs<ResourceLoader.Resource.Failure>(loader.load(URI("ftp://example.com/a.yaml")))
+        val failure = assertIs<ResourceLoader.Resource.Failure>(notAllowed.load(URI("https://example.com/a.yaml")))
+        assertContains(failure.reason, "remote references are not loaded")
+        assertIs<ResourceLoader.Resource.Failure>(ResourceLoader.default().load(URI("ftp://example.com/a.yaml")))
     }
 
     @Test

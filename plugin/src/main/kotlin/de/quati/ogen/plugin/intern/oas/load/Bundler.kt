@@ -199,9 +199,6 @@ internal class Bundler(private val spec: LoadedSpec) {
         return if (parts.size > 2) parts.dropLast(1).joinToString("") else parts.first()
     }
 
-    private fun JsonPointer.relativeTo(base: JsonPointer): JsonPointer? =
-        if (segments.take(base.segments.size) == base.segments) JsonPointer.of(*segments.drop(base.segments.size).toTypedArray())
-        else null
 
     private companion object {
         const val PATH_ITEM = "pathItems"

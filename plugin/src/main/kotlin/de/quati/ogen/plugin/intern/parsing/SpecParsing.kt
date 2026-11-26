@@ -155,7 +155,8 @@ context(_: ParserContext)
 private fun Components.parse() = Spec.Components(
     schemas = emptyMap(), // ParserContext includes the actual schemas
     schemaAliases = emptyMap(), // ParserContext includes the actual schema aliases
-    parameters = parameters?.entries?.associate { (name, obj) ->
+    // swagger-parser dropped a parameter whose `in` is missing or none of the locations.
+    parameters = parameters?.filterValues { it !is RefOr.Value || it.value.location != null }?.entries?.associate { (name, obj) ->
         val name = ComponentName.Parameter.parse(name)
         name to obj.parse(name = name)
     } ?: emptyMap(),

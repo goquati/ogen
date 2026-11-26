@@ -375,3 +375,34 @@ verschwindet schon hier aus dem Code.
    Sie werden durch eigene Texte mit Datei:Zeile ersetzt. Tests, die solche Texte prüfen, werden angepasst.
 3. **Unbekannte Keys:** Unbekannte Felder ohne `x-` in OAS-Objekten sind ein Fehler, wie heute.
 4. **SpecMergeService** wird mit umgestellt (Phase 1b), damit am Ende weder swagger noch Jackson übrig bleiben.
+
+## Review: keine Funktionsänderung gegenüber `main`
+
+Vorgabe nach dem Review: Der PR ersetzt nur den Parser und ändert nichts an der Funktionalität. Deshalb wurden
+Entscheidungen aus den Phasen zurückgenommen, die für dieselbe Eingabe ein anderes Ergebnis lieferten:
+
+- **YAML wie swagger-parser** (`Yaml11Schema`): YAML-1.1-Resolver von snakeyaml (`yes`/`no`/`on`/`off` sind Booleans,
+  Oktal, `_`, Basis 60, keine Timestamps), Gleitkommazahlen als `double` (`0.010` → `0.01`), Ganzzahlen exakt,
+  beliebig viele Aliase. Statt YAML 1.2 aus dem ursprünglichen Plan.
+- **Generierung so tolerant wie swagger-parser:** Strukturfehler stoppen die Generierung nicht mehr; Werte mit falschem
+  Typ werden weggelassen, Pflichtfelder sind im Modell nullable (`@OasRequired`, die Strukturprüfung meldet sie
+  weiter), Parameter mit ungültigem `in` fallen weg, ein Dokument ohne `openapi` gilt als 3.0. Nur der Validator schlägt fehl.
+- **Remote-Refs** werden wie bisher geladen; die DSL-Option `allowRemoteRefs` ist wieder entfernt (keine neue API).
+- **Validator:** `nullable` in 3.1 nur mit `recommendations` (wie die openapi-generator-Regel); `default` außerhalb des
+  Typs zählt in 3.0 als keiner (wie swaggers `null`); neu `versionRequirementErrors` für Pflichtfelder von 3.0/3.1,
+  die 3.2 nicht mehr hat (`paths`, `responses`, `items`, Response-`description`), die swagger-parser als Fehler meldete.
+- Merge-Ref kodiert `%`.
+
+Nachweis gegen `main` (Worktree): internes `Spec` für alle 121 Specs im Repo gleich (bis auf vier Specs, die auf beiden
+Seiten scheitern); Validierungsergebnis (Pass/Fail, mit und ohne `failOnWarnings`) gleich für alle bis auf zwei, wo
+`main` einen Fehlalarm von openapi-generator hatte (`nullable`-Warnung bei `oneOf` mit `{type: 'null'}` in 3.1); generierter
+Code der `tests/`-Projekte byte-gleich.
+
+Verbleibende Unterschiede zu `main`:
+- Swagger 2.0 wird nicht mehr gelesen (swagger-parser konvertierte es); klare Fehlermeldung.
+- Merge schreibt `merged.json`, wenn alle Specs JSON sind (`distinct()`-Fix, ausdrücklich gewünscht); Versionen werden
+  numerisch verglichen; `~` im Pfad wird escaped.
+- 3.1-Specs mit externen Refs werden gebündelt (auf `main` fand Codegen deren Komponenten nicht).
+- Meldungstexte des Validators (swagger-/openapi-generator-Texte ersetzt; `enum`-Meldungen ohne swaggers Umwandlungen;
+  Path-Item-Parameter am Pfad gemeldet) und die neuen Warnungen `ignoredNextToRefWarnings`,
+  `exclusiveFlagWithoutBoundWarnings`, `unsupportedOperationWarnings` (beide ersten auf Wunsch).
