@@ -51,8 +51,7 @@ public sealed interface NameConvention {
     public class RegexFormat(public val regex: Regex, block: Builder.() -> Unit = {}) : NameConvention {
         public constructor(regex: String, block: Builder.() -> Unit = {}) : this(Regex(regex), block)
 
-        /** Names accepted as they are. */
-        public val exceptions: Set<String> = Builder().apply(block).exceptions.toSet()
+        private val exceptions: Set<String> = Builder().apply(block).exceptions.toSet()
 
         override fun toString(): String = regex.pattern
         override fun matches(value: String): Boolean = value in exceptions || value.matches(regex)

@@ -47,7 +47,6 @@ class TestNameConvention {
         }
         header.assertMatches("X-Trace-Id", "X-HubSpot-Signature-v3")
         header.assertRejects("x-trace-id", "X-HubSpot-Signature-v4")
-        assertEquals(setOf("X-HubSpot-Signature-v3"), header.exceptions)
 
         // Several names per call, several calls.
         val schema = NameConvention.PascalCase {
