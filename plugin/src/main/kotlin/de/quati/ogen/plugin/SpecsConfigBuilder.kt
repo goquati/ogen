@@ -410,6 +410,12 @@ public open class SpecsConfigBuilder {
                 /** `nullable` in 3.1 and later, which has no effect there. */
                 public var nullableIn31: Severity by rule(ValidatorRule.NullableIn31)
 
+                /**
+                 * Schema keywords the spec's OpenAPI version deprecates: `example` since 3.1 (use `examples`), and the
+                 * XML Object's `attribute` and `wrapped` since 3.2 (use `nodeType`).
+                 */
+                public var deprecatedKeywords: Severity by rule(ValidatorRule.DeprecatedKeywords)
+
                 /** Keywords next to a `$ref` that are ignored. */
                 public var ignoredNextToRef: Severity by rule(ValidatorRule.IgnoredNextToRef)
 

@@ -7,6 +7,7 @@ import de.quati.ogen.plugin.intern.validation.brokenPathTemplateErrors
 import de.quati.ogen.plugin.intern.validation.compositionTypeErrors
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
 import de.quati.ogen.plugin.intern.validation.defaultOutsideEnumErrors
+import de.quati.ogen.plugin.intern.validation.deprecatedKeywordWarnings
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
 import de.quati.ogen.plugin.intern.validation.exclusiveFlagWithoutBoundWarnings
 import de.quati.ogen.plugin.intern.validation.getWithBodyWarnings
@@ -76,6 +77,7 @@ public enum class ValidatorRule(
     UnusedSchemas(Severity.Warning, ::unusedSchemaWarnings, needsValidSpec = true),
 
     NullableIn31(Severity.Warning, ::nullableIn31Warnings, recommendation = true),
+    DeprecatedKeywords(Severity.Warning, ::deprecatedKeywordWarnings, recommendation = true),
     IgnoredNextToRef(Severity.Warning, ::ignoredNextToRefWarnings, recommendation = true),
     ExclusiveFlagWithoutBound(Severity.Warning, ::exclusiveFlagWithoutBoundWarnings, recommendation = true),
     UnsupportedOperations(Severity.Warning, ::unsupportedOperationWarnings, recommendation = true),

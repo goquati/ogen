@@ -194,6 +194,8 @@ private class SpecWalker(
             child(dependent, "$location.dependentSchemas.$name", pointer / "dependentSchemas" / name, SchemaRole.APPLIED)
         }
         child(schema.not, "$location.not", pointer / "not", SchemaRole.NEGATED)
+        // Definitions describe no value of the parent's, so they are walked without one, like components.
+        schema.defs?.forEach { (name, def) -> schema(def, "$location.\$defs.$name", pointer / "\$defs" / name) }
     }
 
     // A reference is reported, not walked; true if [this] is one.

@@ -3,6 +3,7 @@ import de.quati.ogen.plugin.intern.oas.load.ResourceLoader
 import de.quati.ogen.plugin.intern.validation.ValidatedSpec
 import de.quati.ogen.plugin.intern.validation.exclusiveFlagWithoutBoundWarnings
 import de.quati.ogen.plugin.intern.validation.getWithBodyWarnings
+import de.quati.ogen.plugin.intern.validation.deprecatedKeywordWarnings
 import de.quati.ogen.plugin.intern.validation.headerUnderscoreWarnings
 import de.quati.ogen.plugin.intern.validation.ignoredNextToRefWarnings
 import de.quati.ogen.plugin.intern.validation.invalidTypeErrors
@@ -90,6 +91,47 @@ class TestSourceChecks {
             nullableIn31Warnings(spec),
         )
         assertEquals(emptyList(), nullableIn31Warnings(spec30("A: {type: string, nullable: true}")))
+    }
+
+    @Test
+    fun `keywords the version deprecates`() {
+        fun specOf(version: String) = spec(
+            "openapi: $version\ninfo: {title: t, version: '1'}\n" + """
+            paths:
+              /a:
+                get:
+                  parameters: [{name: q, in: query, schema: {type: string, example: x}}]
+                  responses: {'200': {description: ok}}
+            components:
+              schemas:
+                A:
+                  type: object
+                  example: {}
+                  properties:
+                    id: {type: string, xml: {attribute: true}}
+                    tags: {type: array, items: {type: string}, xml: {wrapped: true}}
+                    names: {type: array, items: {type: string}, xml: {wrapped: false}}
+                  ${'$'}defs:
+                    Inner: {type: string, example: x}
+                B: {type: string, examples: [b], xml: {nodeType: element}}
+            """.trimIndent()
+        )
+        assertEquals(emptyList(), deprecatedKeywordWarnings(specOf("3.0.3")))
+        val exampleInA = "'example' in 'A' is deprecated since OpenAPI 3.1; use 'examples' instead"
+        val exampleInQ = "'example' in '/a:GET.parameters.q' is deprecated since OpenAPI 3.1; use 'examples' instead"
+        val exampleInInner = "'example' in 'A.\$defs.Inner' is deprecated since OpenAPI 3.1; use 'examples' instead"
+        assertEquals(listOf(exampleInA, exampleInInner, exampleInQ), deprecatedKeywordWarnings(specOf("3.1.0")))
+        assertEquals(
+            listOf(
+                exampleInA,
+                "'xml.attribute' in 'A.id' is deprecated since OpenAPI 3.2; use 'nodeType: attribute' instead",
+                "'xml.wrapped' in 'A.tags' is deprecated since OpenAPI 3.2; use 'nodeType: element' instead",
+                "'xml.wrapped' in 'A.names' is deprecated since OpenAPI 3.2; remove it, 'false' is the default",
+                exampleInInner,
+                exampleInQ,
+            ),
+            deprecatedKeywordWarnings(specOf("3.2.0")),
+        )
     }
 
     @Test
