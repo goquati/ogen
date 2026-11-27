@@ -3,7 +3,7 @@ kotlin = "2.4.21"
 kotlinpoet = "2.4.0"
 quati-util = "2.6.1"
 # Gradle loads plugins with its embedded kotlin-stdlib; 1.9.x needs only stdlib 2.2 (matches apiVersion).
-kotlinx-serialization = "1.9.0"
+kotlinx-serialization = "1.13.0"
 snakeyaml-engine = "3.2"
 json-schema-validator = "1.5.8"
 

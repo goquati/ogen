@@ -46,7 +46,7 @@ kotlin {
             implementation("jakarta.validation:jakarta.validation-api:3.1.1")
         }
         jvmTest.dependencies {
-            implementation("org.hibernate.validator:hibernate-validator:9.1.5.Final")
+            implementation("org.hibernate.validator:hibernate-validator:9.2.0.Final")
             implementation("org.glassfish.expressly:expressly:6.0.0")
         }
     }
