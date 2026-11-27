@@ -22,7 +22,7 @@ internal fun unusedSchemaWarnings(spec: ValidatedSpec): List<String> {
     val kept = schemas.filterValues { schema ->
         ((schema as? Schema.Obj)?.extensions?.get(KEEP_EXTENSION) as? JsonPrimitive)?.content == "true"
     }
-    val used = (spec.api.schemasReachedFromPaths(roots = kept.values) + kept.keys).toMutableSet()
+    val used = (spec.api.schemasReachedFromPaths(roots = kept.values, everyKeyword = true) + kept.keys).toMutableSet()
     // A schema that extends a used one through `allOf` is one of its subtypes, and used with it.
     do {
         val subtypes = schemas.filterKeys { it !in used }.filterValues { schema ->

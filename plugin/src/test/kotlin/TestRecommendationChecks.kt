@@ -63,6 +63,45 @@ class TestRecommendationChecks {
         }
     }
 
+    // Every keyword that holds a schema counts, also below a kept schema.
+    @Test
+    fun `schemas referenced through any schema keyword`() {
+        fun ref(name: String) = "{\$ref: '#/components/schemas/$name'}"
+        val spec = spec(
+            header + """
+            paths:
+              /tags:
+                get:
+                  responses:
+                    '200':
+                      description: ok
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            propertyNames: ${ref("TagKey")}
+                            if: ${ref("If")}
+                            then: ${ref("Then")}
+                            else: ${ref("Else")}
+                            dependentSchemas: {a: ${ref("Dependent")}}
+                            unevaluatedProperties: ${ref("UnevaluatedProperties")}
+            components:
+              schemas:
+                TagKey: {type: string}
+                If: {type: object}
+                Then: {type: object}
+                Else: {type: object}
+                Dependent: {type: object}
+                UnevaluatedProperties: {type: string}
+                Kept: {type: array, contains: ${ref("Contains")}, unevaluatedItems: ${ref("UnevaluatedItems")}, x-ogen-keep: true}
+                Contains: {type: string}
+                UnevaluatedItems: {type: string}
+                Orphan: {type: object}
+            """.trimIndent()
+        )
+        assertEquals(listOf("schema 'Orphan' is not used by any operation"), unusedSchemaWarnings(spec))
+    }
+
     @Test
     fun `properties next to oneOf`() {
         val spec = spec(

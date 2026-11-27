@@ -78,9 +78,15 @@ internal fun OpenApi.parse(sourceVersion: OasVersion, config: SpecConfig): Spec 
 
 /**
  * The component schemas the paths refer to, directly or through other schemas, parameters, bodies, responses,
- * headers or media types: those swagger-parser's 3.1 dereferencer walked. With [roots], also those these schemas refer to.
+ * headers or media types. With [roots], also those these schemas refer to.
+ *
+ * By default only through the keywords swagger-parser's 3.1 dereferencer walked, which [ParserContext.reachedFromPaths]
+ * reproduces (#98); with [everyKeyword] through every keyword that holds a schema.
  */
-internal fun OpenApi.schemasReachedFromPaths(roots: Collection<Schema> = emptyList()): Set<String> {
+internal fun OpenApi.schemasReachedFromPaths(
+    roots: Collection<Schema> = emptyList(),
+    everyKeyword: Boolean = false,
+): Set<String> {
     val all = components
     val reached = mutableSetOf<String>()
     val queue = ArrayDeque(roots)
@@ -134,6 +140,13 @@ internal fun OpenApi.schemasReachedFromPaths(roots: Collection<Schema> = emptyLi
         listOfNotNull(schema.items, schema.additionalProperties, schema.not).forEach(::schema)
         listOfNotNull(schema.prefixItems, schema.allOf, schema.anyOf, schema.oneOf).flatten().forEach(::schema)
         listOfNotNull(schema.properties, schema.patternProperties, schema.defs).flatMap { it.values }.forEach(::schema)
+        if (everyKeyword) {
+            listOfNotNull(
+                schema.contains, schema.propertyNames, schema.ifSchema, schema.thenSchema, schema.elseSchema,
+                schema.unevaluatedItems, schema.unevaluatedProperties,
+            ).forEach(::schema)
+            schema.dependentSchemas?.values?.forEach(::schema)
+        }
     }
     return reached
 }
