@@ -44,6 +44,14 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // The tests also read the specs of the tests/ projects (see repositorySpecFiles()). Declared as inputs,
+    // so a change to them reruns the tests instead of taking the result from the build cache.
+    inputs.files(
+        fileTree("../tests") {
+            include("**/*.yaml", "**/*.yml", "**/*.json")
+            exclude("**/build/**", "**/node_modules/**", "kotlin-js-store/**", "**/oas-schemas/**")
+        }
+    ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("repositorySpecs")
 }
 
 gradlePlugin {
