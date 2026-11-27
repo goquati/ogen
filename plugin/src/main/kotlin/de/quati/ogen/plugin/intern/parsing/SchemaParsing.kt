@@ -294,9 +294,11 @@ internal fun Schema.parse(
                 } ?: emptyMap()
                 val additionalProps = o.additionalProperties
                 if (props.isNotEmpty()) {
-                    // A class has no place for additional properties yet; without any (`false`) it is the class (#108).
-                    if (additionalProps != null && additionalProps != Schema.Bool(false))
-                        return@run s.toUnknown(location)
+                    // A class has no place for additional properties yet; without any (`false`) it is the class (#108),
+                    // unless `patternProperties` allows some after all.
+                    val noAdditional = additionalProps == null ||
+                        additionalProps == Schema.Bool(false) && o.patternProperties.isNullOrEmpty()
+                    if (!noAdditional) return@run s.toUnknown(location)
                     return@run Component.Schema.Obj(
                         isNullable = s.isNullable,
                         required = o.required?.toSet() ?: emptySet(),

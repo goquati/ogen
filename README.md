@@ -262,11 +262,12 @@ Hibernate Validator reads them from JVM type annotations, so with `beanValidatio
 
 ### Objects and `additionalProperties`
 
-What a `type: object` schema becomes, the same in every OpenAPI version and wherever the schema is used:
+What a `type: object` schema without `allOf`, `anyOf` or `oneOf` becomes, the same in every OpenAPI version and
+wherever the schema is used (with a composition, any `additionalProperties` makes it `JsonElement`):
 
 | Schema | Kotlin type |
 |---|---|
-| `properties`, without `additionalProperties` or with `additionalProperties: false` | a class |
+| `properties`, without `additionalProperties`, or with `additionalProperties: false` and no `patternProperties` | a class |
 | `properties` and `additionalProperties: true` or a schema | `JsonElement`: classes with additional properties are not supported yet |
 | no `properties`, `additionalProperties: true` or `{}` | `Map<String, JsonElement>` |
 | no `properties`, `additionalProperties` with a schema | `Map<String, T>` |

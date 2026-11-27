@@ -21,6 +21,7 @@ import de.quati.ogen.oas.schemas.gen.model.MapNullableMappedDto
 import de.quati.ogen.oas.schemas.gen.model.MapNullablePrimitiveDto
 import de.quati.ogen.oas.schemas.gen.model.NullableItemsAndValuesDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesAnyObjectDto
+import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesClosedObjectDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesObjectDto
 import de.quati.ogen.oas.schemas.gen.model.ContentKindDto
 import de.quati.ogen.oas.schemas.gen.model.LocaleDto
@@ -361,11 +362,14 @@ class ModelsV31Test {
             put("extra2", 2)
         }).test(expectedString = """{"knownProperty":"value","extra1":1,"extra2":2}""")
 
-        AdditionalPropertiesAnyObjectDto(buildJsonObject {
-            put("foo", "bar")
-            put("baz", true)
-            put("num", 42)
-        }).test(expectedString = """{"foo":"bar","baz":true,"num":42}""")
+        // A map, not a JsonElement: `additionalProperties: true` is the same as `{}`.
+        AdditionalPropertiesAnyObjectDto(
+            mapOf("foo" to JsonPrimitive("bar"), "baz" to JsonPrimitive(true), "num" to JsonPrimitive(42))
+        ).test(expectedString = """{"foo":"bar","baz":true,"num":42}""")
+
+        // A class: `additionalProperties: false` next to properties adds nothing a class doesn't have.
+        AdditionalPropertiesClosedObjectDto(knownProperty = "value")
+            .test(expectedString = """{"knownProperty":"value"}""")
     }
 
     @Test

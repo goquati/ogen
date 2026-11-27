@@ -29,11 +29,13 @@ class TestAdditionalProperties {
                     "WithExtras" to "untyped",
                     "WithTypedExtras" to "untyped",
                 ),
-                schemas.keys.filter { it != "Reached" }.associateWith(::kind),
+                schemas.keys.filter { it != "Reached" && it != "StrictWithPatterns" }.associateWith(::kind),
                 spec,
             )
             val reached = assertIs<Component.Schema.Obj>(schemas.getValue("Reached"), spec)
             assertIs<Component.Schema.MapS>(reached.properties.getValue("inlineOpen"), spec)
         }
+        // `patternProperties` (3.1) allows some additional properties after all, which a class has no place for yet.
+        assertIs<Component.Schema.Unknown>(schemas("additional-properties-3.1").getValue("StrictWithPatterns"))
     }
 }

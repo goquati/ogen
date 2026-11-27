@@ -23,5 +23,10 @@ components:
     OpenSchema: {type: object, additionalProperties: {}}
     Closed: {type: object, additionalProperties: false}
     Strict: {type: object, properties: {id: {type: string}}, additionalProperties: false}
+    StrictWithPatterns:
+      type: object
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': {type: string}}
+      additionalProperties: false
     WithExtras: {type: object, properties: {id: {type: string}}, additionalProperties: true}
     WithTypedExtras: {type: object, properties: {id: {type: string}}, additionalProperties: {type: integer}}
