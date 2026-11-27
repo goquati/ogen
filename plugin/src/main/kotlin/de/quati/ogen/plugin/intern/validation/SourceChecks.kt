@@ -1,5 +1,6 @@
 package de.quati.ogen.plugin.intern.validation
 
+import de.quati.ogen.plugin.intern.oas.OasVersion
 import de.quati.ogen.plugin.intern.oas.serial.OasSerialNames
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -8,7 +9,7 @@ import kotlinx.serialization.json.booleanOrNull
 
 /*
  * Checks of what the spec's files say before migration to OpenAPI 3.2 changed it: keywords of 3.0 that have no
- * effect where they stand, and keywords next to a `$ref` that every version ignores.
+ * effect where they stand, keywords next to a `$ref` that every version ignores, and keywords the version deprecates.
  */
 
 private fun JsonObject.isTrue(key: String) = (this[key] as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull == true
@@ -85,6 +86,34 @@ internal fun nullableIn31Warnings(spec: ValidatedSpec): List<String> {
     spec.walkSchemas { node ->
         if ("nullable" in node.schema.other)
             warnings.add("'nullable' in '${node.location}' has no effect since OpenAPI 3.1; add 'null' to its 'type' instead")
+    }
+    return warnings
+}
+
+// Keywords of a schema and its XML Object that OpenAPI deprecates: the version since when, and what replaces them.
+private class DeprecatedKeyword(val path: List<String>, val since: OasVersion, val replacement: String)
+
+private val deprecatedKeywords = listOf(
+    DeprecatedKeyword(listOf("example"), OasVersion.V3_1, "'examples'"),
+    DeprecatedKeyword(listOf("xml", "attribute"), OasVersion.V3_2, "'nodeType: attribute'"),
+    DeprecatedKeyword(listOf("xml", "wrapped"), OasVersion.V3_2, "'nodeType: element'"),
+)
+
+/** Schema keywords the spec's OpenAPI version deprecates, such as `example` since 3.1. */
+internal fun deprecatedKeywordWarnings(spec: ValidatedSpec): List<String> {
+    val deprecated = deprecatedKeywords.filter { spec.sourceVersion >= it.since }
+    if (deprecated.isEmpty()) return emptyList()
+    val warnings = mutableListOf<String>()
+    spec.walkSchemas { node ->
+        val source = node.source ?: return@walkSchemas
+        deprecated.forEach { keyword ->
+            val owner = keyword.path.dropLast(1).fold(source as JsonObject?) { obj, key -> obj?.get(key) as? JsonObject }
+            if (owner != null && keyword.path.last() in owner)
+                warnings.add(
+                    "'${keyword.path.joinToString(".")}' in '${node.location}' is deprecated since OpenAPI " +
+                        "${keyword.since.minor}; use ${keyword.replacement} instead"
+                )
+        }
     }
     return warnings
 }

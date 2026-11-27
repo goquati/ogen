@@ -182,7 +182,8 @@ ogen {
   effect, and ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and
   `/books/{id}`). Recommendations are warnings too, and `RuleSet.Lenient` turns them off: `properties`
   next to `oneOf`, a request body on GET or HEAD, header names with `_`, `nullable` in OpenAPI 3.1 and later (which
-  has no effect there), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without `minimum` in 3.0,
+  has no effect there), schema keywords the spec's version deprecates (`example` since 3.1, the XML Object's
+  `attribute` and `wrapped` since 3.2), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without `minimum` in 3.0,
   operations ogen generates no code for (3.2's `query` and `additionalOperations`), and names that don't match the
   naming conventions. Off by default: `operationIdRequired`, operations under `paths` without an `operationId`, for
   projects that choose every generated method name in the spec instead of letting ogen derive it.
