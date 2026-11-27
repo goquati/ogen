@@ -34,6 +34,8 @@ class TestRecommendationChecks {
                 Pet: {properties: {owner: {${'$'}ref: '#/components/schemas/Owner'}}}
                 Owner: {type: object}
                 Cat: {allOf: [{${'$'}ref: '#/components/schemas/Pet'}]}
+                Dog: {allOf: [{${'$'}ref: '#/components/schemas/Pet'}], properties: {collar: {${'$'}ref: '#/components/schemas/Collar'}}}
+                Collar: {type: object}
                 Orphan: {type: object}
                 OrphanChild: {allOf: [{${'$'}ref: '#/components/schemas/Orphan'}]}
             """.trimIndent()
@@ -61,6 +63,58 @@ class TestRecommendationChecks {
             )
             assertEquals(listOf("schema 'NotKept' is not used by any operation"), unusedSchemaWarnings(spec), version)
         }
+    }
+
+    // Every keyword that holds a schema counts, also below a kept schema.
+    @Test
+    fun `schemas referenced through any schema keyword`() {
+        fun ref(name: String) = "{\$ref: '#/components/schemas/$name'}"
+        val spec = spec(
+            header + """
+            paths:
+              /tags:
+                get:
+                  responses:
+                    '200':
+                      description: ok
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            propertyNames: ${ref("TagKey")}
+                            if: ${ref("If")}
+                            then: ${ref("Then")}
+                            else: ${ref("Else")}
+                            dependentSchemas: {a: ${ref("Dependent")}}
+                            unevaluatedProperties: ${ref("UnevaluatedProperties")}
+                            properties:
+                              payload: {type: string, contentMediaType: application/json, contentSchema: ${ref("Content")}}
+                              animal:
+                                oneOf: [${ref("Cat")}]
+                                discriminator:
+                                  propertyName: kind
+                                  mapping: {dog: '#/components/schemas/Dog', bird: Bird}
+                                  defaultMapping: '#/components/schemas/Fish'
+            components:
+              schemas:
+                TagKey: {type: string}
+                If: {type: object}
+                Then: {type: object}
+                Else: {type: object}
+                Dependent: {type: object}
+                UnevaluatedProperties: {type: string}
+                Content: {type: object}
+                Cat: {type: object}
+                Dog: {type: object}
+                Bird: {type: object}
+                Fish: {type: object}
+                Kept: {type: array, contains: ${ref("Contains")}, unevaluatedItems: ${ref("UnevaluatedItems")}, x-ogen-keep: true}
+                Contains: {type: string}
+                UnevaluatedItems: {type: string}
+                Orphan: {type: object}
+            """.trimIndent()
+        )
+        assertEquals(listOf("schema 'Orphan' is not used by any operation"), unusedSchemaWarnings(spec))
     }
 
     @Test
