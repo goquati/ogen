@@ -40,7 +40,7 @@ class TestOperationIdCheck {
     // An empty operationId counts as none: the naming conventions don't check it.
     @Test
     fun testEmptyOperationIdIsNoName() {
-        val config = validatorConfigs("operation-id-missing") { operationIdFormat = NameConvention.CamelCase }
+        val config = validatorConfigs("operation-id-missing") { naming { operationId = NameConvention.CamelCase } }
             .specs.single().validatorConfig!!
         assertEquals(emptyList(), namingConventionErrors(parsedSpec("operation-id-missing"), config))
     }

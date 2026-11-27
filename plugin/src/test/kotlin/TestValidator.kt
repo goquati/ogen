@@ -32,7 +32,7 @@ class TestValidator {
     @Test
     fun testNamingErrorsCountWithTheChecks() {
         assertValidationFails("validator-several-errors", errorsMessage("validator-several-errors", 4)) {
-            schemaNameFormat = NameConvention.CamelCase
+            naming { schema = NameConvention.CamelCase }
             rules { namingConventions = Severity.Error }
         }
     }
@@ -42,7 +42,7 @@ class TestValidator {
     fun testNamingConventionsAreWarningsByDefault() {
         val logger = CapturingLogger()
         val e = assertFailsWith<GradleException> {
-            Validator(logger).validate(validatorConfigs("validator-several-errors") { schemaNameFormat = NameConvention.CamelCase })
+            Validator(logger).validate(validatorConfigs("validator-several-errors") { naming { schema = NameConvention.CamelCase } })
         }
         assertEquals(errorsMessage("validator-several-errors", 3), e.message)
         assertTrue(logger.at(Level.WARN).any { "schema name 'Item'" in it }, logger.entries.toString())
