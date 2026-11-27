@@ -124,7 +124,23 @@ ogen {
   `parameter { path; query; header; cookie }`, parameter names (default `CamelCase` for path and query, `Any` for
   header and cookie). How a violation is reported is the severity of the rule `namingConventions` in `rules {}`.
   Besides the predefined conventions, `NameConvention.RegexFormat("...")` and `NameConvention.Custom { name -> ... }`
-  define custom ones. The conventions apply to every schema and parameter the generator sees, inline request and
+  define custom ones. `CamelCase`, `PascalCase`, `KebabCase` and `RegexFormat` take a block: `except(...)` lists
+  exact names the convention accepts as they are (e.g. a third-party header), and on `CamelCase` and `PascalCase`,
+  `acronyms` says whether a run of capitals counts as one word (`true`, the default: `UUID`, `HTTPError`, `apiID`)
+  or every word is one capital followed by lower-case letters and digits (`false`).
+
+  ```kotlin
+  naming {
+      schema = NameConvention.PascalCase { acronyms = false }
+      parameter {
+          header = NameConvention.RegexFormat("^[A-Z][A-Za-z0-9]*(?:-[A-Z][A-Za-z0-9]*)*$") {
+              except("X-HubSpot-Signature-v3")
+          }
+      }
+  }
+  ```
+
+  The conventions apply to every schema and parameter the generator sees, inline request and
   response schemas, composition members and path-level parameters included.
 - **Validation by default**: every spec is validated before code is generated, also without a `validator` block,
   and the parser's errors and the rules that are errors by default fail the build. `validator { enabled = false }`
