@@ -157,8 +157,9 @@ ogen {
   severities of a rule set, a `Map<ValidatorRule, Severity>`, then those of the block:
   `RuleSet.Default` (the defaults), `RuleSet.Strict` (every rule an error, so any finding fails the build) and
   `RuleSet.Lenient` (allows as much as possible, e.g. for specs of third parties: what makes a spec invalid stays an
-  error, other problems stay warnings, naming conventions and recommendations are off). The parser's errors always
-  fail the build. A component schema that no operation uses on purpose, such as an enum the code uses directly, is
+  error, other problems stay warnings, naming conventions and recommendations are off). Without a set, every rule
+  has its default, as with `RuleSet.Default`; in a spec's `validator` block, `rules(RuleSet.Default)` sets the defaults
+  again for that spec, over what `ogen {}` sets. The parser's errors always fail the build. A component schema that no operation uses on purpose, such as an enum the code uses directly, is
   kept from the `unusedSchemas` warning by `x-ogen-keep: true` (or `"true"`) on the schema; the schemas it refers to
   count as used, too. On a spec with parser errors, the checks that are errors by default and `unusedSchemas` don't
   run, whatever their severity.
