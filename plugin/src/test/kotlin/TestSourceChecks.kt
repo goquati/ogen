@@ -110,18 +110,24 @@ class TestSourceChecks {
                   properties:
                     id: {type: string, xml: {attribute: true}}
                     tags: {type: array, items: {type: string}, xml: {wrapped: true}}
+                    names: {type: array, items: {type: string}, xml: {wrapped: false}}
+                  ${'$'}defs:
+                    Inner: {type: string, example: x}
                 B: {type: string, examples: [b], xml: {nodeType: element}}
             """.trimIndent()
         )
         assertEquals(emptyList(), deprecatedKeywordWarnings(specOf("3.0.3")))
         val exampleInA = "'example' in 'A' is deprecated since OpenAPI 3.1; use 'examples' instead"
         val exampleInQ = "'example' in '/a:GET.parameters.q' is deprecated since OpenAPI 3.1; use 'examples' instead"
-        assertEquals(listOf(exampleInA, exampleInQ), deprecatedKeywordWarnings(specOf("3.1.0")))
+        val exampleInInner = "'example' in 'A.\$defs.Inner' is deprecated since OpenAPI 3.1; use 'examples' instead"
+        assertEquals(listOf(exampleInA, exampleInInner, exampleInQ), deprecatedKeywordWarnings(specOf("3.1.0")))
         assertEquals(
             listOf(
                 exampleInA,
                 "'xml.attribute' in 'A.id' is deprecated since OpenAPI 3.2; use 'nodeType: attribute' instead",
                 "'xml.wrapped' in 'A.tags' is deprecated since OpenAPI 3.2; use 'nodeType: element' instead",
+                "'xml.wrapped' in 'A.names' is deprecated since OpenAPI 3.2; remove it, 'false' is the default",
+                exampleInInner,
                 exampleInQ,
             ),
             deprecatedKeywordWarnings(specOf("3.2.0")),

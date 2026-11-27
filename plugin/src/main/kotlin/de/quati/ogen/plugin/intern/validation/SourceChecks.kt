@@ -90,13 +90,23 @@ internal fun nullableIn31Warnings(spec: ValidatedSpec): List<String> {
     return warnings
 }
 
-// Keywords of a schema and its XML Object that OpenAPI deprecates: the version since when, and what replaces them.
-private class DeprecatedKeyword(val path: List<String>, val since: OasVersion, val replacement: String)
+/**
+ * A keyword of a schema or its XML Object that OpenAPI deprecates since [since]; [advice] says what to do instead,
+ * given the keyword's value.
+ */
+private class DeprecatedKeyword(val path: List<String>, val since: OasVersion, val advice: (JsonElement) -> String)
+
+// `attribute: false` and `wrapped: false` are the defaults, which need no `nodeType`.
+private fun JsonElement.isTrue() = (this as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull == true
 
 private val deprecatedKeywords = listOf(
-    DeprecatedKeyword(listOf("example"), OasVersion.V3_1, "'examples'"),
-    DeprecatedKeyword(listOf("xml", "attribute"), OasVersion.V3_2, "'nodeType: attribute'"),
-    DeprecatedKeyword(listOf("xml", "wrapped"), OasVersion.V3_2, "'nodeType: element'"),
+    DeprecatedKeyword(listOf("example"), OasVersion.V3_1) { "use 'examples' instead" },
+    DeprecatedKeyword(listOf("xml", "attribute"), OasVersion.V3_2) {
+        if (it.isTrue()) "use 'nodeType: attribute' instead" else "remove it, 'false' is the default"
+    },
+    DeprecatedKeyword(listOf("xml", "wrapped"), OasVersion.V3_2) {
+        if (it.isTrue()) "use 'nodeType: element' instead" else "remove it, 'false' is the default"
+    },
 )
 
 /** Schema keywords the spec's OpenAPI version deprecates, such as `example` since 3.1. */
@@ -108,11 +118,11 @@ internal fun deprecatedKeywordWarnings(spec: ValidatedSpec): List<String> {
         val source = node.source ?: return@walkSchemas
         deprecated.forEach { keyword ->
             val owner = keyword.path.dropLast(1).fold(source as JsonObject?) { obj, key -> obj?.get(key) as? JsonObject }
-            if (owner != null && keyword.path.last() in owner)
-                warnings.add(
-                    "'${keyword.path.joinToString(".")}' in '${node.location}' is deprecated since OpenAPI " +
-                        "${keyword.since.minor}; use ${keyword.replacement} instead"
-                )
+            val value = owner?.get(keyword.path.last()) ?: return@forEach
+            warnings.add(
+                "'${keyword.path.joinToString(".")}' in '${node.location}' is deprecated since OpenAPI " +
+                    "${keyword.since.minor}; ${keyword.advice(value)}"
+            )
         }
     }
     return warnings
