@@ -23,12 +23,11 @@ kotlin {
         nodejs()
     }
     @OptIn(ExperimentalWasmDsl::class)
+    // One runtime per target is enough: the generated code is the same for all of them, and every extra
+    // runtime adds its own test run to the CI.
     wasmJs {
-        browser()
         nodejs()
-        d8()
     }
-    iosX64()
     iosArm64()
     macosArm64()
     iosSimulatorArm64()
