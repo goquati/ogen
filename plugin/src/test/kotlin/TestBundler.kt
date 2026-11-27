@@ -198,8 +198,9 @@ class TestBundler {
               /pets:
                 ${'$'}ref: 'paths.yaml#/Pets'
                 summary: outer
+                description: same
             """.trimIndent(),
-            "api/paths.yaml" to "Pets:\n  summary: inner\n  get:\n    responses: {'200': {description: ok}}\n",
+            "api/paths.yaml" to "Pets:\n  summary: inner\n  description: same\n  get:\n    responses: {'200': {description: ok}}\n",
         )
         assertEquals(
             listOf(
@@ -209,6 +210,22 @@ class TestBundler {
             result.diagnostics.map { it.toString() },
         )
         assertEquals(json("\"outer\""), result.at("/paths/~1pets/summary"))
+    }
+
+    @Test
+    fun `problems in fields next to a path item reference point to the file of the reference`() {
+        val result = parse(
+            header + """
+            paths:
+              /pets:
+                ${'$'}ref: 'paths.yaml#/Pets'
+                parameters:
+                  - {name: q, in: query, required: maybe, schema: {type: string}}
+            """.trimIndent(),
+            "api/paths.yaml" to "Pets:\n  get:\n    responses: {'200': {description: ok}}\n",
+        )
+        assertEquals(1, result.errors.size, result.errors.toString())
+        assertTrue(result.errors.single().toString().startsWith("api/root.yaml:7:"), result.errors.toString())
     }
 
     @Test

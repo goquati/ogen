@@ -179,7 +179,7 @@ internal class Bundler(private val spec: LoadedSpec) {
 
     /**
      * [inlined] with the fields written next to the Path Item `$ref` of [site]; their references are bundled, too.
-     * OpenAPI leaves a field in both undefined; the one next to the `$ref` wins, with a warning.
+     * OpenAPI leaves a field in both undefined; the one next to the `$ref` wins, with a warning if the values differ.
      */
     private fun mergeSiblings(site: RefSite, inlined: JsonElement, from: URI?, bundledAt: JsonPointer): JsonElement {
         val itemPointer = site.pointer.parent!!
@@ -196,7 +196,7 @@ internal class Bundler(private val spec: LoadedSpec) {
         rewritten.keys.forEach { key ->
             // The field comes from the file of the `$ref`, not from the file of the inlined Path Item.
             origins[bundledAt / key] = Located(site.document, itemPointer / key)
-            if (key in inlined) diagnostics += Diagnostic.warning(
+            if (key in inlined && inlined[key] != rewritten[key]) diagnostics += Diagnostic.warning(
                 "'$key' is both next to the Path Item \$ref and in the referenced Path Item; the one next to the \$ref is used",
                 document.locationOf(itemPointer / key, key = true).copy(pointer = bundledAt / key),
             )
