@@ -168,6 +168,67 @@ class TestBundler {
     }
 
     @Test
+    fun `fields next to a path item reference are merged into it`() {
+        val result = parse(
+            header + """
+            paths:
+              /pets:
+                ${'$'}ref: 'paths.yaml#/Pets'
+                parameters:
+                  - ${'$'}ref: 'params.yaml#/Q'
+            """.trimIndent(),
+            "api/paths.yaml" to "Pets:\n  get:\n    responses: {'200': {description: ok}}\n",
+            "api/params.yaml" to "Q: {name: q, in: query, schema: {type: string}}\n",
+        )
+        assertEquals(emptyList(), result.diagnostics.map { it.toString() })
+        assertEquals(
+            json("""[{"${'$'}ref": "#/components/parameters/Q"}]"""),
+            result.at("/paths/~1pets/parameters"),
+        )
+        assertNotNull(result.at("/paths/~1pets/get"))
+        assertEquals(null, result.at("/paths/~1pets/${'$'}ref"))
+        assertEquals(1, result.openApi!!.paths!!.pathItems.getValue("/pets").parameters!!.size)
+    }
+
+    @Test
+    fun `a field both next to a path item reference and in it warns, the one next to the reference wins`() {
+        val result = parse(
+            header + """
+            paths:
+              /pets:
+                ${'$'}ref: 'paths.yaml#/Pets'
+                summary: outer
+                description: same
+            """.trimIndent(),
+            "api/paths.yaml" to "Pets:\n  summary: inner\n  description: same\n  get:\n    responses: {'200': {description: ok}}\n",
+        )
+        assertEquals(
+            listOf(
+                "api/root.yaml:6:5 (#/paths/~1pets/summary): 'summary' is both next to the Path Item ${'$'}ref and in the " +
+                    "referenced Path Item; the one next to the ${'$'}ref is used"
+            ),
+            result.diagnostics.map { it.toString() },
+        )
+        assertEquals(json("\"outer\""), result.at("/paths/~1pets/summary"))
+    }
+
+    @Test
+    fun `problems in fields next to a path item reference point to the file of the reference`() {
+        val result = parse(
+            header + """
+            paths:
+              /pets:
+                ${'$'}ref: 'paths.yaml#/Pets'
+                parameters:
+                  - {name: q, in: query, required: maybe, schema: {type: string}}
+            """.trimIndent(),
+            "api/paths.yaml" to "Pets:\n  get:\n    responses: {'200': {description: ok}}\n",
+        )
+        assertEquals(1, result.errors.size, result.errors.toString())
+        assertTrue(result.errors.single().toString().startsWith("api/root.yaml:7:"), result.errors.toString())
+    }
+
+    @Test
     fun `problems in moved parts point to their own file`() {
         val result = parse(
             header + "components:\n  schemas:\n    A: {\$ref: 'common.yaml#/A'}\n",

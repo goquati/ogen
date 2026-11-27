@@ -54,7 +54,7 @@ internal class Bundle(
  *   the file name without extension if the reference names the whole file. On a name conflict (for schemas
  *   regardless of case) `_1`, `_2`, … is appended, unless the existing component has the same content.
  * - A root component that only refers to that target (`User: {$ref: 'common.yaml#/…/User'}`) is replaced by it.
- * - Path Item references are replaced by the Path Item itself.
+ * - Path Item references are replaced by the Path Item itself, merged with the fields written next to the `$ref`.
  * - References inside moved parts are bundled the same way; discriminator mappings are references, too.
  * - Paths are bundled before components, as swagger-parser processes them; see [localRef] for the order of imports.
  */
@@ -116,8 +116,9 @@ internal class Bundler(private val spec: LoadedSpec) {
         val relative = site.pointer.relativeTo(base) ?: return null
         val target = site.target ?: return null
         if (kindOf(site.expected) == PATH_ITEM) {
-            val inlined = inlinePathItem(target, bundledAt + relative.parent!!) ?: return null
-            return relative.parent!! to inlined
+            val item = relative.parent!!
+            val inlined = inlinePathItem(target, bundledAt + item) ?: return null
+            return item to mergeSiblings(site, inlined, from, bundledAt + item)
         }
         return relative to JsonPrimitive(localRef(target, site.expected, from))
     }
@@ -174,6 +175,33 @@ internal class Bundler(private val spec: LoadedSpec) {
         } finally {
             inlining -= located
         }
+    }
+
+    /**
+     * [inlined] with the fields written next to the Path Item `$ref` of [site]; their references are bundled, too.
+     * OpenAPI leaves a field in both undefined; the one next to the `$ref` wins, with a warning if the values differ.
+     */
+    private fun mergeSiblings(site: RefSite, inlined: JsonElement, from: URI?, bundledAt: JsonPointer): JsonElement {
+        val itemPointer = site.pointer.parent!!
+        val document = spec.documents[site.document] ?: return inlined
+        val item = document.element.at(itemPointer) as? JsonObject ?: return inlined
+        val siblings = JsonObject(item - OasSerialNames.REF_KEY)
+        if (siblings.isEmpty() || inlined !is JsonObject) return inlined
+        val rewritten = siblings.replace(
+            sitesByDocument[site.document].orEmpty()
+                .filter { it !== site && it.pointer.relativeTo(itemPointer) != null }
+                .mapNotNull { replacement(it, itemPointer, from, bundledAt) }
+                .toMap()
+        ) as JsonObject
+        rewritten.keys.forEach { key ->
+            // The field comes from the file of the `$ref`, not from the file of the inlined Path Item.
+            origins[bundledAt / key] = Located(site.document, itemPointer / key)
+            if (key in inlined && inlined[key] != rewritten[key]) diagnostics += Diagnostic.warning(
+                "'$key' is both next to the Path Item \$ref and in the referenced Path Item; the one next to the \$ref is used",
+                document.locationOf(itemPointer / key, key = true).copy(pointer = bundledAt / key),
+            )
+        }
+        return JsonObject(inlined + rewritten)
     }
 
     private fun allocate(kind: String, entries: Map<String, JsonElement>, baseName: String, target: RefTarget): String {
