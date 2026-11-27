@@ -1,0 +1,206 @@
+import de.quati.ogen.plugin.NameConvention
+import de.quati.ogen.plugin.Severity
+import de.quati.ogen.plugin.SpecsConfigBuilder
+import de.quati.ogen.plugin.intern.model.config.ValidatorConfig
+import de.quati.ogen.plugin.intern.tasks.Validator
+import de.quati.ogen.plugin.intern.validation.Rule
+import org.slf4j.helpers.NOPLogger
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+
+/** `validator {}` in `ogen {}`, which every spec inherits and can override, and `rules {}`. */
+class TestValidatorSettings {
+    private val specPath = Validator::class.java.getResource("/validator-several-errors.yaml")!!.path
+
+    private fun SpecsConfigBuilder.spec(block: SpecsConfigBuilder.SpecConfingBuilder.() -> Unit = {}) =
+        add(packageName = "de.quati.ogen.test.gen") {
+            specFile(specPath)
+            model {}
+            block()
+        }
+
+    /** The validator settings of each spec, as the validator gets them. */
+    private fun resolved(block: SpecsConfigBuilder.() -> Unit): List<ValidatorConfig?> = SpecsConfigBuilder().apply {
+        utilPackageName("de.quati.ogen.test.gen.util")
+        block()
+    }.build().specs.map { it.validatorConfig }
+
+    private fun SpecsConfigBuilder.SpecConfingBuilder.ValidatorConfig.acceptAnyNames() {
+        tagFormat = NameConvention.Any
+        operationIdFormat = NameConvention.Any
+        propertyNameFormat = NameConvention.Any
+        schemaNameFormat = NameConvention.Any
+        pathSegmentFormat = NameConvention.Any
+        parameterFormat {
+            path = NameConvention.Any
+            query = NameConvention.Any
+        }
+    }
+
+    @Test
+    fun `without any validator block no spec is validated`() {
+        assertEquals(listOf(null), resolved { spec() })
+    }
+
+    @Test
+    fun `a spec's own block alone validates it with the defaults for the rest`() {
+        val config = assertNotNull(resolved { spec { validator { failOnWarnings = true } } }.single())
+        assertEquals(true, config.failOnWarnings)
+        assertEquals(NameConvention.PascalCase, config.schemaNameFormat)
+        assertEquals(NameConvention.CamelCase, config.parameterFormat.path)
+    }
+
+    @Test
+    fun `the block in ogen validates every spec, also one declared before it`() {
+        val configs = resolved {
+            spec()
+            validator { tagFormat = NameConvention.PascalCase }
+            spec()
+        }
+        assertEquals(listOf(NameConvention.PascalCase, NameConvention.PascalCase), configs.map { it?.tagFormat })
+    }
+
+    @Test
+    fun `a spec's block changes only what it sets, also inside parameterFormat`() {
+        val config = assertNotNull(
+            resolved {
+                validator {
+                    tagFormat = NameConvention.PascalCase
+                    stringEnumFormat = NameConvention.KebabCase
+                    parameterFormat {
+                        path = NameConvention.KebabCase
+                        query = NameConvention.KebabCase
+                    }
+                }
+                spec {
+                    validator {
+                        tagFormat = NameConvention.Any
+                        parameterFormat { query = NameConvention.Any }
+                    }
+                }
+            }.single()
+        )
+        assertEquals(NameConvention.Any, config.tagFormat)
+        assertEquals(NameConvention.KebabCase, config.stringEnumFormat)
+        assertEquals(NameConvention.CamelCase, config.operationIdFormat)
+        assertEquals(NameConvention.KebabCase, config.parameterFormat.path)
+        assertEquals(NameConvention.Any, config.parameterFormat.query)
+    }
+
+    @Test
+    fun `enabled = false turns validation off for one spec`() {
+        val configs = resolved {
+            validator { failOnWarnings = true }
+            spec { validator { enabled = false } }
+            spec()
+        }
+        assertNull(configs[0])
+        assertNotNull(configs[1])
+    }
+
+    @Test
+    fun `enabled = false in ogen turns validation off unless a spec turns it on`() {
+        val configs = resolved {
+            validator { enabled = false }
+            spec()
+            spec { validator { enabled = true } }
+        }
+        assertNull(configs[0])
+        assertNotNull(configs[1])
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `the deprecated validator() still turns validation off`() {
+        assertEquals(listOf(null), resolved { validator {}; spec { validator() } })
+        assertEquals(listOf(null), resolved { spec { validator {}; validator(disable = true) } })
+    }
+
+    @Test
+    fun `rules are inherited and overridden rule by rule`() {
+        val config = assertNotNull(
+            resolved {
+                validator {
+                    rules {
+                        unusedSchemas = Severity.Off
+                        ambiguousPaths = Severity.Error
+                    }
+                }
+                spec { validator { rules { ambiguousPaths = Severity.Warning } } }
+            }.single()
+        )
+        assertEquals(Severity.Off, config.severity(Rule.UnusedSchemas))
+        assertEquals(Severity.Warning, config.severity(Rule.AmbiguousPaths))
+        assertEquals(Severity.Error, config.severity(Rule.EnumValues))
+    }
+
+    @Test
+    fun `recommendations = false turns off recommendations that rules {} doesn't set`() {
+        val config = assertNotNull(
+            resolved {
+                validator { recommendations = false }
+                spec { validator { rules { getWithBody = Severity.Error } } }
+            }.single()
+        )
+        assertEquals(Severity.Off, config.severity(Rule.HeaderUnderscores))
+        assertEquals(Severity.Error, config.severity(Rule.GetWithBody))
+        assertEquals(Severity.Warning, config.severity(Rule.TrailingSlashes))
+    }
+
+    // validator-several-errors has three errors (path parameter, enum value, required property) and a trailing slash.
+    @Test
+    fun `an error rule turned off or to a warning doesn't fail the build`() {
+        val spec = "validator-several-errors"
+        assertValidationFails(spec, errorsMessage(spec, 2)) { rules { enumValues = Severity.Off } }
+        validate(spec) {
+            rules {
+                enumValues = Severity.Warning
+                pathParameters = Severity.Off
+                undefinedRequiredProperties = Severity.Warning
+            }
+        }
+        assertValidationFails(spec, warningsMessage(spec)) {
+            failOnWarnings = true
+            rules {
+                enumValues = Severity.Off
+                pathParameters = Severity.Off
+                undefinedRequiredProperties = Severity.Off
+            }
+        }
+    }
+
+    @Test
+    fun `a warning rule turned to an error fails the build`() {
+        val spec = "validator-several-errors"
+        assertValidationFails(spec, errorsMessage(spec, 4)) { rules { trailingSlashes = Severity.Error } }
+    }
+
+    @Test
+    fun `naming conventions are a rule, too`() {
+        val spec = "validator-several-errors"
+        assertValidationFails(spec, errorsMessage(spec, 3)) {
+            schemaNameFormat = NameConvention.CamelCase
+            rules { namingConventions = Severity.Off }
+        }
+    }
+
+    @Test
+    fun `failOnWarnings off in a spec overrides the one in ogen`() {
+        val configs = SpecsConfigBuilder().apply {
+            utilPackageName("de.quati.ogen.test.gen.util")
+            validator {
+                acceptAnyNames()
+                failOnWarnings = true
+                rules {
+                    enumValues = Severity.Off
+                    pathParameters = Severity.Off
+                    undefinedRequiredProperties = Severity.Off
+                }
+            }
+            spec { validator { failOnWarnings = false } }
+        }.build()
+        Validator(NOPLogger.NOP_LOGGER).validate(configs)
+    }
+}

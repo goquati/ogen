@@ -9,14 +9,20 @@ import de.quati.ogen.plugin.intern.model.TypeWithFormat
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 import de.quati.ogen.plugin.intern.model.config.InputConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
+import de.quati.ogen.plugin.intern.validation.Rule
 import kotlin.collections.mutableMapOf
 import kotlin.io.path.Path
 import kotlin.io.path.isDirectory
 import kotlin.io.path.isRegularFile
+import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KClass
+import kotlin.reflect.KProperty
 
 public open class SpecsConfigBuilder {
     private val specs = mutableListOf<SpecConfig>()
+    // The validator block of each spec, resolved against the one of `ogen {}` in [build], which may come after it.
+    private val specValidators = mutableListOf<SpecConfingBuilder.ValidatorConfig?>()
+    private var validator: SpecConfingBuilder.ValidatorConfig? = null
     private var utilPackageName: PackageName? = null
     /** Whether any spec generates Bean Validation annotations, for models or the Spring server. */
     internal val beanValidation: Boolean
@@ -26,7 +32,9 @@ public open class SpecsConfigBuilder {
         }
 
     internal fun build() = SpecConfigs(
-        specs = specs.toList(),
+        specs = specs.zip(specValidators) { spec, specValidator ->
+            spec.copy(validatorConfig = SpecConfingBuilder.ValidatorConfig.resolve(own = specValidator, parent = validator))
+        },
         util = SpecConfigs.Util(
             packageName = utilPackageName ?: error("utilPackageName is required"),
         ),
@@ -36,9 +44,18 @@ public open class SpecsConfigBuilder {
         packageName: String? = null,
         block: SpecConfingBuilder.() -> Unit,
     ): SpecsConfigBuilder = apply {
-        specs += SpecConfingBuilder(
-            rootPackageName = packageName,
-        ).apply(block).build()
+        val builder = SpecConfingBuilder(rootPackageName = packageName).apply(block)
+        specs += builder.build()
+        specValidators += builder.validatorConfig
+    }
+
+    /**
+     * Validator settings every spec inherits: with this block, every spec is validated, also without a `validator {}`
+     * of its own. A spec's `validator {}` changes only the settings it sets; `validator { enabled = false }` turns
+     * validation off for one spec.
+     */
+    public fun validator(block: SpecConfingBuilder.ValidatorConfig.() -> Unit): SpecsConfigBuilder = apply {
+        validator = (validator ?: SpecConfingBuilder.ValidatorConfig()).apply(block)
     }
 
     public fun utilPackageName(
@@ -52,7 +69,8 @@ public open class SpecsConfigBuilder {
     ) {
         private var inputConfig: InputConfig? = null
         private val generatorConfigs = mutableMapOf<KClass<out GeneratorConfig>, GeneratorConfig>()
-        private var validatorConfig: de.quati.ogen.plugin.intern.model.config.ValidatorConfig? = null
+        internal var validatorConfig: ValidatorConfig? = null
+            private set
         private var operationIdGenerator: ((EndpointInfo) -> String?)? = null
         private fun addConfig(config: GeneratorConfig) {
             generatorConfigs[config::class] = config
@@ -103,13 +121,20 @@ public open class SpecsConfigBuilder {
             )
         }
 
+        @Deprecated(
+            "Use validator { enabled = false }; a bare validator() turns validation off, too.",
+            ReplaceWith("validator { enabled = false }"),
+        )
         public fun validator(disable: Boolean = true): SpecConfingBuilder = apply {
-            if (disable)
-                validatorConfig = null
+            if (disable) validator { enabled = false }
         }
 
+        /**
+         * Validates this spec. The settings start from those of `validator {}` in `ogen {}`, if there is one; this
+         * block changes only what it sets.
+         */
         public fun validator(block: ValidatorConfig.() -> Unit): SpecConfingBuilder = apply {
-            validatorConfig = ValidatorConfig().apply(block).build()
+            validatorConfig = (validatorConfig ?: ValidatorConfig()).apply(block)
         }
 
         public fun model(
@@ -141,7 +166,7 @@ public open class SpecsConfigBuilder {
             return SpecConfig(
                 inputConfig = inputConfig ?: error("input spec is required"),
                 generatorConfigs = generatorConfigs.values.toList(),
-                validatorConfig = validatorConfig,
+                validatorConfig = null, // resolved in SpecsConfigBuilder.build()
                 modelConfig = modelConfig,
                 operationIdGenerator = operationIdGenerator,
             )
@@ -243,47 +268,214 @@ public open class SpecsConfigBuilder {
             )
         }
 
+        /**
+         * The validator's settings. In a spec's `validator {}`, they start from those of `validator {}` in `ogen {}`,
+         * and only what the block sets changes, also inside `parameterFormat {}` and `rules {}`. A property reads
+         * what this block set, or else the default.
+         */
         public class ValidatorConfig {
-            public var recommendations: Boolean = true
-            public var failOnWarnings: Boolean = false
-            private var parameterFormat = ParameterFormat().build()
-            public var tagFormat: NameConvention = NameConvention.CamelCase
-            public var operationIdFormat: NameConvention = NameConvention.CamelCase
-            public var propertyNameFormat: NameConvention = NameConvention.CamelCase
-            public var schemaNameFormat: NameConvention = NameConvention.PascalCase
-            public var pathSegmentFormat: NameConvention = NameConvention.KebabCase
-            public var stringEnumFormat: NameConvention = NameConvention.Any
+            private val enabledSetting = Setting { true }
+            private val recommendationsSetting = Setting { true }
+            private val failOnWarningsSetting = Setting { false }
+            private val tagFormatSetting = Setting<NameConvention> { NameConvention.CamelCase }
+            private val operationIdFormatSetting = Setting<NameConvention> { NameConvention.CamelCase }
+            private val propertyNameFormatSetting = Setting<NameConvention> { NameConvention.CamelCase }
+            private val schemaNameFormatSetting = Setting<NameConvention> { NameConvention.PascalCase }
+            private val pathSegmentFormatSetting = Setting<NameConvention> { NameConvention.KebabCase }
+            private val stringEnumFormatSetting = Setting<NameConvention> { NameConvention.Any }
+            private val parameterFormat = ParameterFormat()
+            private val rules = Rules()
+
+            /** `false` turns validation off for this spec, or, in `ogen {}`, for every spec that doesn't set it. */
+            public var enabled: Boolean by enabledSetting
+
+            /** `false` turns off the recommendations among the rules, unless `rules {}` sets them. */
+            public var recommendations: Boolean by recommendationsSetting
+            public var failOnWarnings: Boolean by failOnWarningsSetting
+            public var tagFormat: NameConvention by tagFormatSetting
+            public var operationIdFormat: NameConvention by operationIdFormatSetting
+            public var propertyNameFormat: NameConvention by propertyNameFormatSetting
+            public var schemaNameFormat: NameConvention by schemaNameFormatSetting
+            public var pathSegmentFormat: NameConvention by pathSegmentFormatSetting
+            public var stringEnumFormat: NameConvention by stringEnumFormatSetting
 
             public fun parameterFormat(block: ParameterFormat.() -> Unit): ValidatorConfig = apply {
-                parameterFormat = ParameterFormat().apply(block).build()
+                parameterFormat.apply(block)
             }
 
-            internal fun build() = de.quati.ogen.plugin.intern.model.config.ValidatorConfig(
-                recommendations = recommendations,
-                failOnWarnings = failOnWarnings,
-                parameterFormat = parameterFormat,
-                tagFormat = tagFormat,
-                operationIdFormat = operationIdFormat,
-                propertyNameFormat = propertyNameFormat,
-                schemaNameFormat = schemaNameFormat,
-                pathSegmentFormat = pathSegmentFormat,
-                stringEnumFormat = stringEnumFormat
-            )
+            /** The severity of each of ogen's checks. */
+            public fun rules(block: Rules.() -> Unit): ValidatorConfig = apply {
+                rules.apply(block)
+            }
 
             public class ParameterFormat {
-                public var path: NameConvention = NameConvention.CamelCase
-                public var query: NameConvention = NameConvention.CamelCase
-                public var header: NameConvention = NameConvention.Any
-                public var cookie: NameConvention = NameConvention.Any
+                private val pathSetting = Setting<NameConvention> { NameConvention.CamelCase }
+                private val querySetting = Setting<NameConvention> { NameConvention.CamelCase }
+                private val headerSetting = Setting<NameConvention> { NameConvention.Any }
+                private val cookieSetting = Setting<NameConvention> { NameConvention.Any }
 
-                internal fun build() = de.quati.ogen.plugin.intern.model.config.ValidatorConfig.ParameterFormat(
-                    path = path,
-                    query = query,
-                    header = header,
-                    cookie = cookie,
-                )
+                public var path: NameConvention by pathSetting
+                public var query: NameConvention by querySetting
+                public var header: NameConvention by headerSetting
+                public var cookie: NameConvention by cookieSetting
+
+                internal fun resolve(parent: ParameterFormat?) =
+                    de.quati.ogen.plugin.intern.model.config.ValidatorConfig.ParameterFormat(
+                        path = pick(parent) { pathSetting },
+                        query = pick(parent) { querySetting },
+                        header = pick(parent) { headerSetting },
+                        cookie = pick(parent) { cookieSetting },
+                    )
             }
 
+            /**
+             * One property per check, set to [Severity.Off], [Severity.Warning] or [Severity.Error]. A property reads
+             * what this block set, or else the check's default, regardless of `recommendations`.
+             */
+            public class Rules {
+                internal val severities = mutableMapOf<Rule, Severity>()
+
+                private fun rule(rule: Rule) = object : ReadWriteProperty<Rules, Severity> {
+                    override fun getValue(thisRef: Rules, property: KProperty<*>) = severities[rule] ?: rule.default
+                    override fun setValue(thisRef: Rules, property: KProperty<*>, value: Severity) {
+                        severities[rule] = value
+                    }
+                }
+
+                // Errors by default.
+
+                /** Names that don't match the name formats of `validator {}`. */
+                public var namingConventions: Severity by rule(Rule.NamingConventions)
+
+                /** Fields the spec's version requires: `paths`, `responses` and `items` in 3.0, a response's `description`. */
+                public var versionRequirements: Severity by rule(Rule.VersionRequirements)
+
+                /** Path templates with an empty `{}`, an unclosed `{` or a stray `}`. */
+                public var brokenPathTemplates: Severity by rule(Rule.BrokenPathTemplates)
+
+                /** A query string or fragment in a path key. */
+                public var queryOrFragmentInPaths: Severity by rule(Rule.QueryOrFragmentInPaths)
+
+                /** Path parameters missing from the path template, and template variables without a parameter. */
+                public var pathParameters: Severity by rule(Rule.PathParameters)
+
+                /** Paths that differ only in their variables' names. */
+                public var identicalPaths: Severity by rule(Rule.IdenticalPaths)
+
+                /** Security requirements naming a scheme `components.securitySchemes` doesn't define. */
+                public var undefinedSecuritySchemes: Severity by rule(Rule.UndefinedSecuritySchemes)
+
+                /** Enum values that don't match their schema's type or are listed twice. */
+                public var enumValues: Severity by rule(Rule.EnumValues)
+
+                /** A `default` its `enum` doesn't list. */
+                public var defaultOutsideEnum: Severity by rule(Rule.DefaultOutsideEnum)
+
+                /** A `type` that isn't a JSON Schema type. */
+                public var invalidTypes: Severity by rule(Rule.InvalidTypes)
+
+                /** Contradictory constraints such as `minimum` above `maximum`. */
+                public var contradictoryConstraints: Severity by rule(Rule.ContradictoryConstraints)
+
+                /** `required` names without a matching property. */
+                public var undefinedRequiredProperties: Severity by rule(Rule.UndefinedRequiredProperties)
+
+                /** Compositions no value can match. */
+                public var compositionTypes: Severity by rule(Rule.CompositionTypes)
+
+                // Warnings by default.
+
+                /** Paths with a trailing slash. */
+                public var trailingSlashes: Severity by rule(Rule.TrailingSlashes)
+
+                /** Operations without a 2xx or 3xx response. */
+                public var missingSuccessResponses: Severity by rule(Rule.MissingSuccessResponses)
+
+                /** Operation tags missing from the top-level `tags`, when it declares any. */
+                public var undeclaredTags: Severity by rule(Rule.UndeclaredTags)
+
+                /** `pattern` regexes and `patternProperties` keys that don't compile as Java regexes. */
+                public var invalidPatterns: Severity by rule(Rule.InvalidPatterns)
+
+                /** Two paths that share a method where neither is more concrete. */
+                public var ambiguousPaths: Severity by rule(Rule.AmbiguousPaths)
+
+                /** In 3.1 and later, `maximum` next to `exclusiveMaximum` or `minimum` next to `exclusiveMinimum`. */
+                public var redundantBounds: Severity by rule(Rule.RedundantBounds)
+
+                /** Keywords that apply to none of the schema's types, such as `maxLength` on an integer. */
+                public var keywordsForOtherTypes: Severity by rule(Rule.KeywordsForOtherTypes)
+
+                /** `nullable` without a `type` in 3.0. */
+                public var nullableWithoutType: Severity by rule(Rule.NullableWithoutType)
+
+                /** Component schemas no operation uses; `x-ogen-keep: true` on a schema keeps it on purpose. */
+                public var unusedSchemas: Severity by rule(Rule.UnusedSchemas)
+
+                // Recommendations: warnings by default, off with `recommendations = false`.
+
+                /** `nullable` in 3.1 and later, which has no effect there. */
+                public var nullableIn31: Severity by rule(Rule.NullableIn31)
+
+                /** Keywords next to a `$ref` that are ignored. */
+                public var ignoredNextToRef: Severity by rule(Rule.IgnoredNextToRef)
+
+                /** `exclusiveMinimum: true` without `minimum`, or `exclusiveMaximum: true` without `maximum`, in 3.0. */
+                public var exclusiveFlagWithoutBound: Severity by rule(Rule.ExclusiveFlagWithoutBound)
+
+                /** Operations ogen generates no code for: 3.2's `query` method and `additionalOperations`. */
+                public var unsupportedOperations: Severity by rule(Rule.UnsupportedOperations)
+
+                /** `properties` next to `oneOf`. */
+                public var oneOfWithProperties: Severity by rule(Rule.OneOfWithProperties)
+
+                /** A request body on GET or HEAD. */
+                public var getWithBody: Severity by rule(Rule.GetWithBody)
+
+                /** Header names with `_`. */
+                public var headerUnderscores: Severity by rule(Rule.HeaderUnderscores)
+            }
+
+            internal companion object {
+                /**
+                 * The settings of a spec: what its own block sets, else what the block in `ogen {}` sets, else the
+                 * default. Null if neither block exists or validation is off.
+                 */
+                fun resolve(own: ValidatorConfig?, parent: ValidatorConfig?): de.quati.ogen.plugin.intern.model.config.ValidatorConfig? {
+                    val config = own ?: parent ?: return null
+                    val ownParent = parent.takeIf { own != null }
+                    if (!config.pick(ownParent) { enabledSetting }) return null
+                    return de.quati.ogen.plugin.intern.model.config.ValidatorConfig(
+                        recommendations = config.pick(ownParent) { recommendationsSetting },
+                        failOnWarnings = config.pick(ownParent) { failOnWarningsSetting },
+                        parameterFormat = config.parameterFormat.resolve(ownParent?.parameterFormat),
+                        tagFormat = config.pick(ownParent) { tagFormatSetting },
+                        operationIdFormat = config.pick(ownParent) { operationIdFormatSetting },
+                        propertyNameFormat = config.pick(ownParent) { propertyNameFormatSetting },
+                        schemaNameFormat = config.pick(ownParent) { schemaNameFormatSetting },
+                        pathSegmentFormat = config.pick(ownParent) { pathSegmentFormatSetting },
+                        stringEnumFormat = config.pick(ownParent) { stringEnumFormatSetting },
+                        rules = ownParent?.rules?.severities.orEmpty() + config.rules.severities,
+                    )
+                }
+            }
+        }
+
+        /** A setting that knows whether it was set, so that an unset one can be inherited. */
+        private class Setting<T : Any>(val default: () -> T) : ReadWriteProperty<Any, T> {
+            var explicit: T? = null
+                private set
+
+            override fun getValue(thisRef: Any, property: KProperty<*>): T = explicit ?: default()
+            override fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
+                explicit = value
+            }
+        }
+
+        private companion object {
+            /** What this config sets, else what [parent] sets, else the default. */
+            private fun <C : Any, T : Any> C.pick(parent: C?, setting: C.() -> Setting<T>): T =
+                setting().explicit ?: parent?.setting()?.explicit ?: setting().default()
         }
     }
 

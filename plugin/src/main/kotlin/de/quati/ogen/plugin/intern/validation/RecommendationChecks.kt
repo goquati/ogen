@@ -2,18 +2,24 @@ package de.quati.ogen.plugin.intern.validation
 
 import de.quati.ogen.plugin.intern.oas.model.Schema
 import de.quati.ogen.plugin.intern.parsing.schemasReachedFromPaths
+import kotlinx.serialization.json.JsonPrimitive
 
 /*
  * Checks that replace rules of openapi-generator's OpenApiEvaluator, which the validator used before.
  */
 
+/** The extension that marks a component schema as used on purpose, though no operation refers to it. */
+internal const val KEEP_EXTENSION = "x-ogen-keep"
+
 /**
  * Component schemas no operation uses: not reached from any path, directly or through other schemas, and no
- * subtype (`allOf` member) of a schema that is.
+ * subtype (`allOf` member) of a schema that is. A schema with `x-ogen-keep: true` counts as used, and so does what
+ * it refers to.
  */
 internal fun unusedSchemaWarnings(spec: ValidatedSpec): List<String> {
     val schemas = spec.api.components?.schemas.orEmpty()
-    val used = spec.api.schemasReachedFromPaths().toMutableSet()
+    val kept = schemas.filterValues { (it as? Schema.Obj)?.extensions?.get(KEEP_EXTENSION) == JsonPrimitive(true) }
+    val used = (spec.api.schemasReachedFromPaths(roots = kept.values) + kept.keys).toMutableSet()
     // A schema that extends a used one through `allOf` is one of its subtypes, and used with it.
     do {
         val subtypes = schemas.filterKeys { it !in used }.filterValues { schema ->

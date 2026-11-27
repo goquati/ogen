@@ -78,12 +78,12 @@ internal fun OpenApi.parse(sourceVersion: OasVersion, config: SpecConfig): Spec 
 
 /**
  * The component schemas the paths refer to, directly or through other schemas, parameters, bodies, responses,
- * headers or media types: those swagger-parser's 3.1 dereferencer walked.
+ * headers or media types: those swagger-parser's 3.1 dereferencer walked. With [roots], also those these schemas refer to.
  */
-internal fun OpenApi.schemasReachedFromPaths(): Set<String> {
+internal fun OpenApi.schemasReachedFromPaths(roots: Collection<Schema> = emptyList()): Set<String> {
     val all = components
     val reached = mutableSetOf<String>()
-    val queue = ArrayDeque<Schema>()
+    val queue = ArrayDeque(roots)
     val seenComponents = mutableSetOf<String>()
     fun <T> RefOr<T>.follow(prefix: String, map: Map<String, RefOr<T>>?): T? {
         var current = this

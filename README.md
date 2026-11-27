@@ -56,12 +56,16 @@ ogen {
     utilPackageName("com.example.api.gen.util")
     add(packageName = "com.example.api.gen") {
         specFile("$projectDir/specs/api.yaml")
-        // Optional: Validate the spec; without this block, no validation runs
+        // Optional: Validate the spec; without this block (here or in `ogen {}`), no validation runs
         validator {
             failOnWarnings = true
             // Enforce naming conventions
             propertyNameFormat = NameConvention.CamelCase
             schemaNameFormat = NameConvention.PascalCase
+            // Change the severity of single checks
+            rules {
+                unusedSchemas = Severity.Off
+            }
         }
 
         // Required: Generate models
@@ -113,13 +117,48 @@ ogen {
 - **Operation IDs**: for operations without an `operationId`, `operationIdGenerator { info -> ... }` derives one
   from an `EndpointInfo` (`tag`, `path`, `relativePath`, `method`). If it returns `null` or isn't set, the name is
   derived from the path and method.
-- **Validation rules**: besides `failOnWarnings` (default `false`) and `recommendations` (default `true`), the
+- **Validator settings**: besides `failOnWarnings` (default `false`) and `recommendations` (default `true`), the
   `validator` block sets naming conventions for `schemaNameFormat` (default `PascalCase`), `propertyNameFormat`,
   `tagFormat` and `operationIdFormat` (default `CamelCase`), `pathSegmentFormat` (default `KebabCase`),
   `stringEnumFormat` (default `Any`) and, via `parameterFormat { path; query; header; cookie }`, parameter names.
   Besides the predefined conventions, `NameConvention.RegexFormat("...")` and `NameConvention.Custom { name -> ... }`
   define custom ones. The conventions apply to every schema and parameter the generator sees, inline request and
   response schemas, composition members and path-level parameters included.
+- **Settings for every spec**: a `validator` block in `ogen {}` validates every spec with its settings, also those
+  without a `validator` block of their own. A spec's `validator` block starts from these settings and changes only
+  what it sets, also inside `parameterFormat {}` and `rules {}`; `validator { enabled = false }` turns validation off
+  for one spec (it replaces `validator(disable = true)`, which is deprecated). Without a `validator` block in
+  `ogen {}`, only specs with their own are validated.
+
+  ```kotlin
+  ogen {
+      validator {                                       // applies to every spec below
+          tagFormat = NameConvention.PascalCase
+          rules { ambiguousPaths = Severity.Error }
+      }
+      add(packageName = "com.example.portal") {
+          specFile("$rootDir/spec/portal.yaml")          // validated with the settings above
+          model {}
+      }
+      add(packageName = "com.example.thirdparty") {
+          specFile("$projectDir/oas/thirdparty.yaml")
+          validator { tagFormat = NameConvention.Any }   // overrides only what it sets
+          model {}
+      }
+      add(packageName = "com.example.legacy") {
+          specFile("$projectDir/oas/legacy.yaml")
+          validator { enabled = false }                  // not validated
+          model {}
+      }
+  }
+  ```
+- **Rules**: `rules {}` in a `validator` block sets each check's severity to `Severity.Off`, `Severity.Warning` or
+  `Severity.Error`, with one property per check (`namingConventions`, `enumValues`, `unusedSchemas`,
+  `ambiguousPaths`, `getWithBody`, …; see `ValidatorConfig.Rules`). Each defaults to what the list below says.
+  `recommendations = false` turns off the recommendations that `rules {}` doesn't set. The parser's own errors and
+  warnings have no rule. A component schema that no operation uses on purpose, such as an enum the code uses
+  directly, is kept from the `unusedSchemas` warning by `x-ogen-keep: true` on the schema; the schemas it refers to
+  count as used, too.
 - **What the validator checks**: the parser's errors, the naming conventions and these checks fail the build: broken
   path templates (an empty `{}`, an unclosed `{` or a stray `}`), a query string or fragment in a path key, path
   parameters missing from the path template, paths that differ only in their variables' names, security schemes not
