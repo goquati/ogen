@@ -5,7 +5,6 @@ import kotlin.test.Test
 class TestOperationIdCheck {
     private val missing = listOf(
         "operation '/items:POST' has no operationId",
-        "operation '/items:POST.callbacks.onCreated.{\$request.body#/callbackUrl}:POST' has no operationId",
         "operation '/items/{itemId}:DELETE' has no operationId",
     )
 
@@ -17,6 +16,7 @@ class TestOperationIdCheck {
         )
     }
 
+    // The callback's operation has no operationId either, but ogen generates no method for it.
     // The rule is off by default, so ogen names such operations itself without a finding.
     @Test
     fun testOffByDefault() {

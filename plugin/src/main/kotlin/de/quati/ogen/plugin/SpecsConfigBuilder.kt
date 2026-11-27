@@ -433,7 +433,10 @@ public open class SpecsConfigBuilder {
 
                 // Off by default.
 
-                /** Operations without an `operationId`, for projects that choose every method name in the spec. */
+                /**
+                 * Operations under `paths` without an `operationId`, for projects that choose every method name in the
+                 * spec. [RuleSet.Strict] turns it on, too.
+                 */
                 public var operationIdRequired: Severity by rule(ValidatorRule.OperationIdRequired)
             }
 

@@ -157,7 +157,8 @@ ogen {
   (`namingConventions`, `enumValues`, `unusedSchemas`, `ambiguousPaths`, `getWithBody`, …), or
   `this[ValidatorRule.X] = …`. Each defaults to what the list below says. `rules(set) { … }` first sets the
   severities of a rule set, a `Map<ValidatorRule, Severity>`, then those of the block:
-  `RuleSet.Default` (the defaults), `RuleSet.Strict` (every rule an error, so any finding fails the build) and
+  `RuleSet.Default` (the defaults), `RuleSet.Strict` (every rule an error, also those that are off by default such
+  as `operationIdRequired`, so any finding fails the build) and
   `RuleSet.Lenient` (allows as much as possible, e.g. for specs of third parties: what makes a spec invalid stays an
   error, other problems stay warnings, recommendations, naming conventions among them, are off). Without a set, every rule
   has its default, as with `RuleSet.Default`; in a spec's `validator` block, `rules(RuleSet.Default)` sets the defaults
@@ -183,8 +184,10 @@ ogen {
   next to `oneOf`, a request body on GET or HEAD, header names with `_`, `nullable` in OpenAPI 3.1 and later (which
   has no effect there), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without `minimum` in 3.0,
   operations ogen generates no code for (3.2's `query` and `additionalOperations`), and names that don't match the
-  naming conventions. Off by default: `operationIdRequired`, operations without an `operationId`, for projects that
-  choose every generated method name in the spec instead of letting ogen derive it.
+  naming conventions. Off by default: `operationIdRequired`, operations under `paths` without an `operationId`, for
+  projects that choose every generated method name in the spec instead of letting ogen derive it.
+  Specs that are only generated as models, often with no operation at all, get an `unusedSchemas` warning for every
+  schema; such projects set `rules { unusedSchemas = Severity.Off }`.
 
 ### Spring Boot Security Context
 

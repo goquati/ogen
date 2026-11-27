@@ -78,7 +78,9 @@ context(s: ParserContext)
 private fun parse(path: String, data: PathItem): List<Endpoint> {
     return data.operations().map { (method, operation) ->
         val tag = operation.parseTag()
+        // A blank operationId counts as none, as for the validator's operationIdRequired.
         val operationName = operation.operationId
+            ?.takeIf { it.isNotBlank() }
             ?.let(OperationName::parse)
             ?: s.generateOperationId(path = path, method = method, tag = tag)
             ?: OperationName.parsePath(path = path, method = method)

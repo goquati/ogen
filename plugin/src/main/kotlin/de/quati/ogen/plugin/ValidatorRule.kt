@@ -100,7 +100,7 @@ public object RuleSet {
     /** Every rule with its default severity. */
     public val Default: Map<ValidatorRule, Severity> = ValidatorRule.entries.associateWith { it.default }
 
-    /** Every rule an error: any finding fails the build. */
+    /** Every rule an error, also those that are off by default, such as `operationIdRequired`: any finding fails the build. */
     public val Strict: Map<ValidatorRule, Severity> = ValidatorRule.entries.associateWith { Severity.Error }
 
     /**
