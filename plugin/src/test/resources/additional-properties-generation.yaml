@@ -1,0 +1,32 @@
+openapi: 3.1.0
+info: {title: additionalProperties generation, version: '1'}
+paths:
+  /upload:
+    post:
+      operationId: upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: {type: string, format: binary}
+              additionalProperties: {type: string}
+      responses: {'204': {description: ok}}
+  /clash:
+    post:
+      operationId: clash
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Clash'}
+      responses: {'204': {description: ok}}
+components:
+  schemas:
+    # Without a schema postfix, the nested class of `serializer` is named like the serializer object.
+    Clash:
+      type: object
+      properties:
+        serializer: {type: object, properties: {a: {type: string}}}
+      additionalProperties: true

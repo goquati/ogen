@@ -186,6 +186,8 @@ internal data class Endpoint(
                     if (it is Component.Schema.Ref) c.allSchemas[it.resolveAlias().name] else it
                 }
                 val obj = schema as? Component.Schema.Obj ?: return emptyList()
+                // the parts beyond the properties have no parameter, so the body is passed whole
+                if (obj.additionalProperties != null) return emptyList()
                 return obj.properties.map { (name, propertySchema) ->
                     Part(name = name, schema = propertySchema, required = name in obj.required)
                 }

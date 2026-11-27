@@ -463,6 +463,7 @@ components:
       oneOf:
         - $ref: '#/components/schemas/OneOfExtras1'
         - $ref: '#/components/schemas/OneOfExtras2'
+        - $ref: '#/components/schemas/OneOfExtras3'
       discriminator:
         propertyName: objectType
     OneOfExtras1:
@@ -484,6 +485,23 @@ components:
         objectType:
           type: string
       additionalProperties: true
+    OneOfExtras3:
+      description: Variant that doesn't declare the discriminator.
+      type: object
+      properties:
+        foo:
+          type: string
+      additionalProperties:
+        type: integer
+
+    RecursiveExtras:
+      description: Object whose additional properties are of its own type.
+      type: object
+      properties:
+        name:
+          type: string
+      additionalProperties:
+        $ref: '#/components/schemas/RecursiveExtras'
 
     ArrayOfUnions:
       description: Array whose items are a union type.

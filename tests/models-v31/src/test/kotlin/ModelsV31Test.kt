@@ -1,3 +1,5 @@
+import de.quati.ogen.oas.schemas.gen.model.RecursiveExtrasDto
+import de.quati.ogen.oas.schemas.gen.model.OneOfExtras3Dto
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.SerializationException
 import de.quati.ogen.oas.schemas.gen.model.OneOfExtrasDto
@@ -416,6 +418,25 @@ class ModelsV31Test {
             .test(expectedString = """{"objectType":"OneOfExtras2","n":"x"}""")
         json.decodeFromString<OneOfExtrasDto>("""{"n":2,"objectType":"OneOfExtras1"}""") shouldBe
             OneOfExtras1Dto(additionalProperties = mapOf("n" to 2))
+        // The discriminator is no additional property, also when the variant doesn't declare it.
+        (OneOfExtras3Dto(foo = "f".toOption(), additionalProperties = mapOf("n" to 1)) as OneOfExtrasDto)
+            .test(expectedString = """{"objectType":"OneOfExtras3","foo":"f","n":1}""")
+    }
+
+    @Test
+    fun `test additional properties of the class itself`() {
+        RecursiveExtrasDto(
+            name = "root".toOption(),
+            additionalProperties = mapOf("child" to RecursiveExtrasDto(name = "child".toOption())),
+        ).test(expectedString = """{"name":"root","child":{"name":"child"}}""")
+    }
+
+    @Test
+    fun `test class with additional properties from no object`() {
+        for (input in listOf("\"abc\"", "[]", "1", "null"))
+            assertFailsWith<SerializationException>(input) {
+                json.decodeFromString<AdditionalPropertiesObjectDto>(input)
+            }
     }
 
     @Test

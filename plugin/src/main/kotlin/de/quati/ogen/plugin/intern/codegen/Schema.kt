@@ -20,6 +20,7 @@ import de.quati.kotlin.util.poet.dsl.primaryConstructor
 import de.quati.kotlin.util.poet.toCamelCase
 import de.quati.kotlin.util.poet.toSnakeCase
 import de.quati.ogen.plugin.intern.model.Component
+import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.ElementDiscriminatorInfo
 import de.quati.ogen.plugin.intern.model.Type
 
@@ -226,7 +227,7 @@ private fun Component.Schema.Value.generateValueClassTypeSpec(): TypeSpec = buil
         discInfo.interfaces.forEach { addSuperinterface(it.name.typename) }
     }
     val valueSerializer = type.getSerializerTypeName(register = true)?.let { innerSerializer ->
-        val serializerName = "Serializer"
+        val serializerName = this@generateValueClassTypeSpec.name.serializerObjectName()
         val serializerTypeSpec = buildObject(serializerName) {
             addSuperinterface(
                 Poet.kSerializer.parameterizedBy(this@generateValueClassTypeSpec.name.typename),
@@ -402,7 +403,7 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
                 }
             }
             this@generateDataClassTypeSpec.additionalProperties?.let { valueSchema ->
-                addAdditionalProperties(this@generateDataClassTypeSpec, this@apply, valueSchema)
+                addAdditionalProperties(this@generateDataClassTypeSpec, this@apply, valueSchema, discInfo)
             }
         }
         c.childSchemas[name]?.forEach { childSchema -> // TODO recursive
@@ -444,6 +445,7 @@ private fun FunSpec.Builder.addAdditionalProperties(
     obj: Component.Schema.Obj,
     type: TypeSpec.Builder,
     valueSchema: Component.Schema.Inline,
+    discInfo: ElementDiscriminatorInfo?,
 ) {
     val className = obj.name.typename
     val propName = additionalPropertiesName(obj)
@@ -459,15 +461,17 @@ private fun FunSpec.Builder.addAdditionalProperties(
             addAnnotations(mapSchema.validationAnnotations(nullable = false, inContainer = false).forModelField())
     }
 
-    val serializerName = "Serializer"
-    val knownKeys = obj.properties.keys.map { CodeBlock.of("%S", it) }.joinToCode(", ")
+    val serializerName = obj.name.serializerObjectName()
+    // the discriminator is known also when the variant doesn't declare it
+    val knownKeys = (obj.properties.keys + listOfNotNull(discInfo?.discriminatorName))
+        .map { CodeBlock.of("%S", it) }.joinToCode(", ")
     type.addType(buildObject(serializerName) {
         addSuperinterface(
             Poet.kSerializer.parameterizedBy(className),
             delegate = CodeBlock.builder()
                 .add("%T(\n", Poet.Lib.Core.additionalPropertiesSerializer).indent()
                 .add("inner = %T.generatedSerializer(),\n", className)
-                .add("valueSerializer = %L,\n", mapType.valueType.serializerCreateCode())
+                .add("valueSerializer = { %L },\n", mapType.valueType.serializerCreateCode())
                 .add("knownKeys = setOf(%L),\n", knownKeys)
                 .add("get = %T::%N,\n", className, propName)
                 .add("set = { value, additional -> value.copy(%N = additional) },\n", propName)
@@ -478,4 +482,11 @@ private fun FunSpec.Builder.addAdditionalProperties(
     type.addAnnotation(Poet.serializable(className.nestedClass(serializerName)))
     type.addAnnotation(Poet.keepGeneratedSerializer)
     type.addAnnotation(Poet.optIn(Poet.experimentalSerializationApi))
+}
+
+/** The name of the serializer object of the class of this schema: `Serializer`, unless a nested class has that name. */
+context(c: CodeGenContext)
+private fun ComponentName.Schema.serializerObjectName(): String {
+    val nested = c.childSchemas[this].orEmpty().map { it.name.prettyClassName }.toSet()
+    return generateSequence("Serializer") { "${it}_" }.first { it !in nested }
 }
