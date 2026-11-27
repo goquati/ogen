@@ -69,12 +69,11 @@ jobs:
             nodejs
             yarn
 
-      # Keep the excluded tasks in sync with the tasks of the tests-native job: a native test task missing in
+      # Keep the excluded task in sync with the tasks of the tests-native job: a native test task missing in
       # both lists runs nowhere.
       - name: Check the test projects (without Kotlin/Native)
         run: >-
           cd ./tests && ./gradlew check
-          -x :models-kmp:iosSimulatorArm64Test
           -x :models-kmp:macosArm64Test
 
       - name: Upload test reports
@@ -108,13 +107,15 @@ jobs:
           key: konan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tests/gradle/libs.versions.toml', 'lib/gradle/libs.versions.toml') }}
           restore-keys: konan-${{ runner.os }}-${{ runner.arch }}-
 
-      # --no-parallel: the two test binaries would otherwise link at the same time in the one Gradle daemon,
-      # which already needs a raised Metaspace for a single one (see tests/gradle.properties).
+      # The tests run for macOS only: the generated code is common code, and an iOS test run needs a simulator,
+      # which takes minutes to boot. iOS is still compiled.
+      # --no-parallel: the Kotlin/Native compilations would otherwise run at the same time in the one Gradle
+      # daemon, which already needs a raised Metaspace for a single one (see tests/gradle.properties).
       - name: Check the test projects (Kotlin/Native)
         run: >-
           cd ./tests && ./gradlew --no-parallel
-          :models-kmp:iosSimulatorArm64Test
           :models-kmp:macosArm64Test
+          :models-kmp:compileKotlinIosArm64
 
       - name: Upload test reports
         if: ${{ failure() }}
