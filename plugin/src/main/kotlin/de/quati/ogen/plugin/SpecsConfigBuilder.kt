@@ -338,9 +338,6 @@ public open class SpecsConfigBuilder {
                     }
                 }
 
-                /** What the parser warns about; its errors always fail the build. A warning by default. */
-                public var parserWarnings: Severity by rule(ValidatorRule.ParserWarnings)
-
                 // Errors by default.
 
                 /** Names that don't match the name formats of `validator {}`. */

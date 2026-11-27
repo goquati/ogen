@@ -46,12 +46,8 @@ public enum class ValidatorRule(
      * whose `$ref` doesn't resolve. The others run on any spec the parser could read.
      */
     internal val needsValidSpec: Boolean,
-    /** The check; null for [ParserWarnings], which the parser reports. */
-    internal val check: ((ValidatedSpec, ValidatorConfig) -> List<String>)?,
+    internal val check: (ValidatedSpec, ValidatorConfig) -> List<String>,
 ) {
-    /** What the parser warns about. The parser's errors always fail the build. */
-    ParserWarnings(Severity.Warning, recommendation = false, needsValidSpec = false, check = null),
-
     NamingConventions(Severity.Error, recommendation = false, needsValidSpec = true, ::namingConventionErrors),
     VersionRequirements(Severity.Error, ::versionRequirementErrors, needsValidSpec = true),
     BrokenPathTemplates(Severity.Error, ::brokenPathTemplateErrors, needsValidSpec = true),

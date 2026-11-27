@@ -24,8 +24,8 @@ internal class Validator(
     companion object {
         /**
          * Validates a spec. The parser's errors (a spec it cannot read, unknown fields, wrong types, unresolvable
-         * references) fail validation; its warnings are the rule [ValidatorRule.ParserWarnings]. Only a spec the
-         * parser read is checked by the other rules, and those that need a valid spec only one it found no errors in.
+         * references) fail validation; its warnings are reported. Only a spec the parser read is checked by the rules,
+         * and those that need a valid spec only one it found no errors in.
          * Each rule reports with the severity the validator config gives it: errors fail the build, warnings don't.
          */
         fun validate(
@@ -40,17 +40,13 @@ internal class Validator(
             val result = config.oasParseResult
             val spec = result.openApi?.let { ValidatedSpec(it, result.sourceVersion!!, result.bundle) }
             val parserFailed = spec == null || result.errors.isNotEmpty()
-            val issues = ValidatorRule.entries
-                .map { it to validatorConfig.severity(it) }
-                .filter { (rule, severity) -> severity != Severity.Off && !(parserFailed && rule.needsValidSpec) }
-                .flatMap { (rule, severity) ->
-                    val found = when (val check = rule.check) {
-                        null -> result.warnings.map { it.toString() }
-                        else -> spec?.let { check(it, validatorConfig) }.orEmpty()
-                    }
-                    found.map { severity to it }
-                }
-            val warnings = issues.of(Severity.Warning)
+            val issues = spec?.let { s ->
+                ValidatorRule.entries
+                    .map { it to validatorConfig.severity(it) }
+                    .filter { (rule, severity) -> severity != Severity.Off && !(parserFailed && rule.needsValidSpec) }
+                    .flatMap { (rule, severity) -> rule.check(s, validatorConfig).map { severity to it } }
+            }.orEmpty()
+            val warnings = result.warnings.map { it.toString() } + issues.of(Severity.Warning)
             val errors = result.errors.map { it.toString() } + issues.of(Severity.Error)
 
             if (warnings.isNotEmpty()) {

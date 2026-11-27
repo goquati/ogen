@@ -152,7 +152,7 @@ ogen {
   ```
 - **Rules**: `rules {}` in a `validator` block sets each rule's severity: `Severity.Error` fails the build,
   `Severity.Warning` is only reported, `Severity.Off` doesn't run the check. There is one property per rule
-  (`parserWarnings`, `namingConventions`, `enumValues`, `unusedSchemas`, `ambiguousPaths`, `getWithBody`, …), or
+  (`namingConventions`, `enumValues`, `unusedSchemas`, `ambiguousPaths`, `getWithBody`, …), or
   `this[ValidatorRule.X] = …`. Each defaults to what the list below says. `rules(set) { … }` first sets the
   severities of a rule set, a `Map<ValidatorRule, Severity>`, then those of the block:
   `RuleSet.Default` (the defaults), `RuleSet.Strict` (every rule an error, so any finding fails the build) and
@@ -178,7 +178,7 @@ ogen {
   keywords that apply to none of the schema's declared types, such as `maxLength` on an integer, in OpenAPI 3.1
   `maximum` next to `exclusiveMaximum` or `minimum` next to `exclusiveMinimum`, where only the tighter bound has an
   effect, and ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and
-  `/books/{id}`), and what the parser warns about. Recommendations are warnings too, and `RuleSet.Lenient` turns them off: `properties`
+  `/books/{id}`). Recommendations are warnings too, and `RuleSet.Lenient` turns them off: `properties`
   next to `oneOf`, a request body on GET or HEAD, header names with `_`, `nullable` in OpenAPI 3.1 and later (which
   has no effect there), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without `minimum` in 3.0,
   and operations ogen generates no code for (3.2's `query` and `additionalOperations`).

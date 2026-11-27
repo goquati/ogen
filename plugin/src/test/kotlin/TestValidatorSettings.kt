@@ -156,9 +156,9 @@ class TestValidatorSettings {
     @Test
     fun `rules can be set by enum, too`() {
         val config = assertNotNull(
-            resolved { validator { rules { this[ValidatorRule.ParserWarnings] = Severity.Error } }; spec() }.single()
+            resolved { validator { rules { this[ValidatorRule.UnusedSchemas] = Severity.Error } }; spec() }.single()
         )
-        assertEquals(Severity.Error, config.severity(ValidatorRule.ParserWarnings))
+        assertEquals(Severity.Error, config.severity(ValidatorRule.UnusedSchemas))
     }
 
     @Test
@@ -167,7 +167,7 @@ class TestValidatorSettings {
         assertEquals(setOf(Severity.Error), RuleSet.Strict.values.toSet())
         assertEquals(ValidatorRule.entries.toSet(), RuleSet.Lenient.keys)
         assertEquals(Severity.Error, RuleSet.Lenient[ValidatorRule.EnumValues])
-        assertEquals(Severity.Warning, RuleSet.Lenient[ValidatorRule.ParserWarnings])
+        assertEquals(Severity.Warning, RuleSet.Lenient[ValidatorRule.UnusedSchemas])
     }
 
     // validator-several-errors has three errors (path parameter, enum value, required property) and a trailing slash.
