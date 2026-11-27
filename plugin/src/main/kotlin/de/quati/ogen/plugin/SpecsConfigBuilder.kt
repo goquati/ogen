@@ -116,14 +116,6 @@ public open class SpecsConfigBuilder {
             )
         }
 
-        @Deprecated(
-            "Use validator { enabled = false }; a bare validator() turns validation off, too.",
-            ReplaceWith("validator { enabled = false }"),
-        )
-        public fun validator(disable: Boolean = true): SpecConfingBuilder = apply {
-            if (disable) validator { enabled = false }
-        }
-
         /**
          * Validates this spec. The settings start from those of `validator {}` in `ogen {}`, if there is one; this
          * block changes only what it sets.

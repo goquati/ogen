@@ -119,13 +119,6 @@ class TestValidatorSettings {
         assertNotNull(configs[1])
     }
 
-    @Suppress("DEPRECATION")
-    @Test
-    fun `the deprecated validator() still turns validation off`() {
-        assertEquals(listOf(null), resolved { validator {}; spec { validator() } })
-        assertEquals(listOf(null), resolved { spec { validator {}; validator(disable = true) } })
-    }
-
     @Test
     fun `rules are inherited and overridden rule by rule`() {
         val config = assertNotNull(

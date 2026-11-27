@@ -125,7 +125,7 @@ ogen {
 - **Settings for every spec**: a `validator` block in `ogen {}` validates every spec with its settings, also those
   without a `validator` block of their own. A spec's `validator` block starts from these settings and changes only
   what it sets, also inside `parameterFormat {}` and `rules {}`; `validator { enabled = false }` turns validation off
-  for one spec (it replaces `validator(disable = true)`, which is deprecated). Without a `validator` block in
+  for one spec (it replaces `validator(disable = true)`, which is removed). Without a `validator` block in
   `ogen {}`, only specs with their own are validated.
 
   ```kotlin
