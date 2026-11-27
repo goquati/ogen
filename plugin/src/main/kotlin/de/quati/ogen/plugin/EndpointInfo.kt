@@ -19,7 +19,8 @@ public data class EndpointInfo(
         DELETE,
         HEAD,
         OPTIONS,
-        TRACE;
+        TRACE,
+        QUERY;
 
         internal companion object {
             internal fun of(method: HttpMethod) = when (method) {
@@ -31,6 +32,7 @@ public data class EndpointInfo(
                 HttpMethod.HEAD -> HEAD
                 HttpMethod.OPTIONS -> OPTIONS
                 HttpMethod.TRACE -> TRACE
+                HttpMethod.QUERY -> QUERY
             }
         }
     }

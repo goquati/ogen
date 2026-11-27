@@ -5,6 +5,15 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.web.server.SecurityWebFilterChain
+import org.springframework.security.web.server.firewall.StrictServerWebExchangeFirewall
+import org.springframework.http.HttpMethod
+import org.springframework.http.HttpMethod.DELETE
+import org.springframework.http.HttpMethod.GET
+import org.springframework.http.HttpMethod.HEAD
+import org.springframework.http.HttpMethod.OPTIONS
+import org.springframework.http.HttpMethod.PATCH
+import org.springframework.http.HttpMethod.POST
+import org.springframework.http.HttpMethod.PUT
 import org.springframework.security.core.userdetails.MapReactiveUserDetailsService
 import org.springframework.security.core.userdetails.User
 import org.springframework.web.reactive.config.WebFluxConfigurer
@@ -44,4 +53,12 @@ class SecurityConfig {
         .httpBasic { }
         .addFilterAt(AuthContext.WebFilter, SecurityWebFiltersOrder.AUTHORIZATION)
         .build()
+
+    /** Spring Security's firewall rejects methods other than the common ones; QUERY (OpenAPI 3.2) is allowed too. */
+    @Bean
+    fun serverWebExchangeFirewall() = StrictServerWebExchangeFirewall().apply {
+        setAllowedHttpMethods(
+            listOf(GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS, HttpMethod.QUERY)
+        )
+    }
 }

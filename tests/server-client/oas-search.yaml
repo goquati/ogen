@@ -1,0 +1,50 @@
+openapi: 3.2.0
+info:
+  title: search spec
+  description: An OpenAPI 3.2 spec with a QUERY operation, a safe request with a body.
+  version: 1.0.0
+tags:
+  - name: search
+paths:
+  /api/v1/public/search:
+    query:
+      tags:
+        - search
+      summary: Search users
+      description: Searches users by a term sent in the request body.
+      operationId: searchUsers
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+      responses:
+        '200':
+          description: "the names of the matching users"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResult"
+components:
+  schemas:
+    SearchRequest:
+      type: object
+      required:
+        - term
+      properties:
+        term:
+          type: string
+        limit:
+          type: integer
+          format: int32
+    SearchResult:
+      type: object
+      required:
+        - names
+      properties:
+        names:
+          type: array
+          items:
+            type: string

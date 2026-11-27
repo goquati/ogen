@@ -1,5 +1,6 @@
 package de.quati.ogen.plugin.intern.oas.serial
 
+import de.quati.ogen.plugin.intern.oas.OasVersion
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
@@ -48,6 +49,14 @@ internal object OasSerialNames {
 @kotlinx.serialization.SerialInfo
 @Target(AnnotationTarget.PROPERTY)
 internal annotation class OasRequired
+
+/**
+ * A field the specification added in [version]. The model has it for every version, as documents are read as the
+ * newest; in a spec of an older version, the structure check reports it as unknown and decoding leaves it out.
+ */
+@kotlinx.serialization.SerialInfo
+@Target(AnnotationTarget.PROPERTY)
+internal annotation class OasSince(val version: OasVersion)
 
 /** An object that may carry specification extensions (`x-*`). */
 internal interface Extensible {

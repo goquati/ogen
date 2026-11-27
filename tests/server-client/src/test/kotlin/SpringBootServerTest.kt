@@ -19,6 +19,26 @@ class SpringBootServerTest {
     private val client by lazy { WebTestClient.bindToServer().baseUrl("http://localhost:$port").build() }
 
     @Test
+    fun `test QUERY method with a request body`() {
+        val op = Operation(HttpMethod.QUERY, "/api/v1/public/search")
+        client.doRequest(
+            op = op, user = null, body = mapOf("term" to "deo"),
+            expectedStatus = 200,
+        )
+        client.method(HttpMethod.QUERY).uri("/api/v1/public/search")
+            .header("Content-Type", "application/json")
+            .bodyValue("""{"term":"j","limit":1}""")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody(String::class.java).isEqualTo("""{"names":["John Doe"]}""")
+        // The method is QUERY only: POST is not mapped.
+        client.doRequest(
+            op = Operation(HttpMethod.POST, "/api/v1/public/search"), user = null, body = mapOf("term" to "deo"),
+            expectedStatus = 405,
+        )
+    }
+
+    @Test
     fun `test getUsers`() {
         val op = Operation(HttpMethod.GET, "/api/v1/users")
         val expectedBody = BodyData(

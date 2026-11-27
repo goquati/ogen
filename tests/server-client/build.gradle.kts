@@ -82,6 +82,14 @@ ogen {
         }
         clientKtor {}
     }
+    // OpenAPI 3.2: the QUERY method (#119).
+    add(packageName = "$group.gen.search") {
+        specFile("$projectDir/oas-search.yaml")
+        validator { rules(RuleSet.Strict) }
+        model {}
+        serverSpringV4 {}
+        clientKtor {}
+    }
 }
 
 tasks.test {

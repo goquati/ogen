@@ -17,7 +17,7 @@ internal fun Paths.parse() = Spec.Endpoints(
     paths = pathItems.flatMap { (path, pathItem) -> parse(path, pathItem) }
 )
 
-/** The operations code is generated for, in swagger-parser's order (`readOperationsMap`). */
+/** The operations code is generated for, in swagger-parser's order (`readOperationsMap`), then 3.2's `query`. */
 internal fun PathItem.operations(): List<Pair<HttpMethod, Operation>> = listOfNotNull(
     get?.let { HttpMethod.GET to it },
     put?.let { HttpMethod.PUT to it },
@@ -27,6 +27,7 @@ internal fun PathItem.operations(): List<Pair<HttpMethod, Operation>> = listOfNo
     head?.let { HttpMethod.HEAD to it },
     options?.let { HttpMethod.OPTIONS to it },
     trace?.let { HttpMethod.TRACE to it },
+    query?.let { HttpMethod.QUERY to it },
 )
 
 /**

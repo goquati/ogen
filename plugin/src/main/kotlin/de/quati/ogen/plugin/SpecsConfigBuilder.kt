@@ -477,7 +477,7 @@ public open class SpecsConfigBuilder {
                 /** `exclusiveMinimum: true` without `minimum`, or `exclusiveMaximum: true` without `maximum`, in 3.0. */
                 public var exclusiveFlagWithoutBound: Severity by rule(ValidatorRule.ExclusiveFlagWithoutBound)
 
-                /** Operations ogen generates no code for: 3.2's `query` method and `additionalOperations`. */
+                /** Operations ogen generates no code for: 3.2's `additionalOperations`. */
                 public var unsupportedOperations: Severity by rule(ValidatorRule.UnsupportedOperations)
 
                 /** `properties` next to `oneOf`. */
