@@ -15,6 +15,8 @@ internal data class SpecConfig(
     val inputConfig: InputConfig,
     val modelConfig: GeneratorConfig.Model,
     val generatorConfigs: List<GeneratorConfig>,
+    /** Whether the models and the Spring controller parameters carry Jakarta Bean Validation annotations. */
+    val beanValidation: Boolean,
     private val resolveValidatorConfig: () -> ValidatorConfig?,
     val operationIdGenerator: ((EndpointInfo) -> String?)?,
 ) {

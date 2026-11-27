@@ -70,12 +70,12 @@ ogen {
         specFile("$projectDir/oas.yaml")
         // Only models, so no operation uses the schemas.
         validator { rules { unusedSchemas = Severity.Off } }
+        beanValidation = true
         model {
             typeMapping(
                 type = "string+date-time", clazz = "kotlin.time.Instant",
             )
             schemaMapping(schema = "UserId", clazz = "$group.UserId")
-            beanValidation = true
         }
     }
 }

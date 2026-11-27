@@ -69,6 +69,10 @@ ogen {
             }
         }
 
+        // Optional: Annotate the models and the Spring controller parameters with Jakarta Bean Validation constraints
+        // (a JVM target needs jakarta.validation-api, the server spring-boot-starter-validation)
+        beanValidation = true
+
         // Required: Generate models
         model {
             // Map OpenAPI types to existing Kotlin/Java classes
@@ -78,8 +82,6 @@ ogen {
             )
             // Map specific schemas to existing classes
             schemaMapping(schema = "UserId", clazz = "com.example.models.UserId")
-            // Optional: Annotate the properties with Jakarta Bean Validation constraints (a JVM target needs jakarta.validation-api)
-            beanValidation = true
         }
 
         // Optional: Generate Spring Boot server interfaces
@@ -90,8 +92,6 @@ ogen {
             contextIfAnySecurity("com.example.api.AuthContext")
             // Optional: Return typed ApiResponse classes instead of ResponseEntity (requires de.quati.ogen:server-spring)
             apiResponse = true
-            // Optional: Validate parameters and request bodies with Jakarta Bean Validation (requires spring-boot-starter-validation)
-            beanValidation = true
         }
 
         // Optional: Generate Ktor Client
@@ -243,11 +243,11 @@ is registered by Spring Boot auto-configuration in reactive web applications. To
 
 ### Bean Validation
 
-`model { beanValidation = true }` annotates the model properties with the Jakarta Bean Validation constraints of their
-schemas, and `serverSpringV4 { beanValidation = true }` the controller parameters; request bodies get `@Valid`.
-Spring then answers invalid requests with `400 Bad Request`. The properties of request bodies are only validated when
-the models carry the annotations, so the generator warns when only the server option is set. If the models are
-generated in another module, set `beanValidation` in its `model` block and in the server module's `model` block.
+`beanValidation = true` in a spec's `add {}` block annotates the model properties with the Jakarta Bean Validation
+constraints of their schemas, and the Spring controller parameters too; request bodies get `@Valid`. Spring then
+answers invalid requests with `400 Bad Request`. Generators without validation, such as `clientKtor`, ignore it. If the
+models are generated in another module (`model { skipGeneration = true }`), set `beanValidation` on the spec in both
+modules.
 
 The annotations are those of Jakarta (`jakarta.validation:jakarta.validation-api`). Models in multiplatform common
 code use those of `de.quati.ogen.core.validation` instead: on the JVM they are the Jakarta annotations, which then

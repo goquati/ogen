@@ -240,13 +240,13 @@ private fun Component.Schema.Value.generateValueClassTypeSpec(): TypeSpec = buil
     }
     addAnnotation(Poet.serializable(valueSerializer))
     val inline = this@generateValueClassTypeSpec.toInline()
-    val typeName = if (!modelBeanValidation) type.poet
+    val typeName = if (!beanValidation) type.poet
     else inline.withElementConstraints(type.poet) { it.forModelType() }
     primaryConstructor {
         addParameter(valueName, typeName)
         addProperty(valueName, typeName) {
             initializer(valueName)
-            if (modelBeanValidation)
+            if (beanValidation)
                 addAnnotations(
                     inline.validationAnnotations(nullable = false, inContainer = false).forModelField()
                 )
@@ -371,7 +371,7 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
                         else
                             Type.NonPrimitiveType.Option(it).nullable(false)
                     }
-                val propTypeName = if (!modelBeanValidation) propType.poet else {
+                val propTypeName = if (!beanValidation) propType.poet else {
                     val valueType = prop.getTypeName(withFlow = false).nullable(prop.isNullableResolved()).poet
                         .let { prop.withElementConstraints(it) { annotations -> annotations.forModelType() } }
                     if (isRequired) valueType else Poet.option.parameterizedBy(valueType)
@@ -382,7 +382,7 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
                 }
                 addProperty(prettyFieldName, propTypeName) {
                     initializer(prettyFieldName)
-                    if (modelBeanValidation)
+                    if (beanValidation)
                         addAnnotations(
                             prop.validationAnnotations(
                                 nullable = prop.isNullableResolved(),

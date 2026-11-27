@@ -9,19 +9,13 @@ import de.quati.ogen.plugin.intern.model.Component
 import de.quati.ogen.plugin.intern.model.ComponentName
 import de.quati.ogen.plugin.intern.model.Constraints
 import de.quati.ogen.plugin.intern.model.Type
-import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 import java.math.BigDecimal
 import java.math.RoundingMode
 
-/** Whether the models of this spec carry Jakarta Bean Validation annotations. */
+/** Whether the models and the Spring controller parameters of this spec carry Jakarta Bean Validation annotations. */
 context(c: CodeGenContext)
-internal val modelBeanValidation: Boolean
-    get() = c.specConfig.modelConfig.beanValidation
-
-/** Whether the Spring controller parameters of this spec carry Jakarta Bean Validation annotations. */
-context(c: CodeGenContext)
-internal val serverBeanValidation: Boolean
-    get() = c.specConfig.generatorConfigs.any { it is GeneratorConfig.ServerSpringV4 && it.beanValidation }
+internal val beanValidation: Boolean
+    get() = c.specConfig.beanValidation
 
 /**
  * The Jakarta Bean Validation annotations that check a value of this schema, without use-site target.

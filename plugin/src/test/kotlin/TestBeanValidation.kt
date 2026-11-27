@@ -1,33 +1,19 @@
 import de.quati.ogen.plugin.SpecsConfigBuilder
 import de.quati.ogen.plugin.intern.tasks.Generator
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.lang.reflect.Proxy
 import java.nio.file.Path
 import kotlin.io.path.readText
 import kotlin.io.path.walk
 import kotlin.test.Test
 import kotlin.test.assertContains
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class TestBeanValidation {
-    private val delegate = LoggerFactory.getLogger(TestBeanValidation::class.java)!!
-    private val warnings = mutableListOf<String>()
-
-    /** Records the warnings, logs everything. */
-    private val logger = Proxy.newProxyInstance(
-        Logger::class.java.classLoader,
-        arrayOf(Logger::class.java),
-    ) { _, method, args ->
-        if (method.name == "warn" && args?.firstOrNull() is String) warnings += args.first() as String
-        method.invoke(delegate, *(args ?: emptyArray()))
-    } as Logger
+    private val logger = LoggerFactory.getLogger(TestBeanValidation::class.java)!!
 
     private fun generate(
         spec: String,
-        modelBeanValidation: Boolean = true,
-        serverBeanValidation: Boolean = true,
+        beanValidation: Boolean = true,
         multiplatform: Boolean = false,
     ): Map<String, String> {
         val group = "de.quati.ogen.test"
@@ -37,20 +23,25 @@ class TestBeanValidation {
                 specFile(TestBeanValidation::class.java.getResource("$spec.yaml")!!.path)
                 // Tests of generation only; some specs, such as keycloak's, have errors the validator reports.
                 validator { enabled = false }
+                this.beanValidation = beanValidation
                 model {
                     typeMapping(type = "number+big-decimal", clazz = "java.math.BigDecimal")
                     typeMapping(type = "string+date-time", clazz = "java.time.OffsetDateTime")
                     typeMapping(type = "integer+unix-time", clazz = "kotlin.Long")
                     typeMapping(type = "string+secret", clazz = "kotlin.String")
-                    beanValidation = modelBeanValidation
                 }
-                serverSpringV4 { beanValidation = serverBeanValidation }
+                serverSpringV4 {}
+                // Another postfix than the server's, so that the file names differ
+                clientKtor { postfix = "Client" }
             }
         }.build()
         return TestGeneration.withTempDirectory(prefix = "test-bean-validation") { dir ->
             Generator(rootOutputDir = dir, logger = logger, multiplatform = multiplatform).generate(configs = configs)
-            dir.walk().filter { it.toString().endsWith(".kt") }
-                .associate { it.fileName.toString() to it.readText() }
+            val files = dir.walk().filter { it.toString().endsWith(".kt") }.toList()
+            // Keyed by file name, so the names of all generators' files must differ
+            files.groupBy { it.fileName.toString() }.filterValues { it.size > 1 }.keys
+                .also { check(it.isEmpty()) { "files with the same name: $it" } }
+            files.associate { it.fileName.toString() to it.readText() }
         }
     }
 
@@ -78,20 +69,16 @@ class TestBeanValidation {
 
     @Test
     fun `no annotations without beanValidation`() {
-        val files = generate("bean-validation-3.1", modelBeanValidation = false, serverBeanValidation = false)
+        val files = generate("bean-validation-3.1", beanValidation = false)
         files.values.forEach { assertFalse(it.contains("validation")) }
     }
 
     @Test
-    fun `model and server flags are independent`() {
-        generate("bean-validation-3.1", serverBeanValidation = false).also {
-            assertContains(it.file("ThingDto.kt"), "@field:Size(max = 4)")
-            assertFalse(it.file("ThingsApi.kt").contains("jakarta.validation"))
-        }
-        generate("bean-validation-3.1", modelBeanValidation = false).also {
-            assertFalse(it.file("ThingDto.kt").contains("jakarta.validation"))
-            assertContains(it.file("ThingsApi.kt"), "@Min(value = 1L) id: Long")
-        }
+    fun `one flag annotates the models and the server, the client ignores it`() {
+        val files = generate("bean-validation-3.1")
+        assertContains(files.file("ThingDto.kt"), "@field:Size(max = 4)")
+        assertContains(files.file("ThingsApi.kt"), "@Min(value = 1L) id: Long")
+        assertFalse(files.getValue("ThingsClient.kt").contains("validation"))
     }
 
     @Test
@@ -140,21 +127,9 @@ class TestBeanValidation {
     }
 
     @Test
-    fun `warning when the server validates bodies whose models have no annotations`() {
-        generate("bean-validation-3.1", modelBeanValidation = false)
-        assertEquals(1, warnings.count { "model { beanValidation = true }" in it })
-
-        warnings.clear()
-        generate("bean-validation-3.1")
-        generate("bean-validation-3.1", serverBeanValidation = false)
-        generate("bean-validation-3.1", modelBeanValidation = false, serverBeanValidation = false)
-        assertEquals(emptyList(), warnings.filter { "beanValidation" in it })
-    }
-
-    @Test
     fun `responses differing only in validation keywords have one type`() {
         listOf(true, false).forEach { enabled ->
-            val api = generate("bean-validation-edge-cases", modelBeanValidation = enabled, serverBeanValidation = enabled)
+            val api = generate("bean-validation-edge-cases", beanValidation = enabled)
                 .file("LeavesApi.kt")
             assertContains(api, "fun getLeaves(): ResponseEntity<Flow<LeafDto>>")
         }
@@ -200,7 +175,7 @@ class TestBeanValidation {
     @Test
     fun `an optional JSON body without a schema stays nullable`() {
         listOf(true, false).forEach { enabled ->
-            val api = generate("bean-validation-edge-cases", modelBeanValidation = enabled, serverBeanValidation = enabled)
+            val api = generate("bean-validation-edge-cases", beanValidation = enabled)
                 .file("RawApi.kt")
             assertContains(api, "fun postRaw(@RequestBody body: Any?)")
         }

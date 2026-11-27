@@ -17,16 +17,21 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
+/**
+ * Marks the blocks of the `ogen {}` DSL, so that a block can't set a property of an enclosing block by accident,
+ * e.g. a removed `model { beanValidation = true }` setting the spec's `beanValidation`.
+ */
+@DslMarker
+public annotation class OgenDsl
+
+@OgenDsl
 public open class SpecsConfigBuilder {
     private val specs = mutableListOf<SpecConfig>()
     private var validator: SpecConfingBuilder.ValidatorConfig? = null
     private var utilPackageName: PackageName? = null
     /** Whether any spec generates Bean Validation annotations, for models or the Spring server. */
     internal val beanValidation: Boolean
-        get() = specs.any { spec ->
-            spec.modelConfig.beanValidation ||
-                spec.generatorConfigs.any { it is GeneratorConfig.ServerSpringV4 && it.beanValidation }
-        }
+        get() = specs.any { it.beanValidation }
 
     internal fun build() = SpecConfigs(
         // The same instances on every call, so that the tasks share each spec's parse result.
@@ -60,6 +65,7 @@ public open class SpecsConfigBuilder {
         utilPackageName = PackageName(packageName)
     }
 
+    @OgenDsl
     public class SpecConfingBuilder(
         public val rootPackageName: String?,
     ) {
@@ -67,6 +73,18 @@ public open class SpecsConfigBuilder {
         private val generatorConfigs = mutableMapOf<KClass<out GeneratorConfig>, GeneratorConfig>()
         private var validatorConfig: ValidatorConfig? = null
         private var operationIdGenerator: ((EndpointInfo) -> String?)? = null
+
+        /**
+         * Annotates the models with the Jakarta Bean Validation constraints of their schemas, and the Spring
+         * controller parameters too, with `@Valid` on request bodies, so Spring answers invalid requests with
+         * `400 Bad Request`. Generators without validation, such as `clientKtor`, ignore it. The models need
+         * `jakarta.validation:jakarta.validation-api` for a JVM target; in multiplatform common code the annotations
+         * of `de.quati.ogen:core` stand for them: on the JVM they are the Jakarta annotations, on other platforms the
+         * compiler drops them. The server needs `spring-boot-starter-validation`. If the models are generated in
+         * another module (`model { skipGeneration = true }`), set it there and here.
+         */
+        public var beanValidation: Boolean = false
+
         private fun addConfig(config: GeneratorConfig) {
             generatorConfigs[config::class] = config
         }
@@ -155,10 +173,12 @@ public open class SpecsConfigBuilder {
                 generatorConfigs = generatorConfigs.values.toList(),
                 resolveValidatorConfig = { ValidatorConfig.resolve(own = validatorConfig, parent = parentValidator()) },
                 modelConfig = modelConfig,
+                beanValidation = beanValidation,
                 operationIdGenerator = operationIdGenerator,
             )
         }
 
+        @OgenDsl
         public class ServerSpringV4Config internal constructor(rootPackageName: String?) {
             public var packageName: String? = rootPackageName?.let { "$it.server" }
             public var postfix: String = "Api"
@@ -170,14 +190,6 @@ public open class SpecsConfigBuilder {
              * Requires the `de.quati.ogen:server-spring` library.
              */
             public var apiResponse: Boolean = false
-
-            /**
-             * Annotates the controller parameters with the Jakarta Bean Validation constraints of their schemas and
-             * request bodies with `@Valid`, so Spring answers invalid requests with `400 Bad Request`. The properties
-             * of the bodies are only checked if the models are generated with `model { beanValidation = true }`.
-             * Requires `spring-boot-starter-validation`.
-             */
-            public var beanValidation: Boolean = false
             private var contextIfAnySecurity: ClassName? = null
 
             public fun contextIfAnySecurity(type: String): ServerSpringV4Config =
@@ -188,12 +200,12 @@ public open class SpecsConfigBuilder {
                 postfix = postfix,
                 addOperationContext = addOperationContext,
                 apiResponse = apiResponse,
-                beanValidation = beanValidation,
                 contextIfAnySecurity = contextIfAnySecurity,
                 skipGeneration = false,
             )
         }
 
+        @OgenDsl
         public class ClientKtorConfig internal constructor(rootPackageName: String?) {
             public var packageName: String? = rootPackageName?.let { "$it.client" }
             public var postfix: String = "Api"
@@ -205,20 +217,13 @@ public open class SpecsConfigBuilder {
             )
         }
 
+        @OgenDsl
         public class ModelConfig internal constructor(rootPackageName: String?) {
             public var packageName: String? = rootPackageName?.let { "$it.model" }
             private val typeMappings = mutableMapOf<TypeWithFormat, Type.NonPrimitiveType.Custom>()
             private val schemaMappings = mutableMapOf<ComponentName.Schema, Type.NonPrimitiveType.Custom>()
             public var skipGeneration: Boolean = false
             public var postfix: String = "Dto"
-
-            /**
-             * Annotates the model properties with the Jakarta Bean Validation constraints of their schemas, which
-             * needs `jakarta.validation:jakarta.validation-api` for a JVM target. In multiplatform common code the
-             * annotations of `de.quati.ogen:core` stand for them: on the JVM they are the Jakarta annotations, on
-             * other platforms the compiler drops them.
-             */
-            public var beanValidation: Boolean = false
 
             public fun typeMapping(
                 type: String,
@@ -248,7 +253,6 @@ public open class SpecsConfigBuilder {
             internal fun build() = GeneratorConfig.Model(
                 packageName = packageName?.let(::PackageName) ?: error("packageName is required for model code"),
                 skipGeneration = skipGeneration,
-                beanValidation = beanValidation,
                 typeMappings = typeMappings,
                 schemaMappings = schemaMappings,
                 postfix = postfix,
@@ -260,6 +264,7 @@ public open class SpecsConfigBuilder {
          * and only what the block sets changes, also inside `naming {}`, its `parameter {}` and `rules {}`. A property
          * reads what this block set, or else the default.
          */
+        @OgenDsl
         public class ValidatorConfig {
             private val enabledSetting = Setting { true }
             private val naming = Naming()
@@ -291,6 +296,7 @@ public open class SpecsConfigBuilder {
              * One naming convention per kind of name. A property reads what this block set, or else the default.
              * The severity of a violation is set by the rule [Rules.namingConventions].
              */
+            @OgenDsl
             public class Naming {
                 private val schemaSetting = Setting<NameConvention> { NameConvention.PascalCase }
                 private val propertySetting = Setting<NameConvention> { NameConvention.CamelCase }
@@ -330,6 +336,7 @@ public open class SpecsConfigBuilder {
                         parameter = parameter.resolve(parent?.parameter),
                     )
 
+                @OgenDsl
                 public class Parameter {
                     private val pathSetting = Setting<NameConvention> { NameConvention.CamelCase }
                     private val querySetting = Setting<NameConvention> { NameConvention.CamelCase }
@@ -357,6 +364,7 @@ public open class SpecsConfigBuilder {
              * One property per rule, set to [Severity.Off], [Severity.Warning] or [Severity.Error]. A property reads
              * what this block set, or else the rule's default.
              */
+            @OgenDsl
             public class Rules {
                 internal val severities = mutableMapOf<ValidatorRule, Severity>()
 
