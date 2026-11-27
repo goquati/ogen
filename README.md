@@ -113,9 +113,9 @@ ogen {
   files and URLs are resolved relative to the file they stand in. The validator reports problems in a spec with
   file and line. Swagger 2.0 is not supported; convert such a spec to OpenAPI 3 first (e.g. with
   [swagger2openapi](https://github.com/Mermade/oas-kit/tree/main/packages/swagger2openapi)).
-- **Operation IDs**: for operations without an `operationId`, `operationIdGenerator { info -> ... }` derives one
-  from an `EndpointInfo` (`tag`, `path`, `relativePath`, `method`). If it returns `null` or isn't set, the name is
-  derived from the path and method.
+- **Operation IDs**: for operations without an `operationId` (an empty one counts as none),
+  `operationIdGenerator { info -> ... }` derives one from an `EndpointInfo` (`tag`, `path`, `relativePath`,
+  `method`). If it returns `null` or an empty name, or isn't set, the name is derived from the path and method.
 - **Validator settings**: besides `rules` (below), the `validator` block sets naming conventions for `schemaNameFormat` (default `PascalCase`), `propertyNameFormat`,
   `tagFormat` and `operationIdFormat` (default `CamelCase`), `pathSegmentFormat` (default `KebabCase`),
   `stringEnumFormat` (default `Any`) and, via `parameterFormat { path; query; header; cookie }`, parameter names.

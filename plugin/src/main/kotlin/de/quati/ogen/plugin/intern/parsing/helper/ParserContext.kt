@@ -130,7 +130,7 @@ internal class ParserContext(
                 method = EndpointInfo.Method.of(method),
                 tag = tag.name,
             )
-        ) ?: return null
+        )?.takeIf { it.isNotBlank() } ?: return null
         return OperationName.parse(name)
     }
 
