@@ -1,8 +1,23 @@
 version: 2
 updates:
   - package-ecosystem: gradle
+    directory: /plugin
+    schedule:
+      interval: weekly
+    # Gradle loads plugins with its embedded kotlin-stdlib; kotlinx-serialization 1.9.x is the
+    # last line that needs only stdlib 2.2 (matches the plugin's apiVersion). Bump it by hand.
+    ignore:
+      - dependency-name: "org.jetbrains.kotlinx:kotlinx-serialization*"
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: gradle
     directories:
-      - /plugin
       - /lib
       - /tests
     schedule:
