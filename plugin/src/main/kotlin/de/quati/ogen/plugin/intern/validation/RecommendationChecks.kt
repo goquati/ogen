@@ -4,7 +4,7 @@ import de.quati.ogen.plugin.intern.oas.model.Schema
 import de.quati.ogen.plugin.intern.parsing.schemasReachedFromPaths
 
 /*
- * Checks that replace rules of openapi-generator's OpenApiEvaluator, which the validator used before (plan, phase 7).
+ * Checks that replace rules of openapi-generator's OpenApiEvaluator, which the validator used before.
  */
 
 /**

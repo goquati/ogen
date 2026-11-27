@@ -108,7 +108,8 @@ ogen {
   or taken from a base spec with `specMerge(path = ..., baseSpec = "$projectDir/specs/base.yaml")`.
 - **Reading specs**: ogen reads OpenAPI 3.0, 3.1 and 3.2 in YAML or JSON with its own parser. `$ref`s to other
   files and URLs are resolved relative to the file they stand in. The validator reports problems in a spec with
-  file and line.
+  file and line. Swagger 2.0 is not supported; convert such a spec to OpenAPI 3 first (e.g. with
+  [swagger2openapi](https://github.com/Mermade/oas-kit/tree/main/packages/swagger2openapi)).
 - **Operation IDs**: for operations without an `operationId`, `operationIdGenerator { info -> ... }` derives one
   from an `EndpointInfo` (`tag`, `path`, `relativePath`, `method`). If it returns `null` or isn't set, the name is
   derived from the path and method.
@@ -127,16 +128,16 @@ ogen {
   contradictory constraints such as `minimum` above `maximum`, and compositions no value can match: `allOf` members
   whose types exclude each other or the schema's own type, or a type that excludes every `oneOf` or `anyOf` member.
   These are warnings: paths with a trailing slash, operations without a 2xx or 3xx response, operation tags missing from
-  the top-level `tags` (when it declares any), `nullable` without a `type` in OpenAPI 3.0, `nullable` in OpenAPI 3.1 and
-  later (which has no effect there), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without
-  `minimum` in 3.0, schemas no operation uses, operations ogen generates no code for (3.2's `query` and
-  `additionalOperations`), `pattern` regexes and
+  the top-level `tags` (when it declares any), `nullable` without a `type` in OpenAPI 3.0, schemas no operation uses,
+  `pattern` regexes and
   `patternProperties` keys that don't compile as Java regexes (OpenAPI's are JavaScript's, which differ slightly),
   keywords that apply to none of the schema's declared types, such as `maxLength` on an integer, in OpenAPI 3.1
   `maximum` next to `exclusiveMaximum` or `minimum` next to `exclusiveMinimum`, where only the tighter bound has an
   effect, and ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and
   `/books/{id}`). Recommendations are warnings too, and `recommendations = false` turns off only those: `properties`
-  next to `oneOf`, a request body on GET or HEAD, and header names with `_`.
+  next to `oneOf`, a request body on GET or HEAD, header names with `_`, `nullable` in OpenAPI 3.1 and later (which
+  has no effect there), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without `minimum` in 3.0,
+  and operations ogen generates no code for (3.2's `query` and `additionalOperations`).
   `failOnWarnings = true` fails the build on any warning.
 
 ### Spring Boot Security Context

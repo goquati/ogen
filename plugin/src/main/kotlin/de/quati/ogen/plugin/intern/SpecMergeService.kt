@@ -79,7 +79,8 @@ private fun InputConfig.Merge.readSpecData(path: Path): SpecData? {
     }
     return SpecData(
         version = version,
-        specRelatedPath = directoryPath.relativize(path).toString(),
+        // With `/` on every OS: the path goes into a `$ref`, which is a URI reference.
+        specRelatedPath = directoryPath.relativize(path).invariantSeparatorsPathString,
         paths = (root["paths"] as? JsonObject)?.keys?.toList() ?: emptyList(),
     )
 }

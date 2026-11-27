@@ -121,18 +121,19 @@ internal class Validator(
             ::ambiguousPathWarnings,
             ::redundantBoundWarnings,
             ::typeKeywordWarnings,
-            ::unsupportedOperationWarnings,
             ::nullableWithoutTypeWarnings,
-            ::exclusiveFlagWithoutBoundWarnings,
-            ::ignoredNextToRefWarnings,
             ::unusedSchemaWarnings,
         )
 
         // Recommendations, with `recommendations` enabled: what may be intended, but often is a mistake.
         // openapi-generator's recommendations, which `recommendations` switched on and off before, and `nullable` in 3.1
         // (its "nullable-deprecated").
+        // The checks the own parser brought are here too until each check gets its own severity (#46).
         private val recommendationChecks: List<(ValidatedSpec) -> List<String>> = listOf(
             ::nullableIn31Warnings,
+            ::ignoredNextToRefWarnings,
+            ::exclusiveFlagWithoutBoundWarnings,
+            ::unsupportedOperationWarnings,
             ::oneOfWithPropertiesWarnings,
             ::getWithBodyWarnings,
             ::headerUnderscoreWarnings,
