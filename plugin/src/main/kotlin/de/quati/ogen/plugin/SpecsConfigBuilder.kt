@@ -17,6 +17,14 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
+/**
+ * Marks the blocks of the `ogen {}` DSL, so that a block can't set a property of an enclosing block by accident,
+ * e.g. a removed `model { beanValidation = true }` setting the spec's `beanValidation`.
+ */
+@DslMarker
+public annotation class OgenDsl
+
+@OgenDsl
 public open class SpecsConfigBuilder {
     private val specs = mutableListOf<SpecConfig>()
     private var validator: SpecConfingBuilder.ValidatorConfig? = null
@@ -57,6 +65,7 @@ public open class SpecsConfigBuilder {
         utilPackageName = PackageName(packageName)
     }
 
+    @OgenDsl
     public class SpecConfingBuilder(
         public val rootPackageName: String?,
     ) {
@@ -169,6 +178,7 @@ public open class SpecsConfigBuilder {
             )
         }
 
+        @OgenDsl
         public class ServerSpringV4Config internal constructor(rootPackageName: String?) {
             public var packageName: String? = rootPackageName?.let { "$it.server" }
             public var postfix: String = "Api"
@@ -195,6 +205,7 @@ public open class SpecsConfigBuilder {
             )
         }
 
+        @OgenDsl
         public class ClientKtorConfig internal constructor(rootPackageName: String?) {
             public var packageName: String? = rootPackageName?.let { "$it.client" }
             public var postfix: String = "Api"
@@ -206,6 +217,7 @@ public open class SpecsConfigBuilder {
             )
         }
 
+        @OgenDsl
         public class ModelConfig internal constructor(rootPackageName: String?) {
             public var packageName: String? = rootPackageName?.let { "$it.model" }
             private val typeMappings = mutableMapOf<TypeWithFormat, Type.NonPrimitiveType.Custom>()
@@ -252,6 +264,7 @@ public open class SpecsConfigBuilder {
          * and only what the block sets changes, also inside `naming {}`, its `parameter {}` and `rules {}`. A property
          * reads what this block set, or else the default.
          */
+        @OgenDsl
         public class ValidatorConfig {
             private val enabledSetting = Setting { true }
             private val naming = Naming()
@@ -283,6 +296,7 @@ public open class SpecsConfigBuilder {
              * One naming convention per kind of name. A property reads what this block set, or else the default.
              * The severity of a violation is set by the rule [Rules.namingConventions].
              */
+            @OgenDsl
             public class Naming {
                 private val schemaSetting = Setting<NameConvention> { NameConvention.PascalCase }
                 private val propertySetting = Setting<NameConvention> { NameConvention.CamelCase }
@@ -322,6 +336,7 @@ public open class SpecsConfigBuilder {
                         parameter = parameter.resolve(parent?.parameter),
                     )
 
+                @OgenDsl
                 public class Parameter {
                     private val pathSetting = Setting<NameConvention> { NameConvention.CamelCase }
                     private val querySetting = Setting<NameConvention> { NameConvention.CamelCase }
@@ -349,6 +364,7 @@ public open class SpecsConfigBuilder {
              * One property per rule, set to [Severity.Off], [Severity.Warning] or [Severity.Error]. A property reads
              * what this block set, or else the rule's default.
              */
+            @OgenDsl
             public class Rules {
                 internal val severities = mutableMapOf<ValidatorRule, Severity>()
 

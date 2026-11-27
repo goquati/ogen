@@ -37,8 +37,11 @@ class TestBeanValidation {
         }.build()
         return TestGeneration.withTempDirectory(prefix = "test-bean-validation") { dir ->
             Generator(rootOutputDir = dir, logger = logger, multiplatform = multiplatform).generate(configs = configs)
-            dir.walk().filter { it.toString().endsWith(".kt") }
-                .associate { it.fileName.toString() to it.readText() }
+            val files = dir.walk().filter { it.toString().endsWith(".kt") }.toList()
+            // Keyed by file name, so the names of all generators' files must differ
+            files.groupBy { it.fileName.toString() }.filterValues { it.size > 1 }.keys
+                .also { check(it.isEmpty()) { "files with the same name: $it" } }
+            files.associate { it.fileName.toString() to it.readText() }
         }
     }
 
