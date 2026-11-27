@@ -1,8 +1,8 @@
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.networknt.schema.JsonSchema
-import com.networknt.schema.JsonSchemaFactory
+import com.networknt.schema.InputFormat
+import com.networknt.schema.Schema
 import com.networknt.schema.SchemaLocation
-import com.networknt.schema.SpecVersion
+import com.networknt.schema.SchemaRegistry
+import com.networknt.schema.SpecificationVersion
 import de.quati.ogen.plugin.intern.oas.Diagnostic
 import de.quati.ogen.plugin.intern.oas.decode.OasDecoder
 import de.quati.ogen.plugin.intern.oas.model.OpenApi
@@ -31,9 +31,9 @@ class TestOasModelSpecs {
     )
     // The strict variant checks schema objects against the OpenAPI 3.2 dialect of JSON Schema 2020-12.
     private val strict32 = "https://spec.openapis.org/oas/3.2/schema-base/2025-09-17"
-    private val factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012) { builder ->
-        builder.schemaMappers { mappers ->
-            mappers.mappings(
+    private val registry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12) { builder ->
+        builder.schemaIdResolvers { resolvers ->
+            resolvers.mappings(
                 (schemaIds.values + strict32 + "https://spec.openapis.org/oas/3.2/dialect/2025-09-17" +
                     "https://spec.openapis.org/oas/3.2/meta/2025-09-17").associateWith { id ->
                     val (version, kind, date) = id.removePrefix("https://spec.openapis.org/oas/").split('/')
@@ -42,14 +42,12 @@ class TestOasModelSpecs {
             )
         }
     }
-    private val schemas = mutableMapOf<String, JsonSchema>()
-    private fun officialSchema(version: String): JsonSchema? {
+    private val schemas = mutableMapOf<String, Schema>()
+    private fun officialSchema(version: String): Schema? {
         val minor = version.split('.').take(2).joinToString(".")
         val id = schemaIds[minor] ?: return null
-        return schemas.getOrPut(minor) { factory.getSchema(SchemaLocation.of(id)) }
+        return schemas.getOrPut(minor) { registry.getSchema(SchemaLocation.of(id)) }
     }
-
-    private val jackson = ObjectMapper()
 
     // Specs ogen accepts on purpose although the official schema does not; a new entry needs a decision.
     private val deliberatelyLenient = mapOf(
@@ -73,18 +71,18 @@ class TestOasModelSpecs {
 
     @Test
     fun `the strict 3_2 schema checks schema objects`() {
-        val strict = factory.getSchema(SchemaLocation.of(strict32))
+        val strict = registry.getSchema(SchemaLocation.of(strict32))
         val document = """{"openapi": "3.2.0", "info": {"title": "t", "version": "1"},
             "components": {"schemas": {"A": {"type": "number", "exclusiveMinimum": true}}}}"""
-        assertTrue(strict.validate(jackson.readTree(document)).isNotEmpty(), "a boolean exclusiveMinimum passes")
-        assertTrue(officialSchema("3.2.0")!!.validate(jackson.readTree(document)).isEmpty(), "the plain schema is loose")
+        assertTrue(strict.validate(document, InputFormat.JSON).isNotEmpty(), "a boolean exclusiveMinimum passes")
+        assertTrue(officialSchema("3.2.0")!!.validate(document, InputFormat.JSON).isEmpty(), "the plain schema is loose")
     }
 
     @Test
     fun `official schemas reject invalid documents`() {
         listOf("3.0.3", "3.1.0", "3.2.0").forEach { version ->
             val document = """{"openapi": "$version", "info": {"title": "t", "version": "1", "titel": "x"}, "paths": {}}"""
-            val errors = officialSchema(version)!!.validate(jackson.readTree(document))
+            val errors = officialSchema(version)!!.validate(document, InputFormat.JSON)
             assertTrue(errors.isNotEmpty(), "the $version schema accepts an unknown field in info")
         }
     }
@@ -98,7 +96,7 @@ class TestOasModelSpecs {
     fun `specs the official schema accepts migrate to valid 3_2, decode without errors and round-trip`() {
         val problems = mutableListOf<String>()
         val lenient = mutableListOf<String>()
-        val latest = factory.getSchema(SchemaLocation.of(strict32))
+        val latest = registry.getSchema(SchemaLocation.of(strict32))
         var checked = 0
         var roundTrips = 0
         for (path in repositorySpecFiles()) {
@@ -108,14 +106,14 @@ class TestOasModelSpecs {
             // Mistakes on purpose, to show that code is still generated from them (TestLenientGeneration).
             if (path.fileName.toString() == "lenient-generation.yaml") continue
             checked++
-            val officialErrors = official.validate(jackson.readTree(raw.toString()))
+            val officialErrors = official.validate(raw.toString(), InputFormat.JSON)
             val loaded = OasLoader().load(path.toAbsolutePath().toUri())
             val root = loaded.root ?: continue.also { problems += "$path: not loaded: ${loaded.diagnostics}" }
             val result = OasDecoder.decode(root.element, OpenApi.serializer(), JsonPointer.ROOT, root::locationOf)
             val errors = (loaded.diagnostics + result.diagnostics).filter { it.severity == Diagnostic.Severity.ERROR }
             if (officialErrors.isEmpty()) {
                 if (errors.isNotEmpty()) problems += "$path: valid for the official schema, but: ${errors.joinToString("; ")}"
-                val migratedErrors = latest.validate(jackson.readTree(root.element.toString()))
+                val migratedErrors = latest.validate(root.element.toString(), InputFormat.JSON)
                 if (migratedErrors.isNotEmpty() && path.fileName.toString() !in invalidSchemaContents)
                     problems += "$path: migrated spec is not valid 3.2: ${migratedErrors.take(3).joinToString("; ") { it.message }}"
             } else if (errors.isEmpty()) {
