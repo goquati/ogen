@@ -1,4 +1,5 @@
 import de.quati.ogen.plugin.NameConvention
+import de.quati.ogen.plugin.RuleSet
 import de.quati.ogen.plugin.SpecsConfigBuilder
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.tasks.Validator
@@ -11,6 +12,7 @@ import org.slf4j.helpers.LegacyAbstractLogger
 import org.slf4j.helpers.MessageFormatter
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 private val defaultLogger = LoggerFactory.getLogger("ValidatorTest")!!
 
@@ -55,8 +57,12 @@ internal fun failedMessage(spec: String) = "Validation of the ${specName(spec)} 
 
 internal fun errorsMessage(spec: String, count: Int) = "Found $count errors in the ${specName(spec)}."
 
-internal fun warningsMessage(spec: String) =
-    "Validation of the ${specName(spec)} failed due to warnings (failOnWarnings = true)."
+/** Asserts that validation fails with [RuleSet.Strict], with at least [atLeast] errors. */
+internal fun assertStrictFails(spec: String, atLeast: Int = 1) {
+    val e = assertFailsWith<GradleException> { validate(spec) { rules(RuleSet.Strict) } }
+    val count = Regex("Found (\\d+) errors in the .*\\.").matchEntire(e.message!!)?.groupValues?.get(1)?.toInt()
+    assertTrue(count != null && count >= atLeast, e.message)
+}
 
 internal fun validate(
     spec: String,
@@ -84,7 +90,7 @@ internal fun assertErrors(
     assertValidationFails(spec, errorsMessage(spec, expected.size), validator)
 }
 
-/** Asserts the check's messages, and that validation fails on them with `failOnWarnings` only. */
+/** Asserts the check's messages, and that validation fails on them only with [RuleSet.Strict]. */
 internal fun assertWarnings(
     spec: String,
     check: (ValidatedSpec) -> List<String>,
@@ -93,7 +99,7 @@ internal fun assertWarnings(
 ) {
     assertEquals(expected, check(parse(spec)))
     validate(spec)
-    assertValidationFails(spec, warningsMessage(spec)) { failOnWarnings = true }
+    assertStrictFails(spec, atLeast = expected.size)
 }
 
 /** Asserts that the check finds nothing and that the spec validates. */

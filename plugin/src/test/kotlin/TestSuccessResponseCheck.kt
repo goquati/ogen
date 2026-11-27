@@ -1,5 +1,9 @@
 import de.quati.ogen.plugin.intern.validation.successResponseWarnings
+import de.quati.ogen.plugin.RuleSet
+import de.quati.ogen.plugin.Severity
+import de.quati.ogen.plugin.ValidatorRule
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class TestSuccessResponseCheck {
     @Test
@@ -13,12 +17,13 @@ class TestSuccessResponseCheck {
         )
     }
 
-    // Unlike openapi-generator's recommendations, ogen's own checks don't depend on `recommendations`.
+    // Not a recommendation: RuleSet.Lenient keeps it a warning, and as an error it fails the build.
     @Test
-    fun testSuccessResponseMissingWithoutRecommendations() {
-        assertValidationFails("success-response-missing", warningsMessage("success-response-missing")) {
-            recommendations = false
-            failOnWarnings = true
+    fun testSuccessResponseMissingInLenientSet() {
+        val spec = "success-response-missing"
+        assertEquals(Severity.Warning, RuleSet.Lenient[ValidatorRule.MissingSuccessResponses])
+        assertValidationFails(spec, errorsMessage(spec, 3)) {
+            rules(RuleSet.Lenient) { missingSuccessResponses = Severity.Error }
         }
     }
 
