@@ -1,3 +1,4 @@
+import de.quati.ogen.plugin.RuleSet
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
@@ -48,7 +49,7 @@ ogen {
     add(packageName = "$group.gen") {
         specFile("$projectDir/oas.yaml")
         validator {
-            failOnWarnings = true
+            rules(RuleSet.Strict)
         }
         model {}
         serverSpringV4 {

@@ -9,7 +9,6 @@ import de.quati.ogen.plugin.intern.model.TypeWithFormat
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
 import de.quati.ogen.plugin.intern.model.config.InputConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
-import de.quati.ogen.plugin.intern.validation.Rule
 import kotlin.collections.mutableMapOf
 import kotlin.io.path.Path
 import kotlin.io.path.isDirectory
@@ -271,8 +270,6 @@ public open class SpecsConfigBuilder {
          */
         public class ValidatorConfig {
             private val enabledSetting = Setting { true }
-            private val recommendationsSetting = Setting { true }
-            private val failOnWarningsSetting = Setting { false }
             private val tagFormatSetting = Setting<NameConvention> { NameConvention.CamelCase }
             private val operationIdFormatSetting = Setting<NameConvention> { NameConvention.CamelCase }
             private val propertyNameFormatSetting = Setting<NameConvention> { NameConvention.CamelCase }
@@ -284,10 +281,6 @@ public open class SpecsConfigBuilder {
 
             /** `false` turns validation off for this spec, or, in `ogen {}`, for every spec that doesn't set it. */
             public var enabled: Boolean by enabledSetting
-
-            /** `false` turns off the recommendations among the rules, unless `rules {}` sets them. */
-            public var recommendations: Boolean by recommendationsSetting
-            public var failOnWarnings: Boolean by failOnWarningsSetting
             public var tagFormat: NameConvention by tagFormatSetting
             public var operationIdFormat: NameConvention by operationIdFormatSetting
             public var propertyNameFormat: NameConvention by propertyNameFormatSetting
@@ -299,8 +292,14 @@ public open class SpecsConfigBuilder {
                 parameterFormat.apply(block)
             }
 
-            /** The severity of each of ogen's checks. */
+            /** The severity of each rule: errors fail the build, warnings are only reported. */
             public fun rules(block: Rules.() -> Unit): ValidatorConfig = apply {
+                rules.apply(block)
+            }
+
+            /** The severities of [set], such as [RuleSet.Strict], then those [block] sets. */
+            public fun rules(set: Map<ValidatorRule, Severity>, block: Rules.() -> Unit = {}): ValidatorConfig = apply {
+                rules.use(set)
                 rules.apply(block)
             }
 
@@ -325,111 +324,123 @@ public open class SpecsConfigBuilder {
             }
 
             /**
-             * One property per check, set to [Severity.Off], [Severity.Warning] or [Severity.Error]. A property reads
-             * what this block set, or else the check's default, regardless of `recommendations`.
+             * One property per rule, set to [Severity.Off], [Severity.Warning] or [Severity.Error]. A property reads
+             * what this block set, or else the rule's default.
              */
             public class Rules {
-                internal val severities = mutableMapOf<Rule, Severity>()
+                internal val severities = mutableMapOf<ValidatorRule, Severity>()
 
-                private fun rule(rule: Rule) = object : ReadWriteProperty<Rules, Severity> {
+                /** Sets the severities of [set], such as [RuleSet.Strict]; the other rules keep theirs. */
+                public fun use(set: Map<ValidatorRule, Severity>): Rules = apply { severities += set }
+
+                public operator fun set(rule: ValidatorRule, severity: Severity) {
+                    severities[rule] = severity
+                }
+
+                public operator fun get(rule: ValidatorRule): Severity = severities[rule] ?: rule.default
+
+                private fun rule(rule: ValidatorRule) = object : ReadWriteProperty<Rules, Severity> {
                     override fun getValue(thisRef: Rules, property: KProperty<*>) = severities[rule] ?: rule.default
                     override fun setValue(thisRef: Rules, property: KProperty<*>, value: Severity) {
                         severities[rule] = value
                     }
                 }
 
+                /** What the parser warns about; its errors always fail the build. A warning by default. */
+                public var parserWarnings: Severity by rule(ValidatorRule.ParserWarnings)
+
                 // Errors by default.
 
                 /** Names that don't match the name formats of `validator {}`. */
-                public var namingConventions: Severity by rule(Rule.NamingConventions)
+                public var namingConventions: Severity by rule(ValidatorRule.NamingConventions)
 
                 /** Fields the spec's version requires: `paths`, `responses` and `items` in 3.0, a response's `description`. */
-                public var versionRequirements: Severity by rule(Rule.VersionRequirements)
+                public var versionRequirements: Severity by rule(ValidatorRule.VersionRequirements)
 
                 /** Path templates with an empty `{}`, an unclosed `{` or a stray `}`. */
-                public var brokenPathTemplates: Severity by rule(Rule.BrokenPathTemplates)
+                public var brokenPathTemplates: Severity by rule(ValidatorRule.BrokenPathTemplates)
 
                 /** A query string or fragment in a path key. */
-                public var queryOrFragmentInPaths: Severity by rule(Rule.QueryOrFragmentInPaths)
+                public var queryOrFragmentInPaths: Severity by rule(ValidatorRule.QueryOrFragmentInPaths)
 
                 /** Path parameters missing from the path template, and template variables without a parameter. */
-                public var pathParameters: Severity by rule(Rule.PathParameters)
+                public var pathParameters: Severity by rule(ValidatorRule.PathParameters)
 
                 /** Paths that differ only in their variables' names. */
-                public var identicalPaths: Severity by rule(Rule.IdenticalPaths)
+                public var identicalPaths: Severity by rule(ValidatorRule.IdenticalPaths)
 
                 /** Security requirements naming a scheme `components.securitySchemes` doesn't define. */
-                public var undefinedSecuritySchemes: Severity by rule(Rule.UndefinedSecuritySchemes)
+                public var undefinedSecuritySchemes: Severity by rule(ValidatorRule.UndefinedSecuritySchemes)
 
                 /** Enum values that don't match their schema's type or are listed twice. */
-                public var enumValues: Severity by rule(Rule.EnumValues)
+                public var enumValues: Severity by rule(ValidatorRule.EnumValues)
 
                 /** A `default` its `enum` doesn't list. */
-                public var defaultOutsideEnum: Severity by rule(Rule.DefaultOutsideEnum)
+                public var defaultOutsideEnum: Severity by rule(ValidatorRule.DefaultOutsideEnum)
 
                 /** A `type` that isn't a JSON Schema type. */
-                public var invalidTypes: Severity by rule(Rule.InvalidTypes)
+                public var invalidTypes: Severity by rule(ValidatorRule.InvalidTypes)
 
                 /** Contradictory constraints such as `minimum` above `maximum`. */
-                public var contradictoryConstraints: Severity by rule(Rule.ContradictoryConstraints)
+                public var contradictoryConstraints: Severity by rule(ValidatorRule.ContradictoryConstraints)
 
                 /** `required` names without a matching property. */
-                public var undefinedRequiredProperties: Severity by rule(Rule.UndefinedRequiredProperties)
+                public var undefinedRequiredProperties: Severity by rule(ValidatorRule.UndefinedRequiredProperties)
 
                 /** Compositions no value can match. */
-                public var compositionTypes: Severity by rule(Rule.CompositionTypes)
+                public var compositionTypes: Severity by rule(ValidatorRule.CompositionTypes)
 
                 // Warnings by default.
 
                 /** Paths with a trailing slash. */
-                public var trailingSlashes: Severity by rule(Rule.TrailingSlashes)
+                public var trailingSlashes: Severity by rule(ValidatorRule.TrailingSlashes)
 
                 /** Operations without a 2xx or 3xx response. */
-                public var missingSuccessResponses: Severity by rule(Rule.MissingSuccessResponses)
+                public var missingSuccessResponses: Severity by rule(ValidatorRule.MissingSuccessResponses)
 
                 /** Operation tags missing from the top-level `tags`, when it declares any. */
-                public var undeclaredTags: Severity by rule(Rule.UndeclaredTags)
+                public var undeclaredTags: Severity by rule(ValidatorRule.UndeclaredTags)
 
                 /** `pattern` regexes and `patternProperties` keys that don't compile as Java regexes. */
-                public var invalidPatterns: Severity by rule(Rule.InvalidPatterns)
+                public var invalidPatterns: Severity by rule(ValidatorRule.InvalidPatterns)
 
                 /** Two paths that share a method where neither is more concrete. */
-                public var ambiguousPaths: Severity by rule(Rule.AmbiguousPaths)
+                public var ambiguousPaths: Severity by rule(ValidatorRule.AmbiguousPaths)
 
                 /** In 3.1 and later, `maximum` next to `exclusiveMaximum` or `minimum` next to `exclusiveMinimum`. */
-                public var redundantBounds: Severity by rule(Rule.RedundantBounds)
+                public var redundantBounds: Severity by rule(ValidatorRule.RedundantBounds)
 
                 /** Keywords that apply to none of the schema's types, such as `maxLength` on an integer. */
-                public var keywordsForOtherTypes: Severity by rule(Rule.KeywordsForOtherTypes)
+                public var keywordsForOtherTypes: Severity by rule(ValidatorRule.KeywordsForOtherTypes)
 
                 /** `nullable` without a `type` in 3.0. */
-                public var nullableWithoutType: Severity by rule(Rule.NullableWithoutType)
+                public var nullableWithoutType: Severity by rule(ValidatorRule.NullableWithoutType)
 
                 /** Component schemas no operation uses; `x-ogen-keep: true` on a schema keeps it on purpose. */
-                public var unusedSchemas: Severity by rule(Rule.UnusedSchemas)
+                public var unusedSchemas: Severity by rule(ValidatorRule.UnusedSchemas)
 
-                // Recommendations: warnings by default, off with `recommendations = false`.
+                // Recommendations: warnings by default, off in [RuleSet.Lenient].
 
                 /** `nullable` in 3.1 and later, which has no effect there. */
-                public var nullableIn31: Severity by rule(Rule.NullableIn31)
+                public var nullableIn31: Severity by rule(ValidatorRule.NullableIn31)
 
                 /** Keywords next to a `$ref` that are ignored. */
-                public var ignoredNextToRef: Severity by rule(Rule.IgnoredNextToRef)
+                public var ignoredNextToRef: Severity by rule(ValidatorRule.IgnoredNextToRef)
 
                 /** `exclusiveMinimum: true` without `minimum`, or `exclusiveMaximum: true` without `maximum`, in 3.0. */
-                public var exclusiveFlagWithoutBound: Severity by rule(Rule.ExclusiveFlagWithoutBound)
+                public var exclusiveFlagWithoutBound: Severity by rule(ValidatorRule.ExclusiveFlagWithoutBound)
 
                 /** Operations ogen generates no code for: 3.2's `query` method and `additionalOperations`. */
-                public var unsupportedOperations: Severity by rule(Rule.UnsupportedOperations)
+                public var unsupportedOperations: Severity by rule(ValidatorRule.UnsupportedOperations)
 
                 /** `properties` next to `oneOf`. */
-                public var oneOfWithProperties: Severity by rule(Rule.OneOfWithProperties)
+                public var oneOfWithProperties: Severity by rule(ValidatorRule.OneOfWithProperties)
 
                 /** A request body on GET or HEAD. */
-                public var getWithBody: Severity by rule(Rule.GetWithBody)
+                public var getWithBody: Severity by rule(ValidatorRule.GetWithBody)
 
                 /** Header names with `_`. */
-                public var headerUnderscores: Severity by rule(Rule.HeaderUnderscores)
+                public var headerUnderscores: Severity by rule(ValidatorRule.HeaderUnderscores)
             }
 
             internal companion object {
@@ -442,8 +453,6 @@ public open class SpecsConfigBuilder {
                     val ownParent = parent.takeIf { own != null }
                     if (!config.pick(ownParent) { enabledSetting }) return null
                     return de.quati.ogen.plugin.intern.model.config.ValidatorConfig(
-                        recommendations = config.pick(ownParent) { recommendationsSetting },
-                        failOnWarnings = config.pick(ownParent) { failOnWarningsSetting },
                         parameterFormat = config.parameterFormat.resolve(ownParent?.parameterFormat),
                         tagFormat = config.pick(ownParent) { tagFormatSetting },
                         operationIdFormat = config.pick(ownParent) { operationIdFormatSetting },

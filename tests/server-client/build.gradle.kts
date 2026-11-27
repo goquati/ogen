@@ -1,3 +1,4 @@
+import de.quati.ogen.plugin.RuleSet
 import de.quati.ogen.plugin.NameConvention
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
@@ -54,7 +55,7 @@ ogen {
     add(packageName = "$group.gen") {
         specFile("$projectDir/oas.yaml")
         validator {
-            failOnWarnings = true
+            rules(RuleSet.Strict)
             // The two punctuated names test that punctuation separates the words of Kotlin names.
             parameterFormat {
                 query = NameConvention.Custom {

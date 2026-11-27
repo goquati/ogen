@@ -58,12 +58,11 @@ ogen {
         specFile("$projectDir/specs/api.yaml")
         // Optional: Validate the spec; without this block (here or in `ogen {}`), no validation runs
         validator {
-            failOnWarnings = true
             // Enforce naming conventions
             propertyNameFormat = NameConvention.CamelCase
             schemaNameFormat = NameConvention.PascalCase
-            // Change the severity of single checks
-            rules {
+            // Fail the build on any finding, except unused schemas
+            rules(RuleSet.Strict) {
                 unusedSchemas = Severity.Off
             }
         }
@@ -117,8 +116,7 @@ ogen {
 - **Operation IDs**: for operations without an `operationId`, `operationIdGenerator { info -> ... }` derives one
   from an `EndpointInfo` (`tag`, `path`, `relativePath`, `method`). If it returns `null` or isn't set, the name is
   derived from the path and method.
-- **Validator settings**: besides `failOnWarnings` (default `false`) and `recommendations` (default `true`), the
-  `validator` block sets naming conventions for `schemaNameFormat` (default `PascalCase`), `propertyNameFormat`,
+- **Validator settings**: besides `rules` (below), the `validator` block sets naming conventions for `schemaNameFormat` (default `PascalCase`), `propertyNameFormat`,
   `tagFormat` and `operationIdFormat` (default `CamelCase`), `pathSegmentFormat` (default `KebabCase`),
   `stringEnumFormat` (default `Any`) and, via `parameterFormat { path; query; header; cookie }`, parameter names.
   Besides the predefined conventions, `NameConvention.RegexFormat("...")` and `NameConvention.Custom { name -> ... }`
@@ -152,15 +150,20 @@ ogen {
       }
   }
   ```
-- **Rules**: `rules {}` in a `validator` block sets each check's severity to `Severity.Off`, `Severity.Warning` or
-  `Severity.Error`, with one property per check (`namingConventions`, `enumValues`, `unusedSchemas`,
-  `ambiguousPaths`, `getWithBody`, …; see `ValidatorConfig.Rules`). Each defaults to what the list below says.
-  `recommendations = false` turns off the recommendations that `rules {}` doesn't set. The parser's own errors and
-  warnings have no rule. A component schema that no operation uses on purpose, such as an enum the code uses
-  directly, is kept from the `unusedSchemas` warning by `x-ogen-keep: true` (or `"true"`) on the schema; the schemas
-  it refers to count as used, too. On a spec with parser errors, the checks that are errors by default and
-  `unusedSchemas` don't run, whatever their severity.
-- **What the validator checks**: the parser's errors, the naming conventions and these checks fail the build: broken
+- **Rules**: `rules {}` in a `validator` block sets each rule's severity: `Severity.Error` fails the build,
+  `Severity.Warning` is only reported, `Severity.Off` doesn't run the check. There is one property per rule
+  (`parserWarnings`, `namingConventions`, `enumValues`, `unusedSchemas`, `ambiguousPaths`, `getWithBody`, …), or
+  `this[ValidatorRule.X] = …`. Each defaults to what the list below says. `rules(set) { … }` first sets the
+  severities of a rule set, a `Map<ValidatorRule, Severity>`, then those of the block:
+  `RuleSet.Default` (the defaults), `RuleSet.Strict` (every rule an error, so any finding fails the build) and
+  `RuleSet.Lenient` (allows as much as possible, e.g. for specs of third parties: what makes a spec invalid stays an
+  error, other problems stay warnings, naming conventions and recommendations are off). The parser's errors always
+  fail the build. A component schema that no operation uses on purpose, such as an enum the code uses directly, is
+  kept from the `unusedSchemas` warning by `x-ogen-keep: true` (or `"true"`) on the schema; the schemas it refers to
+  count as used, too. On a spec with parser errors, the checks that are errors by default and `unusedSchemas` don't
+  run, whatever their severity.
+- **What the validator checks**: the parser's errors fail the build, and by default the naming conventions and
+  these checks: broken
   path templates (an empty `{}`, an unclosed `{` or a stray `}`), a query string or fragment in a path key, path
   parameters missing from the path template, paths that differ only in their variables' names, security schemes not
   defined in `components.securitySchemes`, a `type` that isn't a JSON Schema type, enum values that don't match their
@@ -174,11 +177,10 @@ ogen {
   keywords that apply to none of the schema's declared types, such as `maxLength` on an integer, in OpenAPI 3.1
   `maximum` next to `exclusiveMaximum` or `minimum` next to `exclusiveMinimum`, where only the tighter bound has an
   effect, and ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and
-  `/books/{id}`). Recommendations are warnings too, and `recommendations = false` turns off only those: `properties`
+  `/books/{id}`), and what the parser warns about. Recommendations are warnings too, and `RuleSet.Lenient` turns them off: `properties`
   next to `oneOf`, a request body on GET or HEAD, header names with `_`, `nullable` in OpenAPI 3.1 and later (which
   has no effect there), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without `minimum` in 3.0,
   and operations ogen generates no code for (3.2's `query` and `additionalOperations`).
-  `failOnWarnings = true` fails the build on any warning.
 
 ### Spring Boot Security Context
 

@@ -2,11 +2,9 @@ package de.quati.ogen.plugin.intern.model.config
 
 import de.quati.ogen.plugin.NameConvention
 import de.quati.ogen.plugin.Severity
-import de.quati.ogen.plugin.intern.validation.Rule
+import de.quati.ogen.plugin.ValidatorRule
 
 internal data class ValidatorConfig(
-    val failOnWarnings: Boolean,
-    val recommendations: Boolean,
     val parameterFormat: ParameterFormat,
     val tagFormat: NameConvention,
     val operationIdFormat: NameConvention,
@@ -15,7 +13,7 @@ internal data class ValidatorConfig(
     val pathSegmentFormat: NameConvention,
     val stringEnumFormat: NameConvention,
     /** The severities `rules {}` sets; the other rules have their default. */
-    val rules: Map<Rule, Severity> = emptyMap(),
+    val rules: Map<ValidatorRule, Severity> = emptyMap(),
 ) {
     data class ParameterFormat(
         val path: NameConvention,
@@ -24,6 +22,5 @@ internal data class ValidatorConfig(
         val cookie: NameConvention,
     )
 
-    fun severity(rule: Rule): Severity = rules[rule]
-        ?: if (rule.recommendation && !recommendations) Severity.Off else rule.default
+    fun severity(rule: ValidatorRule): Severity = rules[rule] ?: rule.default
 }

@@ -1,9 +1,9 @@
 package de.quati.ogen.plugin.intern.tasks
 
 import de.quati.ogen.plugin.Severity
+import de.quati.ogen.plugin.ValidatorRule
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
-import de.quati.ogen.plugin.intern.validation.Rule
 import de.quati.ogen.plugin.intern.validation.ValidatedSpec
 import org.gradle.api.GradleException
 import org.slf4j.Logger
@@ -24,9 +24,9 @@ internal class Validator(
     companion object {
         /**
          * Validates a spec. The parser's errors (a spec it cannot read, unknown fields, wrong types, unresolvable
-         * references) fail validation; its warnings come with the others. Only a spec the parser read is checked by
-         * ogen's rules, and the rules that are errors by default only one it found no errors in. Each rule reports
-         * with the severity the validator config gives it.
+         * references) fail validation; its warnings are the rule [ValidatorRule.ParserWarnings]. Only a spec the
+         * parser read is checked by the other rules, and those that need a valid spec only one it found no errors in.
+         * Each rule reports with the severity the validator config gives it: errors fail the build, warnings don't.
          */
         fun validate(
             config: SpecConfig,
@@ -40,18 +40,22 @@ internal class Validator(
             val result = config.oasParseResult
             val spec = result.openApi?.let { ValidatedSpec(it, result.sourceVersion!!, result.bundle) }
             val parserFailed = spec == null || result.errors.isNotEmpty()
-            val issues = spec?.let { s ->
-                Rule.entries
-                    .map { it to validatorConfig.severity(it) }
-                    .filter { (rule, severity) -> severity != Severity.Off && !(parserFailed && rule.needsValidSpec) }
-                    .flatMap { (rule, severity) -> rule.check(s, validatorConfig).map { severity to it } }
-            }.orEmpty()
-            val warnings = (result.warnings.map { it.toString() } + issues.of(Severity.Warning)).map(::formatIssue)
+            val issues = ValidatorRule.entries
+                .map { it to validatorConfig.severity(it) }
+                .filter { (rule, severity) -> severity != Severity.Off && !(parserFailed && rule.needsValidSpec) }
+                .flatMap { (rule, severity) ->
+                    val found = when (val check = rule.check) {
+                        null -> result.warnings.map { it.toString() }
+                        else -> spec?.let { check(it, validatorConfig) }.orEmpty()
+                    }
+                    found.map { severity to it }
+                }
+            val warnings = issues.of(Severity.Warning)
             val errors = result.errors.map { it.toString() } + issues.of(Severity.Error)
 
             if (warnings.isNotEmpty()) {
                 logger.warn("\nThe $specName has issues or recommendations.\nIssues:\n")
-                warnings.forEach { logger.warn(it) }
+                warnings.forEach { logger.warn(formatIssue(it)) }
             }
 
             if (parserFailed || errors.isNotEmpty()) {
@@ -63,12 +67,7 @@ internal class Validator(
                 )
             }
 
-            if (validatorConfig.failOnWarnings && warnings.isNotEmpty()) {
-                logger.error("\nWarnings found in the $specName and 'failOnWarnings' is enabled.\nFailing validation.\n")
-                throw GradleException("Validation of the $specName failed due to warnings (failOnWarnings = true).")
-            }
-
-            logger.debug("No errors from the parser or the checks.")
+            logger.debug("No errors from the parser or the rules.")
             logger.info("The $specName is valid.\n")
         }
 

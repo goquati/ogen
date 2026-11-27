@@ -1,9 +1,10 @@
 import de.quati.ogen.plugin.NameConvention
+import de.quati.ogen.plugin.RuleSet
 import de.quati.ogen.plugin.Severity
+import de.quati.ogen.plugin.ValidatorRule
 import de.quati.ogen.plugin.SpecsConfigBuilder
 import de.quati.ogen.plugin.intern.model.config.ValidatorConfig
 import de.quati.ogen.plugin.intern.tasks.Validator
-import de.quati.ogen.plugin.intern.validation.Rule
 import org.gradle.api.GradleException
 import org.slf4j.helpers.NOPLogger
 import kotlin.io.path.createTempFile
@@ -53,8 +54,8 @@ class TestValidatorSettings {
 
     @Test
     fun `a spec's own block alone validates it with the defaults for the rest`() {
-        val config = assertNotNull(resolved { spec { validator { failOnWarnings = true } } }.single())
-        assertEquals(true, config.failOnWarnings)
+        val config = assertNotNull(resolved { spec { validator { tagFormat = NameConvention.PascalCase } } }.single())
+        assertEquals(NameConvention.PascalCase, config.tagFormat)
         assertEquals(NameConvention.PascalCase, config.schemaNameFormat)
         assertEquals(NameConvention.CamelCase, config.parameterFormat.path)
     }
@@ -99,7 +100,7 @@ class TestValidatorSettings {
     @Test
     fun `enabled = false turns validation off for one spec`() {
         val configs = resolved {
-            validator { failOnWarnings = true }
+            validator { tagFormat = NameConvention.PascalCase }
             spec { validator { enabled = false } }
             spec()
         }
@@ -138,22 +139,42 @@ class TestValidatorSettings {
                 spec { validator { rules { ambiguousPaths = Severity.Warning } } }
             }.single()
         )
-        assertEquals(Severity.Off, config.severity(Rule.UnusedSchemas))
-        assertEquals(Severity.Warning, config.severity(Rule.AmbiguousPaths))
-        assertEquals(Severity.Error, config.severity(Rule.EnumValues))
+        assertEquals(Severity.Off, config.severity(ValidatorRule.UnusedSchemas))
+        assertEquals(Severity.Warning, config.severity(ValidatorRule.AmbiguousPaths))
+        assertEquals(Severity.Error, config.severity(ValidatorRule.EnumValues))
     }
 
     @Test
-    fun `recommendations = false turns off recommendations that rules {} doesn't set`() {
+    fun `a rule set applies first, then the rules the block sets`() {
         val config = assertNotNull(
             resolved {
-                validator { recommendations = false }
-                spec { validator { rules { getWithBody = Severity.Error } } }
+                validator { rules { getWithBody = Severity.Error } }
+                spec { validator { rules(RuleSet.Lenient) { unusedSchemas = Severity.Off } } }
             }.single()
         )
-        assertEquals(Severity.Off, config.severity(Rule.HeaderUnderscores))
-        assertEquals(Severity.Error, config.severity(Rule.GetWithBody))
-        assertEquals(Severity.Warning, config.severity(Rule.TrailingSlashes))
+        assertEquals(Severity.Off, config.severity(ValidatorRule.GetWithBody))
+        assertEquals(Severity.Off, config.severity(ValidatorRule.HeaderUnderscores))
+        assertEquals(Severity.Off, config.severity(ValidatorRule.NamingConventions))
+        assertEquals(Severity.Off, config.severity(ValidatorRule.UnusedSchemas))
+        assertEquals(Severity.Warning, config.severity(ValidatorRule.TrailingSlashes))
+        assertEquals(Severity.Error, config.severity(ValidatorRule.EnumValues))
+    }
+
+    @Test
+    fun `rules can be set by enum, too`() {
+        val config = assertNotNull(
+            resolved { validator { rules { this[ValidatorRule.ParserWarnings] = Severity.Error } }; spec() }.single()
+        )
+        assertEquals(Severity.Error, config.severity(ValidatorRule.ParserWarnings))
+    }
+
+    @Test
+    fun `the predefined sets`() {
+        assertEquals(ValidatorRule.entries.toSet(), RuleSet.Default.keys)
+        assertEquals(setOf(Severity.Error), RuleSet.Strict.values.toSet())
+        assertEquals(ValidatorRule.entries.toSet(), RuleSet.Lenient.keys)
+        assertEquals(Severity.Error, RuleSet.Lenient[ValidatorRule.EnumValues])
+        assertEquals(Severity.Warning, RuleSet.Lenient[ValidatorRule.ParserWarnings])
     }
 
     // validator-several-errors has three errors (path parameter, enum value, required property) and a trailing slash.
@@ -168,9 +189,8 @@ class TestValidatorSettings {
                 undefinedRequiredProperties = Severity.Warning
             }
         }
-        assertValidationFails(spec, warningsMessage(spec)) {
-            failOnWarnings = true
-            rules {
+        assertValidationFails(spec, errorsMessage(spec, 1)) {
+            rules(RuleSet.Strict) {
                 enumValues = Severity.Off
                 pathParameters = Severity.Off
                 undefinedRequiredProperties = Severity.Off
@@ -251,19 +271,18 @@ class TestValidatorSettings {
     }
 
     @Test
-    fun `failOnWarnings off in a spec overrides the one in ogen`() {
+    fun `a spec's rules override a set of ogen`() {
         val configs = SpecsConfigBuilder().apply {
             utilPackageName("de.quati.ogen.test.gen.util")
             validator {
                 acceptAnyNames()
-                failOnWarnings = true
-                rules {
+                rules(RuleSet.Strict) {
                     enumValues = Severity.Off
                     pathParameters = Severity.Off
                     undefinedRequiredProperties = Severity.Off
                 }
             }
-            spec { validator { failOnWarnings = false } }
+            spec { validator { rules { trailingSlashes = Severity.Warning } } }
         }.build()
         Validator(NOPLogger.NOP_LOGGER).validate(configs)
     }

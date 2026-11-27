@@ -35,12 +35,12 @@ class TestValidator {
         }
     }
 
-    // Errors fail the build before warnings do, even with failOnWarnings; both are printed one per entry.
+    // Errors and warnings are printed one per entry; only errors count.
     @Test
     fun testErrorsAndWarningsAreLogged() {
         val logger = CapturingLogger()
         val e = assertFailsWith<GradleException> {
-            Validator(logger).validate(validatorConfigs("validator-several-errors") { failOnWarnings = true })
+            Validator(logger).validate(validatorConfigs("validator-several-errors"))
         }
         assertEquals(errorsMessage("validator-several-errors", 3), e.message)
         val spec = specName("validator-several-errors")

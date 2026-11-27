@@ -5,7 +5,7 @@ public enum class Severity {
     /** The rule doesn't run. */
     Off,
 
-    /** Reported; fails the build only with `failOnWarnings`. */
+    /** Reported; doesn't fail the build. */
     Warning,
 
     /** Reported and fails the build. */
