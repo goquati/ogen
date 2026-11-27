@@ -1,10 +1,14 @@
 package de.quati.ogen.core
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.ClassDiscriminatorMode
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonClassDiscriminator
 import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonEncoder
 import kotlinx.serialization.json.JsonElement
@@ -32,6 +36,19 @@ public class AdditionalPropertiesSerializer<T, V>(
     private val innerKeys = (0 until descriptor.elementsCount).map(descriptor::getElementName).toSet()
     private val valueSerializer by lazy(valueSerializer)
 
+    /**
+     * The key of the class discriminator that [json] writes into every object, also of this class when it is no
+     * variant of a sealed interface; the encoder of the whole object writes it, so the inner one must not.
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    private fun Json.allObjectsDiscriminator(): String? {
+        if (configuration.classDiscriminatorMode != ClassDiscriminatorMode.ALL_JSON_OBJECTS) return null
+        // as kotlinx.serialization picks it: the inherited one of a sealed interface, else that of the configuration
+        val key = descriptor.annotations.filterIsInstance<JsonClassDiscriminator>().firstOrNull()?.discriminator
+            ?: configuration.classDiscriminator
+        return key.takeIf { it !in innerKeys }
+    }
+
     private fun JsonElement.asObject() = this as? JsonObject
         ?: throw SerializationException("${descriptor.serialName} must be a JSON object, but was $this")
 
@@ -39,7 +56,8 @@ public class AdditionalPropertiesSerializer<T, V>(
         val jsonEncoder = encoder as? JsonEncoder
             ?: throw SerializationException("${descriptor.serialName} can only be serialized to JSON")
         val json = jsonEncoder.json
-        val declared = json.encodeToJsonElement(inner, value).asObject()
+        val discriminator = json.allObjectsDiscriminator()
+        val declared = json.encodeToJsonElement(inner, value).asObject().filterKeys { it != discriminator }
         val additional = get(value)
         additional.keys.firstOrNull { it in knownKeys }?.let {
             throw SerializationException("'$it' is a property of ${descriptor.serialName}, not an additional one")
@@ -56,7 +74,8 @@ public class AdditionalPropertiesSerializer<T, V>(
         val obj = jsonDecoder.decodeJsonElement().asObject()
         // A known key the class has no property for, the discriminator, is the business of the polymorphic serializer.
         val declared = json.decodeFromJsonElement(inner, JsonObject(obj.filterKeys { it in innerKeys }))
-        val additional = obj.filterKeys { it !in knownKeys }
+        val discriminator = json.allObjectsDiscriminator()
+        val additional = obj.filterKeys { it !in knownKeys && it != discriminator }
             .mapValues { json.decodeFromJsonElement(valueSerializer, it.value) }
         return set(declared, additional)
     }

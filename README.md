@@ -299,9 +299,9 @@ wherever the schema is used (with a composition, any `additionalProperties` make
 | `properties`, without `additionalProperties` and `patternProperties`, or with `additionalProperties: false` and no `patternProperties` | a class |
 | `properties` and `additionalProperties: true` or a schema, or `patternProperties` | a class with a map of the other keys |
 | no `properties`, `additionalProperties: true` or `{}` | `Map<String, JsonElement>` |
-| no `properties`, `additionalProperties` with a schema | `Map<String, T>` |
-| no `properties`, `additionalProperties: false` | `JsonElement` |
-| no `properties`, no `additionalProperties` | `JsonElement` |
+| no `properties`, `additionalProperties` with a schema, or `patternProperties` | `Map<String, T>` |
+| no `properties`, `additionalProperties: false` and no `patternProperties` | `JsonElement` |
+| no `properties`, no `additionalProperties` and no `patternProperties` | `JsonElement` |
 
 A class that allows other keys keeps them in its last property, `additionalProperties: Map<String, T>` (with a `_`
 appended while a declared property has that name). Its serializer reads every key the schema doesn't declare into
@@ -320,13 +320,16 @@ val thing = ThingDto(id = "a".toOption(), additionalProperties = mapOf("count" t
 ```
 
 - `T` is the type of the `additionalProperties` schema, `JsonElement` for `true`.
-- `patternProperties` share the map with `additionalProperties`: when all their schemas (and that of
-  `additionalProperties`, unless it is `false`) are the same, `T` is its type, otherwise `JsonElement`. The keys are
-  not matched against the patterns. Without `additionalProperties`, keys that match no pattern are allowed too, so `T`
-  is `JsonElement`.
+- `patternProperties` share the map with `additionalProperties`, in a class as in a plain map: when all their schemas
+  (and that of `additionalProperties`, unless it is `false`) are the same, `T` is its type, otherwise `JsonElement`.
+  The keys are not matched against the patterns. Without `additionalProperties`, keys that match no pattern are
+  allowed too, so `T` is `JsonElement`. A pattern whose schema is `false` allows no key and counts for nothing.
 - Without `additionalProperties` and `patternProperties`, the class has no map: unknown keys are ignored or rejected
   as the `Json` configuration says (`ignoreUnknownKeys`).
 - A key of the map that the schema declares as a property fails serialization.
+- A class discriminator that `Json` writes into the object (in a sealed interface, or in every object with
+  `ClassDiscriminatorMode.ALL_JSON_OBJECTS`) is no additional property.
+- `required` names that are not declared as properties are not checked.
 
 ## Tasks
 

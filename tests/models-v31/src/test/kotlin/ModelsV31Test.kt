@@ -1,3 +1,4 @@
+import kotlinx.serialization.json.ClassDiscriminatorMode
 import de.quati.ogen.oas.schemas.gen.model.RecursiveExtrasDto
 import de.quati.ogen.oas.schemas.gen.model.OneOfExtras3Dto
 import kotlinx.serialization.json.JsonNull
@@ -421,6 +422,20 @@ class ModelsV31Test {
         // The discriminator is no additional property, also when the variant doesn't declare it.
         (OneOfExtras3Dto(foo = "f".toOption(), additionalProperties = mapOf("n" to 1)) as OneOfExtrasDto)
             .test(expectedString = """{"objectType":"OneOfExtras3","foo":"f","n":1}""")
+    }
+
+    @Test
+    fun `test additional properties with discriminators in all objects`() {
+        val json = Json(json) { classDiscriminatorMode = ClassDiscriminatorMode.ALL_JSON_OBJECTS }
+        val value = AdditionalPropertiesObjectDto(knownProperty = "k".toOption(), additionalProperties = mapOf("n" to 1))
+        val str = json.encodeToString(value)
+        str shouldBe """{"type":"${AdditionalPropertiesObjectDto::class.qualifiedName}","knownProperty":"k","n":1}"""
+        json.decodeFromString<AdditionalPropertiesObjectDto>(str) shouldBe value
+        (OneOfExtras3Dto(foo = "f".toOption(), additionalProperties = mapOf("n" to 1)) as OneOfExtrasDto).let {
+            val variant = json.encodeToString<OneOfExtrasDto>(it)
+            variant shouldBe """{"objectType":"OneOfExtras3","foo":"f","n":1}"""
+            json.decodeFromString<OneOfExtrasDto>(variant) shouldBe it
+        }
     }
 
     @Test

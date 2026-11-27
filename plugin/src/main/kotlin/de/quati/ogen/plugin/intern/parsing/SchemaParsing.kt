@@ -203,16 +203,16 @@ private fun Schema.Obj.unwrapMigratedNullableAllOf(): SchemaView? {
 }
 
 /**
- * The schema of the values of the keys an object with `properties` allows beyond them, or null when it allows none
- * the class keeps (#108).
+ * The schema of the values of the keys an object allows beyond its `properties`, or null when it allows none a map
+ * keeps (#108).
  *
- * Without `additionalProperties`, the class ignores other keys, as it always did; with `false` there are none. All
- * keys `patternProperties` and `additionalProperties` allow share one map: its values have their schema when they
- * all have the same one, otherwise they are untyped. Without `additionalProperties`, keys that match no pattern are
- * allowed too, with any value.
+ * Without `additionalProperties`, other keys are ignored, as they always were; with `false` there are none. All keys
+ * `patternProperties` and `additionalProperties` allow share one map: its values have their schema when they all have
+ * the same one, otherwise they are untyped. Without `additionalProperties`, keys that match no pattern are allowed
+ * too, with any value. A pattern whose schema is `false` allows no key.
  */
 private fun Schema.Obj.additionalValueSchemaOrNull(): Schema? {
-    val patterns = patternProperties.orEmpty().values
+    val patterns = patternProperties.orEmpty().values.filter { it != Schema.Bool(false) }
     val additional = when (val it = additionalProperties) {
         null -> if (patterns.isEmpty()) return null else Schema.Bool(true)
         Schema.Bool(false) -> null
@@ -316,7 +316,6 @@ internal fun Schema.parse(
                 val props = o.properties?.mapValues {
                     it.value.parse(location = location + it.key.toCamelCase(capitalized = true))
                 } ?: emptyMap()
-                val additionalProps = o.additionalProperties
                 if (props.isNotEmpty()) {
                     return@run Component.Schema.Obj(
                         isNullable = s.isNullable,
@@ -330,12 +329,11 @@ internal fun Schema.parse(
                 }
                 // Without properties, `true` is the same as `{}`: a map of untyped values. An object that must stay
                 // empty (`false`) and one that says nothing about its properties are untyped values (#98).
-                if (additionalProps == null || additionalProps == Schema.Bool(false))
-                    return@run s.toUnknown(location)
+                val valueSchema = o.additionalValueSchemaOrNull() ?: return@run s.toUnknown(location)
                 createMap(
                     location = location,
                     isNullable = s.isNullable,
-                    valueSchema = additionalProps.parse(
+                    valueSchema = valueSchema.parse(
                         location = when (location.isValueSchema()) {
                             true -> location + "Value"
                             false -> location.updateLast { "${it}Value" }
