@@ -386,6 +386,15 @@ components:
       type: object
       additionalProperties: true
 
+    AdditionalPropertiesClosedObject:
+      description: Object with known properties only.
+      type: object
+      required: [knownProperty]
+      properties:
+        knownProperty:
+          type: string
+      additionalProperties: false
+
     ArrayOfUnions:
       description: Array whose items are a union type.
       type: array
