@@ -171,7 +171,7 @@ internal data class PathItem(
     val patch: Operation? = null,
     val trace: Operation? = null,
     @OasSince(OasVersion.V3_2) val query: Operation? = null,
-    val additionalOperations: Map<String, Operation>? = null,
+    @OasSince(OasVersion.V3_2) val additionalOperations: Map<String, Operation>? = null,
     val servers: List<Server>? = null,
     val parameters: List<RefOr<Parameter>>? = null,
     @SerialName(OasSerialNames.EXTENSIONS_KEY) override val extensions: Map<String, JsonElement> = emptyMap(),

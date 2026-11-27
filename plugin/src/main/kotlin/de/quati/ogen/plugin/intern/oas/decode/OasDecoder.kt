@@ -34,9 +34,9 @@ internal object OasDecoder {
         coerceInputValues = true
     }
 
-    fun decode(read: ReadResult): DecodeResult<OpenApi> {
+    fun decode(read: ReadResult, version: OasVersion): DecodeResult<OpenApi> {
         val element = read.element ?: return DecodeResult(null, read.diagnostics)
-        return decode(element, OpenApi.serializer(), JsonPointer.ROOT, read::locationOf)
+        return decode(element, OpenApi.serializer(), JsonPointer.ROOT, read::locationOf, version)
     }
 
     fun <T> decode(
@@ -44,7 +44,7 @@ internal object OasDecoder {
         serializer: KSerializer<T>,
         pointer: JsonPointer,
         locate: (pointer: JsonPointer, key: Boolean) -> SourceLocation,
-        version: OasVersion = OasVersion.LATEST,
+        version: OasVersion,
     ): DecodeResult<T> {
         val check = StructureCheck(version, locate)
         val diagnostics = check.check(element, serializer.descriptor, pointer)

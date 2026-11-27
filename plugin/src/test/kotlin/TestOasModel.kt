@@ -1,4 +1,5 @@
 import de.quati.ogen.plugin.intern.oas.Diagnostic
+import de.quati.ogen.plugin.intern.oas.OasVersion
 import de.quati.ogen.plugin.intern.oas.decode.DecodeResult
 import de.quati.ogen.plugin.intern.oas.decode.OasDecoder
 import de.quati.ogen.plugin.intern.oas.model.OpenApi
@@ -18,7 +19,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class TestOasModel {
-    private fun decode(yaml: String): DecodeResult<OpenApi> = OasDecoder.decode(SourceReader.read(yaml, "spec.yaml"))
+    private fun decode(yaml: String): DecodeResult<OpenApi> = OasDecoder.decode(SourceReader.read(yaml, "spec.yaml"), OasVersion.V3_1)
 
     private fun decodeOk(yaml: String): OpenApi {
         val result = decode(yaml)
@@ -144,7 +145,7 @@ class TestOasModel {
                 B: {type: [integer, 'null'], maximum: 1e3, if: {}}
             """.trimIndent()
         val read = SourceReader.read(yaml, "spec.yaml")
-        val api = assertNotNull(OasDecoder.decode(read).value)
+        val api = assertNotNull(OasDecoder.decode(read, OasVersion.V3_1).value)
         assertEquals(null, jsonDiff(read.element, OasDecoder.encode(api, OpenApi.serializer())))
     }
 

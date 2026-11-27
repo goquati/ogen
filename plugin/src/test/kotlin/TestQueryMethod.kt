@@ -73,4 +73,20 @@ class TestQueryMethod {
             assertNull(old.openApi!!.paths!!.pathItems.getValue("/search").query)
         }
     }
+
+    @Test
+    fun `additionalOperations is a field of the Path Item only in OpenAPI 3_2`() {
+        val old = OasParser.parse(URI("mem:/spec.yaml")) {
+            ResourceLoader.Resource.Text(
+                "openapi: 3.1.0\ninfo: {title: t, version: '1'}\npaths:\n  /search:\n" +
+                    "    additionalOperations: {LINK: {responses: {'200': {description: ok}}}}\n",
+                "spec.yaml",
+            )
+        }
+        assertEquals(
+            listOf("spec.yaml:5:5 (#/paths/~1search/additionalOperations): unknown field 'additionalOperations' in PathItem of OpenAPI 3.1 (added in 3.2)"),
+            old.errors.map { it.toString() },
+        )
+        assertNull(old.openApi!!.paths!!.pathItems.getValue("/search").additionalOperations)
+    }
 }

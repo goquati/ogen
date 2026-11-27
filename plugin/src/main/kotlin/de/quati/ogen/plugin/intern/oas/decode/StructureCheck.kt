@@ -122,6 +122,7 @@ internal class StructureCheck(
             }
         }
         for (index in 0 until descriptor.elementsCount) {
+            if (descriptor.since(index) > version) continue
             val key = descriptor.getElementName(index)
             val required = !descriptor.isElementOptional(index) || descriptor.getElementAnnotations(index).any { it is OasRequired }
             if (required && element[key].let { it == null || it is JsonNull })
