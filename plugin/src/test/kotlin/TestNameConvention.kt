@@ -33,11 +33,22 @@ class TestNameConvention {
     @Test
     fun testAcronymsFalse() {
         val pascal = NameConvention.PascalCase { acronyms = false }
-        pascal.assertMatches("Item", "ItemV2", "HttpError", "ApiId")
-        pascal.assertRejects("UUID", "HTTPError", "ApiID", "X", "item")
+        pascal.assertMatches("Item", "ItemV2", "HttpError", "ApiId", "X2")
+        pascal.assertRejects("UUID", "HTTPError", "ApiID", "item", "Item_Model", "")
         val camel = NameConvention.CamelCase { acronyms = false }
         camel.assertMatches("item", "itemV2", "httpError", "apiId", "a")
-        camel.assertRejects("apiID", "httpERROR", "Item")
+        camel.assertRejects("apiID", "httpERROR", "Item", "item_name", "")
+    }
+
+    // Without acronyms, only the last word may be a single capital: two in a row would be an acronym.
+    @Test
+    fun testAcronymsFalseSingleCapital() {
+        val pascal = NameConvention.PascalCase { acronyms = false }
+        pascal.assertMatches("PointX", "X", "Point2X", "ApiI")
+        pascal.assertRejects("PointXY", "XY", "PointXYz", "ApiIDs", "XItem")
+        val camel = NameConvention.CamelCase { acronyms = false }
+        camel.assertMatches("pointX", "getA", "aB", "point2X")
+        camel.assertRejects("pointXY", "getAB", "aBC", "getAValue")
     }
 
     @Test

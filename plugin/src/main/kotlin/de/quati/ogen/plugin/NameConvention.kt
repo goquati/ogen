@@ -19,7 +19,8 @@ public sealed interface NameConvention {
     public class CaseBuilder internal constructor() : Builder() {
         /**
          * With `true` (the default), a run of capitals counts as one word (`UUID`, `HTTPError`, `apiID`); with `false`,
-         * every word starts with one capital followed by lower-case letters and digits.
+         * every word starts with one capital followed by lower-case letters and digits; only the last word may be a
+         * single capital (`PointX`, `getA`), since two of them in a row would be an acronym.
          */
         public var acronyms: Boolean = true
     }
@@ -75,13 +76,13 @@ private class ConfiguredConvention(
 
 private fun camelCase(options: NameConvention.CaseBuilder): NameConvention = ConfiguredConvention(
     name = if (options.acronyms) "camelCase" else "camelCase without acronyms",
-    regex = if (options.acronyms) Regex("^[a-z][a-zA-Z0-9]*$") else Regex("^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]+)*$"),
+    regex = if (options.acronyms) Regex("^[a-z][a-zA-Z0-9]*$") else Regex("^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]+)*[A-Z]?$"),
     exceptions = options.exceptions.toSet(),
 )
 
 private fun pascalCase(options: NameConvention.CaseBuilder): NameConvention = ConfiguredConvention(
     name = if (options.acronyms) "PascalCase" else "PascalCase without acronyms",
-    regex = if (options.acronyms) Regex("^[A-Z][a-zA-Z0-9]*$") else Regex("^[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)*$"),
+    regex = if (options.acronyms) Regex("^[A-Z][a-zA-Z0-9]*$") else Regex("^(?=.)(?:[A-Z][a-z0-9]+)*[A-Z]?$"),
     exceptions = options.exceptions.toSet(),
 )
 

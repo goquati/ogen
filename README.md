@@ -127,7 +127,8 @@ ogen {
   define custom ones. `CamelCase`, `PascalCase`, `KebabCase` and `RegexFormat` take a block: `except(...)` lists
   exact names the convention accepts as they are (e.g. a third-party header), and on `CamelCase` and `PascalCase`,
   `acronyms` says whether a run of capitals counts as one word (`true`, the default: `UUID`, `HTTPError`, `apiID`)
-  or every word is one capital followed by lower-case letters and digits (`false`).
+  or every word is one capital followed by lower-case letters and digits, with a single capital allowed only as the
+  last word, as in `PointX` (`false`).
 
   ```kotlin
   naming {
