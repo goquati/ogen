@@ -6,20 +6,21 @@ import de.quati.ogen.plugin.intern.model.Spec
 import de.quati.ogen.plugin.intern.model.SpecSecurityContext
 import de.quati.ogen.plugin.intern.model.config.SpecConfig
 import de.quati.ogen.plugin.intern.oas.OasVersion
+import de.quati.ogen.plugin.intern.oas.decode.OasDecoder
 import de.quati.ogen.plugin.intern.oas.model.Components
-import de.quati.ogen.plugin.intern.oas.model.OpenApi
 import de.quati.ogen.plugin.intern.oas.model.Header
 import de.quati.ogen.plugin.intern.oas.model.MediaType
+import de.quati.ogen.plugin.intern.oas.model.OpenApi
 import de.quati.ogen.plugin.intern.oas.model.Parameter
+import de.quati.ogen.plugin.intern.oas.model.PathItem
 import de.quati.ogen.plugin.intern.oas.model.Paths
 import de.quati.ogen.plugin.intern.oas.model.RefOr
 import de.quati.ogen.plugin.intern.oas.model.Schema
 import de.quati.ogen.plugin.intern.oas.model.SchemaSerializer
-import de.quati.ogen.plugin.intern.oas.decode.OasDecoder
-import kotlinx.serialization.json.JsonElement
 import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
 import de.quati.ogen.plugin.intern.parsing.helper.SchemaLocation
 import de.quati.ogen.plugin.intern.parsing.helper.longestCommonPrefix
+import kotlinx.serialization.json.JsonElement
 
 /** The spec as code generation needs it, from the bundled and migrated OAS model. */
 internal fun OpenApi.parse(sourceVersion: OasVersion, config: SpecConfig): Spec {
@@ -83,8 +84,9 @@ internal fun OpenApi.parse(sourceVersion: OasVersion, config: SpecConfig): Spec 
  * The component schemas the paths refer to, directly or through other schemas, parameters, bodies, responses,
  * headers or media types. With [roots], also those these schemas refer to.
  *
- * By default only through the keywords swagger-parser's 3.1 dereferencer walked, which [ParserContext.reachedFromPaths]
- * reproduces (#98); with [everyKeyword] through every keyword that holds a schema.
+ * By default only what swagger-parser's 3.1 dereferencer walked, which [ParserContext.reachedFromPaths] reproduces
+ * (#98). With [everyKeyword], through every keyword that holds a schema, and also from webhooks and callbacks.
+ * Path items that refer to others need no following: the bundler has already put the target in their place.
  */
 internal fun OpenApi.schemasReachedFromPaths(
     roots: Collection<Schema> = emptyList(),
@@ -125,7 +127,7 @@ internal fun OpenApi.schemasReachedFromPaths(
         schema(it.schema)
         content(it.content)
     }
-    paths?.pathItems?.values?.forEach { item ->
+    fun pathItem(item: PathItem) {
         item.parameters?.forEach(::parameter)
         item.operations().forEach { (_, operation) ->
             operation.parameters?.forEach(::parameter)
@@ -136,8 +138,13 @@ internal fun OpenApi.schemasReachedFromPaths(
                     it.headers?.values?.forEach(::header)
                 }
             }
+            if (everyKeyword) operation.callbacks?.values?.forEach { callback ->
+                callback.follow("#/components/callbacks/", all?.callbacks)?.pathItems?.values?.forEach(::pathItem)
+            }
         }
     }
+    paths?.pathItems?.values?.forEach(::pathItem)
+    if (everyKeyword) webhooks?.values?.forEach(::pathItem)
     while (queue.isNotEmpty()) {
         val schema = queue.removeFirst() as? Schema.Obj ?: continue
         schema.ref?.takeIf { it.startsWith(SCHEMAS) }?.removePrefix(SCHEMAS)?.let(::reach)

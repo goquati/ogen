@@ -117,6 +117,39 @@ class TestRecommendationChecks {
         assertEquals(listOf("schema 'Orphan' is not used by any operation"), unusedSchemaWarnings(spec))
     }
 
+    // Webhooks, callbacks and path items that refer to components/pathItems use schemas too.
+    @Test
+    fun `schemas used by webhooks, callbacks and referenced path items`() {
+        fun body(name: String) =
+            "{requestBody: {content: {application/json: {schema: {\$ref: '#/components/schemas/$name'}}}}, responses: {'200': {description: ok}}}"
+        val spec = spec(
+            header + """
+            paths:
+              /pets:
+                post:
+                  responses: {'200': {description: ok}}
+                  callbacks:
+                    inline: {'{${'$'}request.body#/url}': {post: ${body("InlineCallback")}}}
+                    referenced: {${'$'}ref: '#/components/callbacks/Referenced'}
+              /shared: {${'$'}ref: '#/components/pathItems/Shared'}
+            webhooks:
+              newPet: {post: ${body("Webhook")}}
+            components:
+              callbacks:
+                Referenced: {'{${'$'}request.body#/url}': {post: ${body("ReferencedCallback")}}}
+              pathItems:
+                Shared: {post: ${body("SharedPathItem")}}
+              schemas:
+                InlineCallback: {type: object}
+                ReferencedCallback: {type: object}
+                SharedPathItem: {type: object}
+                Webhook: {type: object}
+                Orphan: {type: object}
+            """.trimIndent()
+        )
+        assertEquals(listOf("schema 'Orphan' is not used by any operation"), unusedSchemaWarnings(spec))
+    }
+
     @Test
     fun `properties next to oneOf`() {
         val spec = spec(
