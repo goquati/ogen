@@ -36,21 +36,23 @@ class TestValidatorSettings {
     }.build().specs.map { it.validatorConfig }
 
     private fun SpecsConfigBuilder.SpecConfingBuilder.ValidatorConfig.acceptAnyNames() {
-        tagFormat = NameConvention.Any
-        operationIdFormat = NameConvention.Any
-        propertyNameFormat = NameConvention.Any
-        schemaNameFormat = NameConvention.Any
-        pathSegmentFormat = NameConvention.Any
-        parameterFormat {
-            path = NameConvention.Any
-            query = NameConvention.Any
+        naming {
+            tag = NameConvention.Any
+            operationId = NameConvention.Any
+            property = NameConvention.Any
+            schema = NameConvention.Any
+            pathSegment = NameConvention.Any
+            parameter {
+                path = NameConvention.Any
+                query = NameConvention.Any
+            }
         }
     }
 
     @Test
     fun `without any validator block every spec is validated with the defaults`() {
         val config = assertNotNull(resolved { spec() }.single())
-        assertEquals(NameConvention.PascalCase, config.schemaNameFormat)
+        assertEquals(NameConvention.PascalCase, config.naming.schema)
         assertEquals(emptyMap(), config.rules)
         assertEquals(Severity.Warning, config.severity(ValidatorRule.NamingConventions))
         assertEquals(Severity.Off, config.severity(ValidatorRule.OperationIdRequired))
@@ -58,53 +60,57 @@ class TestValidatorSettings {
 
     @Test
     fun `a spec's own block alone validates it with the defaults for the rest`() {
-        val config = assertNotNull(resolved { spec { validator { tagFormat = NameConvention.PascalCase } } }.single())
-        assertEquals(NameConvention.PascalCase, config.tagFormat)
-        assertEquals(NameConvention.PascalCase, config.schemaNameFormat)
-        assertEquals(NameConvention.CamelCase, config.parameterFormat.path)
+        val config = assertNotNull(resolved { spec { validator { naming { tag = NameConvention.PascalCase } } } }.single())
+        assertEquals(NameConvention.PascalCase, config.naming.tag)
+        assertEquals(NameConvention.PascalCase, config.naming.schema)
+        assertEquals(NameConvention.CamelCase, config.naming.parameter.path)
     }
 
     @Test
     fun `the block in ogen validates every spec, also one declared before it`() {
         val configs = resolved {
             spec()
-            validator { tagFormat = NameConvention.PascalCase }
+            validator { naming { tag = NameConvention.PascalCase } }
             spec()
         }
-        assertEquals(listOf(NameConvention.PascalCase, NameConvention.PascalCase), configs.map { it?.tagFormat })
+        assertEquals(listOf(NameConvention.PascalCase, NameConvention.PascalCase), configs.map { it?.naming?.tag })
     }
 
     @Test
-    fun `a spec's block changes only what it sets, also inside parameterFormat`() {
+    fun `a spec's block changes only what it sets, also inside naming and parameter`() {
         val config = assertNotNull(
             resolved {
                 validator {
-                    tagFormat = NameConvention.PascalCase
-                    stringEnumFormat = NameConvention.KebabCase
-                    parameterFormat {
-                        path = NameConvention.KebabCase
-                        query = NameConvention.KebabCase
+                    naming {
+                        tag = NameConvention.PascalCase
+                        enumValue = NameConvention.KebabCase
+                        parameter {
+                            path = NameConvention.KebabCase
+                            query = NameConvention.KebabCase
+                        }
                     }
                 }
                 spec {
                     validator {
-                        tagFormat = NameConvention.Any
-                        parameterFormat { query = NameConvention.Any }
+                        naming {
+                            tag = NameConvention.Any
+                            parameter { query = NameConvention.Any }
+                        }
                     }
                 }
             }.single()
         )
-        assertEquals(NameConvention.Any, config.tagFormat)
-        assertEquals(NameConvention.KebabCase, config.stringEnumFormat)
-        assertEquals(NameConvention.CamelCase, config.operationIdFormat)
-        assertEquals(NameConvention.KebabCase, config.parameterFormat.path)
-        assertEquals(NameConvention.Any, config.parameterFormat.query)
+        assertEquals(NameConvention.Any, config.naming.tag)
+        assertEquals(NameConvention.KebabCase, config.naming.enumValue)
+        assertEquals(NameConvention.CamelCase, config.naming.operationId)
+        assertEquals(NameConvention.KebabCase, config.naming.parameter.path)
+        assertEquals(NameConvention.Any, config.naming.parameter.query)
     }
 
     @Test
     fun `enabled = false turns validation off for one spec`() {
         val configs = resolved {
-            validator { tagFormat = NameConvention.PascalCase }
+            validator { naming { tag = NameConvention.PascalCase } }
             spec { validator { enabled = false } }
             spec()
         }
@@ -207,7 +213,7 @@ class TestValidatorSettings {
     fun `naming conventions are a rule, too`() {
         val spec = "validator-several-errors"
         assertValidationFails(spec, errorsMessage(spec, 3)) {
-            schemaNameFormat = NameConvention.CamelCase
+            naming { schema = NameConvention.CamelCase }
             rules { namingConventions = Severity.Off }
         }
     }
@@ -220,11 +226,11 @@ class TestValidatorSettings {
             spec()
         }
         val first = builder.build().specs.single()
-        builder.validator { tagFormat = NameConvention.PascalCase }
+        builder.validator { naming { tag = NameConvention.PascalCase } }
         val second = builder.build().specs.single()
         assertSame(first, second)
         assertSame(first.oasParseResult, second.oasParseResult)
-        assertEquals(NameConvention.PascalCase, second.validatorConfig?.tagFormat)
+        assertEquals(NameConvention.PascalCase, second.validatorConfig?.naming?.tag)
     }
 
     // The spec's only path refers to a schema that doesn't exist, so every schema would look unused.

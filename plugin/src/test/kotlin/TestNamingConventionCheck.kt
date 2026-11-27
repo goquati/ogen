@@ -7,17 +7,19 @@ import kotlin.test.Test
 class TestNamingConventionCheck {
     companion object {
         private val strictNames: SpecsConfigBuilder.SpecConfingBuilder.ValidatorConfig.() -> Unit = {
-            tagFormat = NameConvention.CamelCase
-            operationIdFormat = NameConvention.CamelCase
-            propertyNameFormat = NameConvention.CamelCase
-            schemaNameFormat = NameConvention.PascalCase
-            pathSegmentFormat = NameConvention.KebabCase
-            stringEnumFormat = NameConvention.KebabCase
-            parameterFormat {
-                path = NameConvention.CamelCase
-                query = NameConvention.CamelCase
-                header = NameConvention.CamelCase
-                cookie = NameConvention.CamelCase
+            naming {
+                tag = NameConvention.CamelCase
+                operationId = NameConvention.CamelCase
+                property = NameConvention.CamelCase
+                schema = NameConvention.PascalCase
+                pathSegment = NameConvention.KebabCase
+                enumValue = NameConvention.KebabCase
+                parameter {
+                    path = NameConvention.CamelCase
+                    query = NameConvention.CamelCase
+                    header = NameConvention.CamelCase
+                    cookie = NameConvention.CamelCase
+                }
             }
             rules { namingConventions = Severity.Error }
         }

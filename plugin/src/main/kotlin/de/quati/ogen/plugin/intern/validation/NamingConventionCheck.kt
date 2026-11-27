@@ -21,13 +21,13 @@ internal fun namingConventionErrors(spec: ValidatedSpec, config: ValidatorConfig
             .filter { it.isNotEmpty() }
             // A segment with a variable (`{id}`, `{id}:cancel`) is not checked.
             .filter { !pathVariable.containsMatchIn(it) }
-            .forEach { check("path segment", it, path, config.pathSegmentFormat) }
+            .forEach { check("path segment", it, path, config.naming.pathSegment) }
     }
 
     spec.operations().forEach { node ->
-        node.operation.tags.orEmpty().forEach { check("tag", it, node.location, config.tagFormat) }
+        node.operation.tags.orEmpty().forEach { check("tag", it, node.location, config.naming.tag) }
         // A blank operationId counts as none.
-        node.operation.operationId?.takeIf { it.isNotBlank() }?.let { check("operationId", it, node.location, config.operationIdFormat) }
+        node.operation.operationId?.takeIf { it.isNotBlank() }?.let { check("operationId", it, node.location, config.naming.operationId) }
     }
 
     spec.parameters().forEach { node ->
@@ -35,25 +35,25 @@ internal fun namingConventionErrors(spec: ValidatedSpec, config: ValidatorConfig
         // A parameter without name or location is reported by the parser.
         val name = parameter.name ?: return@forEach
         val (placement, format) = when (parameter.location ?: return@forEach) {
-            Parameter.Location.PATH -> "path" to config.parameterFormat.path
-            Parameter.Location.QUERY -> "query" to config.parameterFormat.query
+            Parameter.Location.PATH -> "path" to config.naming.parameter.path
+            Parameter.Location.QUERY -> "query" to config.naming.parameter.query
             // The whole query string as one parameter (3.2) is named like a query parameter.
-            Parameter.Location.QUERYSTRING -> "querystring" to config.parameterFormat.query
-            Parameter.Location.HEADER -> "header" to config.parameterFormat.header
-            Parameter.Location.COOKIE -> "cookie" to config.parameterFormat.cookie
+            Parameter.Location.QUERYSTRING -> "querystring" to config.naming.parameter.query
+            Parameter.Location.HEADER -> "header" to config.naming.parameter.header
+            Parameter.Location.COOKIE -> "cookie" to config.naming.parameter.cookie
         }
         check("$placement parameter", name, node.ownerLocation, format)
     }
 
     spec.api.components?.schemas.orEmpty().keys.forEach {
-        check("schema name", it, "components.schemas", config.schemaNameFormat)
+        check("schema name", it, "components.schemas", config.naming.schema)
     }
     spec.walkSchemas { node ->
         node.schema.properties.orEmpty().keys
-            .forEach { check("property", it, node.location, config.propertyNameFormat) }
+            .forEach { check("property", it, node.location, config.naming.property) }
         // A naming convention can only apply to a string value.
         node.schema.enum.orEmpty().filterIsInstance<JsonPrimitive>().filter { it.isString }
-            .forEach { check("enum value", it.content, node.location, config.stringEnumFormat) }
+            .forEach { check("enum value", it.content, node.location, config.naming.enumValue) }
     }
     return errors
 }

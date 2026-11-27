@@ -58,9 +58,11 @@ ogen {
         specFile("$projectDir/specs/api.yaml")
         // Optional: Validator settings; without this block, the spec is validated with the defaults
         validator {
-            // Naming conventions (warnings by default)
-            propertyNameFormat = NameConvention.CamelCase
-            schemaNameFormat = NameConvention.PascalCase
+            // Naming conventions (warnings by default, see rule namingConventions)
+            naming {
+                schema = NameConvention.PascalCase
+                property = NameConvention.CamelCase
+            }
             // Fail the build on any finding, except unused schemas
             rules(RuleSet.Strict) {
                 unusedSchemas = Severity.Off
@@ -116,9 +118,11 @@ ogen {
 - **Operation IDs**: for operations without an `operationId` (an empty one counts as none),
   `operationIdGenerator { info -> ... }` derives one from an `EndpointInfo` (`tag`, `path`, `relativePath`,
   `method`). If it returns `null` or an empty name, or isn't set, the name is derived from the path and method.
-- **Validator settings**: besides `rules` (below), the `validator` block sets naming conventions for `schemaNameFormat` (default `PascalCase`), `propertyNameFormat`,
-  `tagFormat` and `operationIdFormat` (default `CamelCase`), `pathSegmentFormat` (default `KebabCase`),
-  `stringEnumFormat` (default `Any`) and, via `parameterFormat { path; query; header; cookie }`, parameter names.
+- **Validator settings**: besides `rules` (below), the `validator` block sets naming conventions in `naming {}`:
+  `schema` (default `PascalCase`), `property`, `tag` and `operationId` (default `CamelCase`), `pathSegment`
+  (default `KebabCase`), `enumValue` for the values of string enums (default `Any`) and, via
+  `parameter { path; query; header; cookie }`, parameter names (default `CamelCase` for path and query, `Any` for
+  header and cookie). How a violation is reported is the severity of the rule `namingConventions` in `rules {}`.
   Besides the predefined conventions, `NameConvention.RegexFormat("...")` and `NameConvention.Custom { name -> ... }`
   define custom ones. The conventions apply to every schema and parameter the generator sees, inline request and
   response schemas, composition members and path-level parameters included.
@@ -127,27 +131,27 @@ ogen {
   turns validation off for one spec, or in `ogen {}` for every spec that doesn't turn it on again.
 - **Settings for every spec**: a `validator` block in `ogen {}` sets the validator settings of every spec, also those
   without a `validator` block of their own. A spec's `validator` block starts from these settings and changes only
-  what it sets, also inside `parameterFormat {}` and `rules {}`; without a `validator` block in `ogen {}`, it starts
+  what it sets, also inside `naming {}`, `parameter {}` and `rules {}`; without a `validator` block in `ogen {}`, it starts
   from the defaults.
 
   ```kotlin
   ogen {
-      validator {                                       // applies to every spec below
-          tagFormat = NameConvention.PascalCase
+      validator {                                             // applies to every spec below
+          naming { tag = NameConvention.PascalCase }
           rules { ambiguousPaths = Severity.Error }
       }
       add(packageName = "com.example.portal") {
-          specFile("$rootDir/spec/portal.yaml")          // validated with the settings above
+          specFile("$rootDir/spec/portal.yaml")               // validated with the settings above
           model {}
       }
       add(packageName = "com.example.thirdparty") {
           specFile("$projectDir/oas/thirdparty.yaml")
-          validator { tagFormat = NameConvention.Any }   // overrides only what it sets
+          validator { naming { tag = NameConvention.Any } }   // overrides only what it sets
           model {}
       }
       add(packageName = "com.example.legacy") {
           specFile("$projectDir/oas/legacy.yaml")
-          validator { enabled = false }                  // not validated
+          validator { enabled = false }                       // not validated
           model {}
       }
   }

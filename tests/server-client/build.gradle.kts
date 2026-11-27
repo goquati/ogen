@@ -57,9 +57,11 @@ ogen {
         validator {
             rules(RuleSet.Strict)
             // The two punctuated names test that punctuation separates the words of Kotlin names.
-            parameterFormat {
-                query = NameConvention.Custom {
-                    NameConvention.CamelCase.matches(it) || it in setOf("filter[field]", "scope.project.id")
+            naming {
+                parameter {
+                    query = NameConvention.Custom {
+                        NameConvention.CamelCase.matches(it) || it in setOf("filter[field]", "scope.project.id")
+                    }
                 }
             }
         }

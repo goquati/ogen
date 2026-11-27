@@ -26,14 +26,16 @@ internal fun validatorConfigs(
         specFile(Validator::class.java.getResource("/$spec.yaml")!!.path)
         model {}
         validator {
-            tagFormat = NameConvention.Any
-            operationIdFormat = NameConvention.Any
-            propertyNameFormat = NameConvention.Any
-            schemaNameFormat = NameConvention.Any
-            pathSegmentFormat = NameConvention.Any
-            parameterFormat {
-                path = NameConvention.Any
-                query = NameConvention.Any
+            naming {
+                tag = NameConvention.Any
+                operationId = NameConvention.Any
+                property = NameConvention.Any
+                schema = NameConvention.Any
+                pathSegment = NameConvention.Any
+                parameter {
+                    path = NameConvention.Any
+                    query = NameConvention.Any
+                }
             }
             validator()
         }

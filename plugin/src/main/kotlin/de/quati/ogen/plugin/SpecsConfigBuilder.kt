@@ -257,31 +257,23 @@ public open class SpecsConfigBuilder {
 
         /**
          * The validator's settings. In a spec's `validator {}`, they start from those of `validator {}` in `ogen {}`,
-         * and only what the block sets changes, also inside `parameterFormat {}` and `rules {}`. A property reads
+         * and only what the block sets changes, also inside `naming {}` and `rules {}`. A property reads
          * what this block set, or else the default.
          */
         public class ValidatorConfig {
             private val enabledSetting = Setting { true }
-            private val tagFormatSetting = Setting<NameConvention> { NameConvention.CamelCase }
-            private val operationIdFormatSetting = Setting<NameConvention> { NameConvention.CamelCase }
-            private val propertyNameFormatSetting = Setting<NameConvention> { NameConvention.CamelCase }
-            private val schemaNameFormatSetting = Setting<NameConvention> { NameConvention.PascalCase }
-            private val pathSegmentFormatSetting = Setting<NameConvention> { NameConvention.KebabCase }
-            private val stringEnumFormatSetting = Setting<NameConvention> { NameConvention.Any }
-            private val parameterFormat = ParameterFormat()
+            private val naming = Naming()
             private val rules = Rules()
 
             /** `false` turns validation off for this spec, or, in `ogen {}`, for every spec that doesn't set it. */
             public var enabled: Boolean by enabledSetting
-            public var tagFormat: NameConvention by tagFormatSetting
-            public var operationIdFormat: NameConvention by operationIdFormatSetting
-            public var propertyNameFormat: NameConvention by propertyNameFormatSetting
-            public var schemaNameFormat: NameConvention by schemaNameFormatSetting
-            public var pathSegmentFormat: NameConvention by pathSegmentFormatSetting
-            public var stringEnumFormat: NameConvention by stringEnumFormatSetting
 
-            public fun parameterFormat(block: ParameterFormat.() -> Unit): ValidatorConfig = apply {
-                parameterFormat.apply(block)
+            /**
+             * The naming conventions names must follow. How a name that doesn't follow one is reported is the
+             * severity of the rule [Rules.namingConventions].
+             */
+            public fun naming(block: Naming.() -> Unit): ValidatorConfig = apply {
+                naming.apply(block)
             }
 
             /** The severity of each rule: errors fail the build, warnings are only reported. */
@@ -295,24 +287,70 @@ public open class SpecsConfigBuilder {
                 rules.apply(block)
             }
 
-            public class ParameterFormat {
-                private val pathSetting = Setting<NameConvention> { NameConvention.CamelCase }
-                private val querySetting = Setting<NameConvention> { NameConvention.CamelCase }
-                private val headerSetting = Setting<NameConvention> { NameConvention.Any }
-                private val cookieSetting = Setting<NameConvention> { NameConvention.Any }
+            /**
+             * One naming convention per kind of name. A property reads what this block set, or else the default.
+             * The severity of a violation is set by the rule [Rules.namingConventions].
+             */
+            public class Naming {
+                private val schemaSetting = Setting<NameConvention> { NameConvention.PascalCase }
+                private val propertySetting = Setting<NameConvention> { NameConvention.CamelCase }
+                private val tagSetting = Setting<NameConvention> { NameConvention.CamelCase }
+                private val operationIdSetting = Setting<NameConvention> { NameConvention.CamelCase }
+                private val pathSegmentSetting = Setting<NameConvention> { NameConvention.KebabCase }
+                private val enumValueSetting = Setting<NameConvention> { NameConvention.Any }
+                private val parameter = Parameter()
 
-                public var path: NameConvention by pathSetting
-                public var query: NameConvention by querySetting
-                public var header: NameConvention by headerSetting
-                public var cookie: NameConvention by cookieSetting
+                /** Names of the schemas under `components.schemas`. */
+                public var schema: NameConvention by schemaSetting
 
-                internal fun resolve(parent: ParameterFormat?) =
-                    de.quati.ogen.plugin.intern.model.config.ValidatorConfig.ParameterFormat(
-                        path = pick(parent) { pathSetting },
-                        query = pick(parent) { querySetting },
-                        header = pick(parent) { headerSetting },
-                        cookie = pick(parent) { cookieSetting },
+                /** Names of the properties of object schemas. */
+                public var property: NameConvention by propertySetting
+                public var tag: NameConvention by tagSetting
+                public var operationId: NameConvention by operationIdSetting
+
+                /** The literal segments of the paths, not the `{templates}`. */
+                public var pathSegment: NameConvention by pathSegmentSetting
+
+                /** The values of string enums. */
+                public var enumValue: NameConvention by enumValueSetting
+
+                /** Parameter names, per location. */
+                public fun parameter(block: Parameter.() -> Unit): Naming = apply {
+                    parameter.apply(block)
+                }
+
+                internal fun resolve(parent: Naming?) =
+                    de.quati.ogen.plugin.intern.model.config.ValidatorConfig.Naming(
+                        schema = pick(parent) { schemaSetting },
+                        property = pick(parent) { propertySetting },
+                        tag = pick(parent) { tagSetting },
+                        operationId = pick(parent) { operationIdSetting },
+                        pathSegment = pick(parent) { pathSegmentSetting },
+                        enumValue = pick(parent) { enumValueSetting },
+                        parameter = parameter.resolve(parent?.parameter),
                     )
+
+                public class Parameter {
+                    private val pathSetting = Setting<NameConvention> { NameConvention.CamelCase }
+                    private val querySetting = Setting<NameConvention> { NameConvention.CamelCase }
+                    private val headerSetting = Setting<NameConvention> { NameConvention.Any }
+                    private val cookieSetting = Setting<NameConvention> { NameConvention.Any }
+
+                    public var path: NameConvention by pathSetting
+
+                    /** Query parameters, and the name of a 3.2 `querystring` parameter. */
+                    public var query: NameConvention by querySetting
+                    public var header: NameConvention by headerSetting
+                    public var cookie: NameConvention by cookieSetting
+
+                    internal fun resolve(parent: Parameter?) =
+                        de.quati.ogen.plugin.intern.model.config.ValidatorConfig.Naming.Parameter(
+                            path = pick(parent) { pathSetting },
+                            query = pick(parent) { querySetting },
+                            header = pick(parent) { headerSetting },
+                            cookie = pick(parent) { cookieSetting },
+                        )
+                }
             }
 
             /**
@@ -434,7 +472,7 @@ public open class SpecsConfigBuilder {
                 /** Header names with `_`. */
                 public var headerUnderscores: Severity by rule(ValidatorRule.HeaderUnderscores)
 
-                /** Names that don't match the name formats of `validator {}`. */
+                /** Names that don't follow the conventions of `validator { naming {} }`. */
                 public var namingConventions: Severity by rule(ValidatorRule.NamingConventions)
 
                 // Off by default.
@@ -456,13 +494,7 @@ public open class SpecsConfigBuilder {
                     val ownParent = parent.takeIf { own != null }
                     if (!config.pick(ownParent) { enabledSetting }) return null
                     return de.quati.ogen.plugin.intern.model.config.ValidatorConfig(
-                        parameterFormat = config.parameterFormat.resolve(ownParent?.parameterFormat),
-                        tagFormat = config.pick(ownParent) { tagFormatSetting },
-                        operationIdFormat = config.pick(ownParent) { operationIdFormatSetting },
-                        propertyNameFormat = config.pick(ownParent) { propertyNameFormatSetting },
-                        schemaNameFormat = config.pick(ownParent) { schemaNameFormatSetting },
-                        pathSegmentFormat = config.pick(ownParent) { pathSegmentFormatSetting },
-                        stringEnumFormat = config.pick(ownParent) { stringEnumFormatSetting },
+                        naming = config.naming.resolve(ownParent?.naming),
                         rules = ownParent?.rules?.severities.orEmpty() + config.rules.severities,
                     )
                 }
