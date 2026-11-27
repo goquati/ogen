@@ -40,7 +40,7 @@ internal object OasParser {
         if (loaded.root == null || loaded.sourceVersion == null)
             return OasParseResult(null, loaded.sourceVersion, null, loaded, loaded.diagnostics)
         val bundle = Bundler(loaded).bundle()
-        val decoded = OasDecoder.decode(bundle.element, OpenApi.serializer(), JsonPointer.ROOT, bundle::locate)
+        val decoded = OasDecoder.decode(bundle.element, OpenApi.serializer(), JsonPointer.ROOT, bundle::locate, loaded.sourceVersion)
         val diagnostics = loaded.diagnostics + bundle.diagnostics + decoded.diagnostics
         return OasParseResult(decoded.value, loaded.sourceVersion, bundle, loaded, diagnostics)
     }

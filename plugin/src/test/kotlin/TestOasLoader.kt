@@ -1,3 +1,4 @@
+import de.quati.ogen.plugin.intern.oas.OasVersion
 import de.quati.ogen.plugin.intern.oas.Diagnostic
 import de.quati.ogen.plugin.intern.oas.decode.StructureCheck
 import de.quati.ogen.plugin.intern.oas.load.LoadedSpec
@@ -298,7 +299,7 @@ class TestOasLoader {
                 val located = spec.locate(target) ?: continue
                 val document = spec.documents.getValue(located.document)
                 val value = document.element.at(located.pointer) ?: continue
-                StructureCheck(document::locationOf).check(value, site.expected, located.pointer)
+                StructureCheck(spec.sourceVersion ?: OasVersion.LATEST, document::locationOf).check(value, site.expected, located.pointer)
                     .filter { it.severity == Diagnostic.Severity.ERROR }
                     .forEach { problems += "$path: ${site.ref}: $it" }
             }

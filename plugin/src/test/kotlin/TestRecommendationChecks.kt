@@ -179,10 +179,7 @@ class TestRecommendationChecks {
             """.trimIndent()
         )
         assertEquals(
-            listOf(
-                "operation '/search:QUERY' is not generated: ogen does not support the QUERY method",
-                "operation '/search:LINK' is not generated: ogen does not support additionalOperations",
-            ),
+            listOf("operation '/search:LINK' is not generated: ogen does not support additionalOperations"),
             unsupportedOperationWarnings(spec),
         )
     }

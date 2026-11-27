@@ -4,6 +4,7 @@ import com.networknt.schema.SchemaLocation
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import de.quati.ogen.plugin.intern.oas.Diagnostic
+import de.quati.ogen.plugin.intern.oas.OasVersion
 import de.quati.ogen.plugin.intern.oas.decode.OasDecoder
 import de.quati.ogen.plugin.intern.oas.model.OpenApi
 import de.quati.ogen.plugin.intern.oas.load.OasLoader
@@ -109,7 +110,7 @@ class TestOasModelSpecs {
             val officialErrors = official.validate(raw.toString(), InputFormat.JSON)
             val loaded = OasLoader().load(path.toAbsolutePath().toUri())
             val root = loaded.root ?: continue.also { problems += "$path: not loaded: ${loaded.diagnostics}" }
-            val result = OasDecoder.decode(root.element, OpenApi.serializer(), JsonPointer.ROOT, root::locationOf)
+            val result = OasDecoder.decode(root.element, OpenApi.serializer(), JsonPointer.ROOT, root::locationOf, loaded.sourceVersion ?: OasVersion.LATEST)
             val errors = (loaded.diagnostics + result.diagnostics).filter { it.severity == Diagnostic.Severity.ERROR }
             if (officialErrors.isEmpty()) {
                 if (errors.isNotEmpty()) problems += "$path: valid for the official schema, but: ${errors.joinToString("; ")}"

@@ -212,7 +212,7 @@ ogen {
   next to `oneOf`, a request body on GET or HEAD, header names with `_`, `nullable` in OpenAPI 3.1 and later (which
   has no effect there), schema keywords the spec's version deprecates (`example` since 3.1, the XML Object's
   `attribute` and `wrapped` since 3.2), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without
-  `minimum` in 3.0, operations ogen generates no code for (3.2's `query` and `additionalOperations`), and names that
+  `minimum` in 3.0, operations ogen generates no code for (3.2's `additionalOperations`), and names that
   don't match the naming conventions. Off by default: `operationIdRequired`, operations under `paths` without an
   `operationId`, for projects that choose every generated method name in the spec instead of letting ogen derive it.
   Specs that are only generated as models, often with no operation at all, get an `unusedSchemas` warning for every
@@ -330,6 +330,22 @@ val thing = ThingDto(id = "a".toOption(), additionalProperties = mapOf("count" t
 - A class discriminator that `Json` writes into the object (in a sealed interface, or in every object with
   `ClassDiscriminatorMode.ALL_JSON_OBJECTS`) is no additional property.
 - `required` names that are not declared as properties are not checked.
+
+### The QUERY method
+
+OpenAPI 3.2 specs may have a `query` operation in a Path Item: the HTTP QUERY method, a safe and idempotent request
+with a body. In 3.0 and 3.1 specs, `query` is an unknown field, reported as an error and not generated.
+
+- The Ktor client sends it with `HttpMethod("QUERY")`, as Ktor has no constant for it.
+- The Spring server maps it with `RequestMethod.QUERY`, which needs Spring Framework 7.1 or higher. Spring Security's
+  firewall rejects the method with `400 Bad Request` unless it is allowed:
+
+```kotlin
+@Bean
+fun serverWebExchangeFirewall() = StrictServerWebExchangeFirewall().apply {
+    setAllowedHttpMethods(listOf(GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS, HttpMethod.QUERY))
+}
+```
 
 ## Tasks
 

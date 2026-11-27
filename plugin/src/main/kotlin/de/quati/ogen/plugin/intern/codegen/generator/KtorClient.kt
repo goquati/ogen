@@ -295,7 +295,7 @@ private fun TypeSpec.Builder.addEndpoint(
         addCode {
             add("return this@$controllerName.client.httpClient.%T {\n", Poet.Ktor.Request.prepareRequest)
             indent {
-                addStatement("this.method = %T.%L", Poet.Ktor.httpMethod, endpoint.method.ktorName)
+                addStatement("this.method = %L", endpoint.method.ktorCode)
                 addStatement(
                     "this.attributes[%T] = %L",
                     Poet.Lib.Client.Ktor.ogenAuthAttr,

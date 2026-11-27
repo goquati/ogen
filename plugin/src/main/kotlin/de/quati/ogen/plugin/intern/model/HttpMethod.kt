@@ -10,4 +10,5 @@ internal enum class HttpMethod(val fieldName: String) {
     HEAD("head"),
     OPTIONS("options"),
     TRACE("trace"),
+    QUERY("query"),
 }

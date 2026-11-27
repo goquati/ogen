@@ -1,6 +1,7 @@
 package de.quati.ogen.plugin.intern.oas.ref
 
 import de.quati.ogen.plugin.intern.oas.Diagnostic
+import de.quati.ogen.plugin.intern.oas.OasVersion
 import de.quati.ogen.plugin.intern.oas.SourceLocation
 import de.quati.ogen.plugin.intern.oas.decode.DecodeResult
 import de.quati.ogen.plugin.intern.oas.decode.OasDecoder
@@ -31,7 +32,7 @@ internal class Resolver(private val spec: LoadedSpec) {
             if (element == null)
                 DecodeResult<T>(null, listOf(Diagnostic.error("cannot resolve '$ref'", SourceLocation(ref))))
             else
-                OasDecoder.decode(element, serializer, located.pointer, document::locationOf)
+                OasDecoder.decode(element, serializer, located.pointer, document::locationOf, spec.sourceVersion ?: OasVersion.LATEST)
         } as DecodeResult<T>
 
     /**

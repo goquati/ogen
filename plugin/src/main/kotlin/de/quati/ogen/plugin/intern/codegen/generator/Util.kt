@@ -1,5 +1,6 @@
 package de.quati.ogen.plugin.intern.codegen.generator
 
+import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeSpec
@@ -19,7 +20,8 @@ import de.quati.ogen.plugin.intern.model.SecuritySchemeType
 
 internal val SecuritySchemeType.prettyName get() = value.replaceFirstChar(Char::titlecase)
 
-internal val HttpMethod.ktorName
+/** Ktor's `HttpMethod` for this method; Ktor has no constant for QUERY, so it is created by name. */
+internal val HttpMethod.ktorCode: CodeBlock
     get() = when (this) {
         HttpMethod.POST -> "Post"
         HttpMethod.GET -> "Get"
@@ -29,6 +31,10 @@ internal val HttpMethod.ktorName
         HttpMethod.OPTIONS -> "Options"
         HttpMethod.TRACE -> "Trace"
         HttpMethod.PATCH -> "Patch"
+        HttpMethod.QUERY -> null
+    }.let { constant ->
+        if (constant == null) CodeBlock.of("%T(%S)", Poet.Ktor.httpMethod, name)
+        else CodeBlock.of("%T.%L", Poet.Ktor.httpMethod, constant)
     }
 
 context(c: CodeGenContext)

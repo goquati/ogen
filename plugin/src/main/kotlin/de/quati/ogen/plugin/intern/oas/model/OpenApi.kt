@@ -1,10 +1,12 @@
 package de.quati.ogen.plugin.intern.oas.model
 
+import de.quati.ogen.plugin.intern.oas.OasVersion
 import de.quati.ogen.plugin.intern.oas.serial.AnyValueSerializer
 import de.quati.ogen.plugin.intern.oas.serial.Extensible
 import de.quati.ogen.plugin.intern.oas.serial.ExtensibleMapSerializer
 import de.quati.ogen.plugin.intern.oas.serial.ExtensibleSerializer
 import de.quati.ogen.plugin.intern.oas.serial.OasRequired
+import de.quati.ogen.plugin.intern.oas.serial.OasSince
 import de.quati.ogen.plugin.intern.oas.serial.OasSerialNames
 import kotlinx.serialization.KeepGeneratedSerializer
 import kotlinx.serialization.SerialName
@@ -168,7 +170,7 @@ internal data class PathItem(
     val head: Operation? = null,
     val patch: Operation? = null,
     val trace: Operation? = null,
-    val query: Operation? = null,
+    @OasSince(OasVersion.V3_2) val query: Operation? = null,
     val additionalOperations: Map<String, Operation>? = null,
     val servers: List<Server>? = null,
     val parameters: List<RefOr<Parameter>>? = null,

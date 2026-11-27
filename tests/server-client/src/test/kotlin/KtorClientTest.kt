@@ -3,6 +3,9 @@ package de.quati.ogen
 import de.quati.kotlin.util.toOption
 import de.quati.ogen.gen.client.DebugApi.Companion.debugApi
 import de.quati.ogen.gen.client.UsersApi.Companion.usersApi
+import de.quati.ogen.gen.search.client.SearchApi.Companion.searchApi
+import de.quati.ogen.gen.search.model.SearchRequestDto
+import de.quati.ogen.gen.search.model.SearchResultDto
 import de.quati.ogen.gen.model.DebugLabelDto
 import de.quati.ogen.gen.model.DebugTraceIdDto
 import de.quati.ogen.gen.model.LocaleDto
@@ -360,6 +363,14 @@ class KtorClientTest {
     fun `test parameters passed on as strings`(): TestResult = runTest {
         clientPublic.debugApi.debugStringParameters(label = DebugLabelDto("foo"), tags = "a,b")
             .check(expectedStatus = 200, expectedInput = "foo|a,b")
+    }
+
+    @Test
+    fun `test QUERY method with a request body`(): TestResult = runTest {
+        clientPublic.searchApi.searchUsers(SearchRequestDto(term = "doe")).check(expectedStatus = 200)
+            .body() shouldBe SearchResultDto(names = listOf("John Doe"))
+        clientPublic.searchApi.searchUsers(SearchRequestDto(term = "J", limit = 1.toOption())).check(expectedStatus = 200)
+            .body() shouldBe SearchResultDto(names = listOf("John Doe"))
     }
 
     @Test

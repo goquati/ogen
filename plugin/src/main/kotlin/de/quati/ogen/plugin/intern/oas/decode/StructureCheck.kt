@@ -1,10 +1,12 @@
 package de.quati.ogen.plugin.intern.oas.decode
 
 import de.quati.ogen.plugin.intern.oas.Diagnostic
+import de.quati.ogen.plugin.intern.oas.OasVersion
 import de.quati.ogen.plugin.intern.oas.SourceLocation
 import de.quati.ogen.plugin.intern.oas.ref.JsonPointer
 import de.quati.ogen.plugin.intern.oas.serial.OasRequired
 import de.quati.ogen.plugin.intern.oas.serial.OasSerialNames
+import de.quati.ogen.plugin.intern.oas.serial.OasSince
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.SerialKind
@@ -24,8 +26,13 @@ import kotlinx.serialization.json.booleanOrNull
  *
  * Lenient where swagger-parser was: a number or boolean is accepted where a string is expected
  * (`version: 1.0`), and `null` counts as absent for optional fields.
+ *
+ * [version] is the one the spec was written in: a field added later ([OasSince]) is unknown in it.
  */
-internal class StructureCheck(private val locate: (pointer: JsonPointer, key: Boolean) -> SourceLocation) {
+internal class StructureCheck(
+    private val version: OasVersion,
+    private val locate: (pointer: JsonPointer, key: Boolean) -> SourceLocation,
+) {
     private val diagnostics = mutableListOf<Diagnostic>()
 
     /** The values of the last check that do not fit the model; decoding leaves them out, as swagger-parser did. */
@@ -105,6 +112,11 @@ internal class StructureCheck(private val locate: (pointer: JsonPointer, key: Bo
                 key == OasSerialNames.EXTENSIONS_KEY || key == OasSerialNames.OTHER_KEY ->
                     if (!allowUnknown) error(pointer / key, "unknown field '$key' in $type", key = true)
                 extensible && OasSerialNames.isExtension(key) -> Unit
+                index >= 0 && descriptor.since(index) > version -> {
+                    val since = descriptor.since(index).minor
+                    error(pointer / key, "unknown field '$key' in $type of OpenAPI ${version.minor} (added in $since)", key = true)
+                    invalidValues += pointer / key
+                }
                 index >= 0 -> checkValue(value, descriptor.getElementDescriptor(index), pointer / key)
                 !allowUnknown -> error(pointer / key, "unknown field '$key' in $type", key = true)
             }
@@ -174,6 +186,9 @@ internal class StructureCheck(private val locate: (pointer: JsonPointer, key: Bo
         StructureKind.MAP -> "an object"
         else -> "a value"
     }
+
+    private fun SerialDescriptor.since(index: Int) =
+        getElementAnnotations(index).filterIsInstance<OasSince>().firstOrNull()?.version ?: OasVersion.V3_0
 
     private fun typeName(descriptor: SerialDescriptor) =
         descriptor.serialName.removeSuffix("?").substringAfterLast('.').substringAfterLast('$')

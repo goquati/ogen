@@ -1,6 +1,7 @@
 package de.quati.ogen.plugin.intern.oas.decode
 
 import de.quati.ogen.plugin.intern.oas.Diagnostic
+import de.quati.ogen.plugin.intern.oas.OasVersion
 import de.quati.ogen.plugin.intern.oas.SourceLocation
 import de.quati.ogen.plugin.intern.oas.model.OpenApi
 import de.quati.ogen.plugin.intern.oas.read.ReadResult
@@ -20,7 +21,8 @@ internal class DecodeResult<T>(val value: T?, val diagnostics: List<Diagnostic>)
 /**
  * Decodes JSON trees into the OAS model: first [StructureCheck] collects all problems with their location. Then the
  * tree is decoded without the values that do not fit, as swagger-parser read a spec: a value of the wrong type is
- * left out, an unknown field ignored, a missing required field is null.
+ * left out, an unknown field ignored, a missing required field is null. The version is the one the spec was written
+ * in, which decides which fields are known ([StructureCheck]).
  */
 internal object OasDecoder {
     val json: Json = Json {
@@ -42,8 +44,9 @@ internal object OasDecoder {
         serializer: KSerializer<T>,
         pointer: JsonPointer,
         locate: (pointer: JsonPointer, key: Boolean) -> SourceLocation,
+        version: OasVersion = OasVersion.LATEST,
     ): DecodeResult<T> {
-        val check = StructureCheck(locate)
+        val check = StructureCheck(version, locate)
         val diagnostics = check.check(element, serializer.descriptor, pointer)
         val fitting = element.remove(check.invalidValues.mapNotNull { it.relativeTo(pointer) }.toSet())
         return try {
