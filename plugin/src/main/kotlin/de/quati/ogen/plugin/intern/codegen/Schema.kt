@@ -2,10 +2,12 @@ package de.quati.ogen.plugin.intern.codegen
 
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.joinToCode
 import de.quati.kotlin.util.poet.dsl.addCode
 import de.quati.kotlin.util.poet.dsl.addCompanionObject
 import de.quati.kotlin.util.poet.dsl.addEnumConstant
@@ -139,6 +141,8 @@ private fun Component.Schema.Composed.toObjOrNull(): Component.Schema.Obj? {
             else -> null
         } ?: return null
     }
+    // the members' additional properties would each need a map of their own
+    if (innerSchemas.any { it.additionalProperties != null }) return null
     val allPropNames = innerSchemas.flatMap { it.properties.keys }
     if (allPropNames.size != allPropNames.distinct().size)
         return null // TODO
@@ -346,13 +350,14 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
     // A variant whose only property is the discriminator tag (and any property-less
     // object) has no constructor parameters; a data class requires at least one.
     val hasConstructorProperties =
-        properties.keys.any { it != discInfo?.discriminatorName }
+        properties.keys.any { it != discInfo?.discriminatorName } || additionalProperties != null
     if (!hasConstructorProperties) return generateObjectTypeSpec(discInfo)
 
     return TypeSpec.classBuilder(name.prettyClassName).apply {
         val type = this@generateDataClassTypeSpec.getTypeName(withFlow = false)
         addModifiers(KModifier.DATA)
-        addAnnotation(Poet.serializable(type.getSerializerTypeName(register = true)))
+        if (additionalProperties == null)
+            addAnnotation(Poet.serializable(type.getSerializerTypeName(register = true)))
         if (discInfo != null) {
             addAnnotation(Poet.serialName(discInfo.elementName))
             addAnnotation(Poet.experimentalSerializationApi)
@@ -396,6 +401,9 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
                         addAnnotation(Poet.serialName(fieldName))
                 }
             }
+            this@generateDataClassTypeSpec.additionalProperties?.let { valueSchema ->
+                addAdditionalProperties(this@generateDataClassTypeSpec, this@apply, valueSchema)
+            }
         }
         c.childSchemas[name]?.forEach { childSchema -> // TODO recursive
             childSchema.toInnerTypeSpec()?.also {
@@ -420,3 +428,54 @@ private fun Component.Schema.Obj.generateObjectTypeSpec(discInfo: ElementDiscrim
             }
         }
     }.build()
+
+/** The Kotlin name of the map of additional properties; one that no property of [obj] has. */
+private fun additionalPropertiesName(obj: Component.Schema.Obj): String {
+    val taken = obj.properties.keys.map { it.toCamelCase(capitalized = false) }.toSet()
+    return generateSequence("additionalProperties") { "${it}_" }.first { it !in taken }
+}
+
+/**
+ * The map of the keys [obj] does not declare, as the last constructor parameter, and the serializer that fills it:
+ * [Poet.Lib.Core.additionalPropertiesSerializer] around the serializer the compiler plugin generates for the class.
+ */
+context(c: CodeGenContext)
+private fun FunSpec.Builder.addAdditionalProperties(
+    obj: Component.Schema.Obj,
+    type: TypeSpec.Builder,
+    valueSchema: Component.Schema.Inline,
+) {
+    val className = obj.name.typename
+    val propName = additionalPropertiesName(obj)
+    val mapSchema = Component.Schema.MapS.Inline(valueSchema, isNullable = false, typeWithFormat = null)
+    val mapType = mapSchema.getTypeName(withFlow = false) as Type.NonPrimitiveType.Map
+    val mapTypeName = if (!beanValidation) mapType.poet
+    else mapSchema.withElementConstraints(mapType.poet) { it.forModelType() }
+    addParameter(propName, mapTypeName) { defaultValue("emptyMap()") }
+    type.addProperty(propName, mapTypeName) {
+        initializer(propName)
+        addAnnotation(Poet.transient)
+        if (beanValidation)
+            addAnnotations(mapSchema.validationAnnotations(nullable = false, inContainer = false).forModelField())
+    }
+
+    val serializerName = "Serializer"
+    val knownKeys = obj.properties.keys.map { CodeBlock.of("%S", it) }.joinToCode(", ")
+    type.addType(buildObject(serializerName) {
+        addSuperinterface(
+            Poet.kSerializer.parameterizedBy(className),
+            delegate = CodeBlock.builder()
+                .add("%T(\n", Poet.Lib.Core.additionalPropertiesSerializer).indent()
+                .add("inner = %T.generatedSerializer(),\n", className)
+                .add("valueSerializer = %L,\n", mapType.valueType.serializerCreateCode())
+                .add("knownKeys = setOf(%L),\n", knownKeys)
+                .add("get = %T::%N,\n", className, propName)
+                .add("set = { value, additional -> value.copy(%N = additional) },\n", propName)
+                .unindent().add(")")
+                .build(),
+        )
+    })
+    type.addAnnotation(Poet.serializable(className.nestedClass(serializerName)))
+    type.addAnnotation(Poet.keepGeneratedSerializer)
+    type.addAnnotation(Poet.optIn(Poet.experimentalSerializationApi))
+}

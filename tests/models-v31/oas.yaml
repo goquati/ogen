@@ -423,6 +423,68 @@ components:
           type: string
       additionalProperties: false
 
+    AdditionalPropertiesOpenObject:
+      description: Object with a known property plus additional properties of any type.
+      type: object
+      properties:
+        knownProperty:
+          type: string
+        additionalProperties:
+          description: A property whose name the map of additional properties would have.
+          type: integer
+      additionalProperties: true
+
+    AdditionalPropertiesInlineObject:
+      description: Object whose additional properties are inline objects.
+      type: object
+      properties:
+        knownProperty:
+          type: string
+      additionalProperties:
+        type: object
+        required: [foo]
+        properties:
+          foo:
+            type: string
+
+    PatternPropertiesObject:
+      description: Object with a known property plus string properties whose names match a pattern.
+      type: object
+      properties:
+        knownProperty:
+          type: string
+      patternProperties:
+        '^x-':
+          type: string
+      additionalProperties: false
+
+    OneOfExtras:
+      description: Union whose variant allows additional properties.
+      oneOf:
+        - $ref: '#/components/schemas/OneOfExtras1'
+        - $ref: '#/components/schemas/OneOfExtras2'
+      discriminator:
+        propertyName: objectType
+    OneOfExtras1:
+      description: Variant with additional integer properties.
+      type: object
+      required: [objectType]
+      properties:
+        objectType:
+          type: string
+        foo:
+          type: string
+      additionalProperties:
+        type: integer
+    OneOfExtras2:
+      description: Variant with only the discriminator and additional properties.
+      type: object
+      required: [objectType]
+      properties:
+        objectType:
+          type: string
+      additionalProperties: true
+
     ArrayOfUnions:
       description: Array whose items are a union type.
       type: array

@@ -295,12 +295,37 @@ wherever the schema is used (with a composition, any `additionalProperties` make
 
 | Schema | Kotlin type |
 |---|---|
-| `properties`, without `additionalProperties`, or with `additionalProperties: false` and no `patternProperties` | a class |
-| `properties` and `additionalProperties: true` or a schema | `JsonElement`: classes with additional properties are not supported yet |
+| `properties`, without `additionalProperties` and `patternProperties`, or with `additionalProperties: false` and no `patternProperties` | a class |
+| `properties` and `additionalProperties: true` or a schema, or `patternProperties` | a class with a map of the other keys |
 | no `properties`, `additionalProperties: true` or `{}` | `Map<String, JsonElement>` |
 | no `properties`, `additionalProperties` with a schema | `Map<String, T>` |
 | no `properties`, `additionalProperties: false` | `JsonElement` |
 | no `properties`, no `additionalProperties` | `JsonElement` |
+
+A class that allows other keys keeps them in its last property, `additionalProperties: Map<String, T>` (with a `_`
+appended while a declared property has that name). Its serializer reads every key the schema doesn't declare into
+the map and writes the map's entries next to the declared properties; it works with `Json` only.
+
+```yaml
+Thing:
+  type: object
+  properties: { id: { type: string } }
+  additionalProperties: { type: integer }
+```
+
+```kotlin
+val thing = ThingDto(id = "a".toOption(), additionalProperties = mapOf("count" to 3))
+// {"id":"a","count":3}
+```
+
+- `T` is the type of the `additionalProperties` schema, `JsonElement` for `true`.
+- `patternProperties` share the map with `additionalProperties`: when all their schemas (and that of
+  `additionalProperties`, unless it is `false`) are the same, `T` is its type, otherwise `JsonElement`. The keys are
+  not matched against the patterns. Without `additionalProperties`, keys that match no pattern are allowed too, so `T`
+  is `JsonElement`.
+- Without `additionalProperties` and `patternProperties`, the class has no map: unknown keys are ignored or rejected
+  as the `Json` configuration says (`ignoreUnknownKeys`).
+- A key of the map that the schema declares as a property fails serialization.
 
 ## Tasks
 

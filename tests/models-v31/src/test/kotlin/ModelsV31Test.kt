@@ -1,3 +1,11 @@
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.SerializationException
+import de.quati.ogen.oas.schemas.gen.model.OneOfExtrasDto
+import de.quati.ogen.oas.schemas.gen.model.OneOfExtras2Dto
+import de.quati.ogen.oas.schemas.gen.model.OneOfExtras1Dto
+import de.quati.ogen.oas.schemas.gen.model.PatternPropertiesObjectDto
+import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesInlineObjectDto
+import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesOpenObjectDto
 import de.quati.kotlin.util.toOption
 import de.quati.ogen.UserId
 import de.quati.ogen.oas.schemas.gen.model.AllOfMixed1Dto
@@ -356,11 +364,12 @@ class ModelsV31Test {
 
     @Test
     fun `test additional properties`() {
-        AdditionalPropertiesObjectDto(buildJsonObject {
-            put("knownProperty", "value")
-            put("extra1", 1)
-            put("extra2", 2)
-        }).test(expectedString = """{"knownProperty":"value","extra1":1,"extra2":2}""")
+        // A class of the declared properties, the others in a map of the type of `additionalProperties`.
+        AdditionalPropertiesObjectDto(
+            knownProperty = "value".toOption(),
+            additionalProperties = mapOf("extra1" to 1, "extra2" to 2),
+        ).test(expectedString = """{"knownProperty":"value","extra1":1,"extra2":2}""")
+        AdditionalPropertiesObjectDto().test(expectedString = """{}""")
 
         // A map, not a JsonElement: `additionalProperties: true` is the same as `{}`.
         AdditionalPropertiesAnyObjectDto(
@@ -370,6 +379,43 @@ class ModelsV31Test {
         // A class: `additionalProperties: false` next to properties adds nothing a class doesn't have.
         AdditionalPropertiesClosedObjectDto(knownProperty = "value")
             .test(expectedString = """{"knownProperty":"value"}""")
+    }
+
+    @Test
+    fun `test class with additional properties`() {
+        // `true`: untyped values; the map is named so it doesn't clash with the property `additionalProperties`.
+        AdditionalPropertiesOpenObjectDto(
+            knownProperty = "k".toOption(),
+            additionalProperties = 1.toOption(),
+            additionalProperties_ = mapOf("a" to JsonPrimitive("x"), "b" to JsonNull),
+        ).test(expectedString = """{"knownProperty":"k","additionalProperties":1,"a":"x","b":null}""")
+
+        // An inline object schema becomes a nested class.
+        AdditionalPropertiesInlineObjectDto(
+            additionalProperties = mapOf("a" to AdditionalPropertiesInlineObjectDto.AdditionalPropertyDto(foo = "x")),
+        ).test(expectedString = """{"a":{"foo":"x"}}""")
+
+        // `patternProperties` share the map with `additionalProperties`.
+        PatternPropertiesObjectDto(knownProperty = "k".toOption(), additionalProperties = mapOf("x-a" to "1"))
+            .test(expectedString = """{"knownProperty":"k","x-a":"1"}""")
+        assertFailsWith<SerializationException> {
+            json.decodeFromString<PatternPropertiesObjectDto>("""{"x-a":1}""")
+        }
+
+        // A declared key in the map would be written twice.
+        assertFailsWith<SerializationException> {
+            json.encodeToString(AdditionalPropertiesObjectDto(additionalProperties = mapOf("knownProperty" to 1)))
+        }
+    }
+
+    @Test
+    fun `test oneOf variants with additional properties`() {
+        (OneOfExtras1Dto(foo = "f".toOption(), additionalProperties = mapOf("n" to 1)) as OneOfExtrasDto)
+            .test(expectedString = """{"objectType":"OneOfExtras1","foo":"f","n":1}""")
+        (OneOfExtras2Dto(additionalProperties = mapOf("n" to JsonPrimitive("x"))) as OneOfExtrasDto)
+            .test(expectedString = """{"objectType":"OneOfExtras2","n":"x"}""")
+        json.decodeFromString<OneOfExtrasDto>("""{"n":2,"objectType":"OneOfExtras1"}""") shouldBe
+            OneOfExtras1Dto(additionalProperties = mapOf("n" to 2))
     }
 
     @Test

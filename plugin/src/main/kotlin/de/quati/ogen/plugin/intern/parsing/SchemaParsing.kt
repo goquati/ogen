@@ -202,6 +202,30 @@ private fun Schema.Obj.unwrapMigratedNullableAllOf(): SchemaView? {
     return SchemaView(copy(anyOf = null, allOf = inner.allOf), is30 = true, nullable = true)
 }
 
+/**
+ * The schema of the values of the keys an object with `properties` allows beyond them, or null when it allows none
+ * the class keeps (#108).
+ *
+ * Without `additionalProperties`, the class ignores other keys, as it always did; with `false` there are none. All
+ * keys `patternProperties` and `additionalProperties` allow share one map: its values have their schema when they
+ * all have the same one, otherwise they are untyped. Without `additionalProperties`, keys that match no pattern are
+ * allowed too, with any value.
+ */
+private fun Schema.Obj.additionalValueSchemaOrNull(): Schema? {
+    val patterns = patternProperties.orEmpty().values
+    val additional = when (val it = additionalProperties) {
+        null -> if (patterns.isEmpty()) return null else Schema.Bool(true)
+        Schema.Bool(false) -> null
+        else -> it
+    }
+    val schemas = (patterns + listOfNotNull(additional)).distinct()
+    return when {
+        schemas.isEmpty() -> null
+        schemas.size == 1 -> schemas.single()
+        else -> Schema.Bool(true)
+    }
+}
+
 context(pc: ParserContext)
 internal fun Schema.parse(
     location: SchemaLocation,
@@ -294,17 +318,14 @@ internal fun Schema.parse(
                 } ?: emptyMap()
                 val additionalProps = o.additionalProperties
                 if (props.isNotEmpty()) {
-                    // A class has no place for additional properties yet; without any (`false`) it is the class (#108),
-                    // unless `patternProperties` allows some after all.
-                    val noAdditional = additionalProps == null ||
-                        additionalProps == Schema.Bool(false) && o.patternProperties.isNullOrEmpty()
-                    if (!noAdditional) return@run s.toUnknown(location)
                     return@run Component.Schema.Obj(
                         isNullable = s.isNullable,
                         required = o.required?.toSet() ?: emptySet(),
                         properties = props,
                         name = location.name,
-                        typeWithFormat = s.toTypeWithFormatOrNull()
+                        typeWithFormat = s.toTypeWithFormatOrNull(),
+                        additionalProperties = o.additionalValueSchemaOrNull()
+                            ?.parse(location = location + "AdditionalProperty"),
                     )
                 }
                 // Without properties, `true` is the same as `{}`: a map of untyped values. An object that must stay

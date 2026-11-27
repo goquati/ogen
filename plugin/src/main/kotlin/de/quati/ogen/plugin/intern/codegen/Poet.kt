@@ -19,6 +19,11 @@ internal object Poet {
     val serializationException = ClassName("kotlinx.serialization", "SerializationException")
     val experimentalSerializationApi = ClassName("kotlinx.serialization", "ExperimentalSerializationApi")
     val json = ClassName("kotlinx.serialization.json", "Json")
+    val transient = ClassName("kotlinx.serialization", "Transient")
+    val keepGeneratedSerializer = ClassName("kotlinx.serialization", "KeepGeneratedSerializer")
+    fun optIn(marker: ClassName) = buildAnnotationSpec(packageName = "kotlin", className = "OptIn") {
+        addMember("%T::class", marker)
+    }
     val flow = ClassName("kotlinx.coroutines.flow", "Flow")
     val flowFun = ClassName("kotlinx.coroutines.flow", "flow")
 
@@ -100,6 +105,7 @@ internal object Poet {
 
             val optionSerializer = packageName.className("OptionSerializer")
             val valueSerializer = packageName.className("ValueSerializer")
+            val additionalPropertiesSerializer = packageName.className("AdditionalPropertiesSerializer")
             val operationContext = packageName.className("OperationContext")
         }
 
