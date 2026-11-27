@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info:
+  title: Path segments in camelCase
+  description: >-
+    Variables at the start, within and at the end of camelCase names.
+  version: 1.0.0
+paths:
+  /items/by{field}Name:
+    parameters:
+      - { name: field, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /items/{itemId}Details:
+    parameters:
+      - { name: itemId, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /items/{itemId}:batchGet:
+    parameters:
+      - { name: itemId, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /reports/report{Year}.csv:
+    parameters:
+      - { name: Year, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /reports/report-{year}:
+    parameters:
+      - { name: year, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK

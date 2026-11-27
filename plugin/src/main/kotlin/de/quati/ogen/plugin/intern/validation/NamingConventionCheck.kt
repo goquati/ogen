@@ -15,13 +15,23 @@ internal fun namingConventionErrors(spec: ValidatedSpec, config: ValidatorConfig
         if (!format.matches(name)) errors.add("$kind '$name' in '$location' does not match the $kind format $format")
     }
 
+    // A variable stands for a value that fits the convention: lower-case where it starts a camelCase or kebab-case
+    // name, upper-case where it starts a PascalCase one, either within a name.
+    fun checkPathPart(kind: String, part: String, location: String, format: NameConvention) {
+        // A part that is only variables (`{id}`, `{id}{rev}`) has no text of its own.
+        if (part.replace(pathVariable, "").isEmpty()) return
+        // As written first, so an exception can name the part with its variables.
+        if (format.matches(part) || variablePlaceholders.any { format.matches(part.replace(pathVariable, it)) }) return
+        errors.add("$kind '$part' in '$location' does not match the $kind format $format")
+    }
+
     spec.api.paths?.pathItems.orEmpty().keys.forEach { path ->
-        path.trimStart('/').split("/")
-            // The root path `/`, a trailing slash and a double slash leave an empty segment, which is no name.
-            .filter { it.isNotEmpty() }
-            // A segment with a variable (`{id}`, `{id}:cancel`) is not checked.
-            .filter { !pathVariable.containsMatchIn(it) }
-            .forEach { check("path segment", it, path, config.naming.pathSegment) }
+        // The root path `/`, a trailing slash and a double slash leave an empty segment, which is no name.
+        path.trimStart('/').split("/").filter { it.isNotEmpty() }.forEach { segment ->
+            val (names, extensions) = pathSegmentParts(segment)
+            names.forEach { checkPathPart("path segment", it, path, config.naming.pathSegment) }
+            extensions.forEach { checkPathPart("path extension", it, path, config.naming.pathExtension) }
+        }
     }
 
     spec.operations().forEach { node ->
@@ -56,4 +66,38 @@ internal fun namingConventionErrors(spec: ValidatedSpec, config: ValidatorConfig
             .forEach { check("enum value", it.content, node.location, config.naming.enumValue) }
     }
     return errors
+}
+
+// Letters only, so a convention without digits accepts them; two of them, so a convention without acronyms reads
+// one word (`XxReport`, `byxxName`).
+private val variablePlaceholders = listOf("xx", "Xx")
+
+/**
+ * The names and the extensions of a path segment, with its variables as written. The segment splits at `:`
+ * (`{id}:cancel`); in each piece, leading dots (`.well-known`) are dropped, the text up to the next `.` is a name and
+ * the parts after it are extensions (`archive.tar.gz`). A `.` or `:` inside a variable splits nothing; empty parts are
+ * left out.
+ */
+internal fun pathSegmentParts(segment: String): Pair<List<String>, List<String>> {
+    val names = mutableListOf<String>()
+    val extensions = mutableListOf<String>()
+    segment.splitOutsideVariables(':').forEach { piece ->
+        val parts = piece.trimStart('.').splitOutsideVariables('.')
+        names += parts.first()
+        extensions += parts.drop(1)
+    }
+    return names.filter { it.isNotEmpty() } to extensions.filter { it.isNotEmpty() }
+}
+
+private fun String.splitOutsideVariables(separator: Char): List<String> {
+    val variables = pathVariable.findAll(this).map { it.range }.toList()
+    val parts = mutableListOf<String>()
+    var start = 0
+    forEachIndexed { index, char ->
+        if (char == separator && variables.none { index in it }) {
+            parts += substring(start, index)
+            start = index + 1
+        }
+    }
+    return parts + substring(start)
 }

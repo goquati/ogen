@@ -303,6 +303,7 @@ public open class SpecsConfigBuilder {
                 private val tagSetting = Setting<NameConvention> { NameConvention.CamelCase }
                 private val operationIdSetting = Setting<NameConvention> { NameConvention.CamelCase }
                 private val pathSegmentSetting = Setting<NameConvention> { NameConvention.KebabCase }
+                private val pathExtensionSetting = Setting<NameConvention> { NameConvention.KebabCase }
                 private val enumValueSetting = Setting<NameConvention> { NameConvention.Any }
                 private val parameter = Parameter()
 
@@ -314,8 +315,15 @@ public open class SpecsConfigBuilder {
                 public var tag: NameConvention by tagSetting
                 public var operationId: NameConvention by operationIdSetting
 
-                /** The literal segments of the paths, not the `{templates}`. */
+                /**
+                 * The names in the paths: a segment split at `:` (`{id}:cancel`), each piece up to its first `.`. A
+                 * part matches if it does as written, or with every `{variable}` in it replaced by `xx`, or by `Xx`;
+                 * a part that is only variables is not checked.
+                 */
                 public var pathSegment: NameConvention by pathSegmentSetting
+
+                /** The extensions in the paths: the parts after the first `.` of a name (`csv`, `tar`, `gz`). */
+                public var pathExtension: NameConvention by pathExtensionSetting
 
                 /** The values of string enums. */
                 public var enumValue: NameConvention by enumValueSetting
@@ -332,6 +340,7 @@ public open class SpecsConfigBuilder {
                         tag = pick(parent) { tagSetting },
                         operationId = pick(parent) { operationIdSetting },
                         pathSegment = pick(parent) { pathSegmentSetting },
+                        pathExtension = pick(parent) { pathExtensionSetting },
                         enumValue = pick(parent) { enumValueSetting },
                         parameter = parameter.resolve(parent?.parameter),
                     )
