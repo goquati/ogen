@@ -28,7 +28,7 @@ import de.quati.ogen.plugin.intern.codegen.CodeGenContext
 import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.codegen.getTypeName
 import de.quati.ogen.plugin.intern.codegen.oGenCapitalize
-import de.quati.ogen.plugin.intern.codegen.serverBeanValidation
+import de.quati.ogen.plugin.intern.codegen.beanValidation
 import de.quati.ogen.plugin.intern.codegen.parameterValidation
 import de.quati.ogen.plugin.intern.model.Component
 import de.quati.ogen.plugin.intern.model.ContentType
@@ -182,7 +182,7 @@ private fun TypeSpec.Builder.createController(
 /** The type of a parameter of this schema and its annotations, both with the constraints if they are generated. */
 context(_: CodeGenContext)
 private fun Component.Schema.validated(type: TypeName, nullable: Boolean): Pair<TypeName, List<AnnotationSpec>> =
-    if (serverBeanValidation) parameterValidation(type = type, nullable = nullable) else type to emptyList()
+    if (beanValidation) parameterValidation(type = type, nullable = nullable) else type to emptyList()
 
 context(_: CodeGenContext)
 private fun Endpoint.Response.Content?.bodyTypeName(): TypeName? = this?.content

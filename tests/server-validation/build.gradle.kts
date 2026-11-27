@@ -51,13 +51,11 @@ ogen {
         validator {
             rules(RuleSet.Strict)
         }
+        beanValidation = true
         model {
-            beanValidation = true
             typeMapping(type = "number+big-decimal", clazz = "java.math.BigDecimal")
         }
-        serverSpringV4 {
-            beanValidation = true
-        }
+        serverSpringV4 {}
     }
 }
 

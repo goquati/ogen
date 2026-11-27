@@ -17,7 +17,6 @@ internal sealed interface GeneratorConfig {
         val typeMappings: Map<TypeWithFormat, Type.NonPrimitiveType.Custom>,
         val schemaMappings: Map<ComponentName.Schema, Type.NonPrimitiveType.Custom>,
         val postfix: String,
-        val beanValidation: Boolean,
     ) : GeneratorConfig
 
     data class ServerSpringV4(
@@ -27,7 +26,6 @@ internal sealed interface GeneratorConfig {
         val contextIfAnySecurity: ClassName?,
         val addOperationContext: Boolean,
         val apiResponse: Boolean,
-        val beanValidation: Boolean,
     ) : GeneratorConfig
 
     data class ClientKtor(
