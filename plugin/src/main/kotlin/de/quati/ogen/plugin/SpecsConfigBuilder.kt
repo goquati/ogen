@@ -257,8 +257,8 @@ public open class SpecsConfigBuilder {
 
         /**
          * The validator's settings. In a spec's `validator {}`, they start from those of `validator {}` in `ogen {}`,
-         * and only what the block sets changes, also inside `naming {}` and `rules {}`. A property reads
-         * what this block set, or else the default.
+         * and only what the block sets changes, also inside `naming {}`, its `parameter {}` and `rules {}`. A property
+         * reads what this block set, or else the default.
          */
         public class ValidatorConfig {
             private val enabledSetting = Setting { true }
