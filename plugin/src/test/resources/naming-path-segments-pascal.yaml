@@ -1,0 +1,40 @@
+openapi: 3.0.3
+info:
+  title: Path segments in PascalCase
+  description: >-
+    Variables at the start, within and at the end of PascalCase names (a variable at the start may begin with a capital); extensions stay kebab-case.
+  version: 1.0.0
+paths:
+  /Items/{Id}Report:
+    parameters:
+      - { name: Id, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /Items/{Id}:Cancel:
+    parameters:
+      - { name: Id, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /Reports/Report{Year}.csv:
+    parameters:
+      - { name: Year, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /Reports/report{Year}:
+    parameters:
+      - { name: Year, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /Reports/Summary.CSV:
+    get:
+      responses:
+        '200':
+          description: OK

@@ -1,7 +1,8 @@
 openapi: 3.0.3
 info:
   title: Path segments
-  description: "The root path, a trailing slash, a double slash, and one segment that is not kebab-case."
+  description: >-
+    The root path, a trailing slash, a double slash, variables, custom methods and extensions, checked with kebab-case.
   version: 1.0.0
 paths:
   /:
@@ -20,6 +21,99 @@ paths:
         '200':
           description: OK
   /Items:
+    get:
+      responses:
+        '200':
+          description: OK
+  /openapi.json:
+    get:
+      responses:
+        '200':
+          description: OK
+  /.well-known/security.txt:
+    get:
+      responses:
+        '200':
+          description: OK
+  /v1.2/archives/backup.tar.gz:
+    get:
+      responses:
+        '200':
+          description: OK
+  /items:batch-get:
+    get:
+      responses:
+        '200':
+          description: OK
+  /items/{id}:cancel:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /items/{id}:Cancel_It:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /items/item_{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /reports/report-{year}.csv:
+    parameters:
+      - { name: year, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /reports/Report_{year}.CSV:
+    parameters:
+      - { name: year, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /files/{name}-{rev}:
+    parameters:
+      - { name: name, in: path, required: true, schema: { type: string } }
+      - { name: rev, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /files/{name}.{format}:
+    parameters:
+      - { name: name, in: path, required: true, schema: { type: string } }
+      - { name: format, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /files/{name}_{rev}:
+    parameters:
+      - { name: name, in: path, required: true, schema: { type: string } }
+      - { name: rev, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /files/{fileId}.json:download:
+    parameters:
+      - { name: fileId, in: path, required: true, schema: { type: string } }
+    get:
+      responses:
+        '200':
+          description: OK
+  /tenants/{tenantId}_Data:
+    parameters:
+      - { name: tenantId, in: path, required: true, schema: { type: string } }
     get:
       responses:
         '200':

@@ -119,10 +119,17 @@ ogen {
   `operationIdGenerator { info -> ... }` derives one from an `EndpointInfo` (`tag`, `path`, `relativePath`,
   `method`). If it returns `null` or an empty name, or isn't set, the name is derived from the path and method.
 - **Validator settings**: besides `rules` (below), the `validator` block sets naming conventions in `naming {}`:
-  `schema` (default `PascalCase`), `property`, `tag` and `operationId` (default `CamelCase`), `pathSegment`
-  (default `KebabCase`), `enumValue` for the values of string enums (default `Any`) and, via
-  `parameter { path; query; header; cookie }`, parameter names (default `CamelCase` for path and query, `Any` for
-  header and cookie). How a violation is reported is the severity of the rule `namingConventions` in `rules {}`.
+  `schema` (default `PascalCase`), `property`, `tag` and `operationId` (default `CamelCase`), `pathSegment` and
+  `pathExtension` for the names and extensions in paths (both default `KebabCase`), `enumValue` for the values of
+  string enums (default `Any`) and, via `parameter { path; query; header; cookie }`, parameter names (default
+  `CamelCase` for path and query, `Any` for header and cookie). A path segment splits at `:`; in each piece, leading
+  dots are dropped, the text up to the next `.` is a name (`pathSegment`) and each part after it an extension
+  (`pathExtension`): `{id}.json:download` checks the name `download` and the extension `json`, and
+  `.well-known` the name `well-known`. A part matches if it does as written, or with every variable replaced by `xx`,
+  or by `Xx`, since the variable's value is unknown: `by{field}Name` in camelCase, `{Id}Report` in PascalCase, but also
+  `report{year}` in kebab-case. A part that is only variables is not checked. `except(...)` on these two names one
+  part (`Legacy_API`), not a whole segment, and turning off the checks on paths takes both set to `Any`.
+  How a violation is reported is the severity of the rule `namingConventions` in `rules {}`.
   Besides the predefined conventions, `NameConvention.RegexFormat("...")` and `NameConvention.Custom { name -> ... }`
   define custom ones. `CamelCase`, `PascalCase`, `KebabCase` and `RegexFormat` take a block: `except(...)` lists
   exact names the convention accepts as they are (e.g. a third-party header), and on `CamelCase` and `PascalCase`,

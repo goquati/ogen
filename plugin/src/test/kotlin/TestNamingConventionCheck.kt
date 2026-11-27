@@ -2,7 +2,9 @@ import de.quati.ogen.plugin.NameConvention
 import de.quati.ogen.plugin.Severity
 import de.quati.ogen.plugin.SpecsConfigBuilder
 import de.quati.ogen.plugin.intern.validation.namingConventionErrors
+import de.quati.ogen.plugin.intern.validation.pathSegmentParts
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class TestNamingConventionCheck {
     companion object {
@@ -12,7 +14,8 @@ class TestNamingConventionCheck {
                 operationId = NameConvention.CamelCase
                 property = NameConvention.CamelCase
                 schema = NameConvention.PascalCase
-                pathSegment = NameConvention.KebabCase
+                pathSegment = NameConvention.KebabCase { except("{tenantId}_Data") }
+                pathExtension = NameConvention.KebabCase
                 enumValue = NameConvention.KebabCase
                 parameter {
                     path = NameConvention.CamelCase
@@ -24,9 +27,22 @@ class TestNamingConventionCheck {
             rules { namingConventions = Severity.Error }
         }
 
-        private fun assertNamingErrors(spec: String, expected: List<String>) {
-            val config = validatorConfigs(spec, strictNames).specs.single().validatorConfig!!
-            assertErrors(spec, { namingConventionErrors(it, config) }, expected, strictNames)
+        private fun assertNamingErrors(
+            spec: String,
+            expected: List<String>,
+            validator: SpecsConfigBuilder.SpecConfingBuilder.ValidatorConfig.() -> Unit = strictNames,
+        ) {
+            val config = validatorConfigs(spec, validator).specs.single().validatorConfig!!
+            assertErrors(spec, { namingConventionErrors(it, config) }, expected, validator)
+        }
+
+        private fun pathSegments(format: NameConvention): SpecsConfigBuilder.SpecConfingBuilder.ValidatorConfig.() -> Unit = {
+            strictNames()
+            naming {
+                pathSegment = format
+                // The variables are named to fit the segment, which the path parameter format would reject.
+                parameter { path = NameConvention.Any }
+            }
         }
     }
 
@@ -70,11 +86,66 @@ class TestNamingConventionCheck {
     }
 
     // The root path, a trailing slash and a double slash leave an empty segment, which the convention must not reject.
+    // A segment's names are the text up to its first `.`, split at `:`; the parts after it are extensions. A part
+    // that is only variables is not checked; in the others, a variable counts as `xx` or `Xx`.
     @Test
     fun testPathSegments() {
         assertNamingErrors(
             "naming-path-segments",
-            listOf("path segment 'Items' in '/Items' does not match the path segment format kebab-case"),
+            listOf(
+                "path segment 'Items' in '/Items' does not match the path segment format kebab-case",
+                "path segment 'Cancel_It' in '/items/{id}:Cancel_It' does not match the path segment format kebab-case",
+                "path segment 'item_{id}' in '/items/item_{id}' does not match the path segment format kebab-case",
+                "path segment 'Report_{year}' in '/reports/Report_{year}.CSV' does not match the path segment format kebab-case",
+                "path extension 'CSV' in '/reports/Report_{year}.CSV' does not match the path extension format kebab-case",
+                "path segment '{name}_{rev}' in '/files/{name}_{rev}' does not match the path segment format kebab-case",
+            ),
+        )
+    }
+
+    @Test
+    fun testPathSegmentsCamelCase() {
+        assertNamingErrors(
+            "naming-path-segments-camel",
+            listOf(
+                "path segment 'report-{year}' in '/reports/report-{year}' does not match the path segment format camelCase without acronyms",
+            ),
+            pathSegments(NameConvention.CamelCase { acronyms = false }),
+        )
+    }
+
+    @Test
+    fun testPathSegmentsPascalCase() {
+        assertNamingErrors(
+            "naming-path-segments-pascal",
+            listOf(
+                "path segment 'report{Year}' in '/Reports/report{Year}' does not match the path segment format PascalCase without acronyms",
+                "path extension 'CSV' in '/Reports/Summary.CSV' does not match the path extension format kebab-case",
+            ),
+            pathSegments(NameConvention.PascalCase { acronyms = false }),
+        )
+    }
+
+    @Test
+    fun testPathSegmentParts() {
+        assertEquals(listOf("{id}", "cancel") to emptyList(), pathSegmentParts("{id}:cancel"))
+        assertEquals(listOf("{id}", "download") to listOf("json"), pathSegmentParts("{id}.json:download"))
+        assertEquals(listOf("archive") to listOf("tar", "gz"), pathSegmentParts("archive.tar.gz"))
+        assertEquals(listOf("well-known") to emptyList(), pathSegmentParts(".well-known"))
+        // A `.` or `:` inside a variable splits nothing.
+        assertEquals(listOf("{user.id}", "{a:b}") to listOf("json"), pathSegmentParts("{user.id}:{a:b}.json"))
+        assertEquals(listOf("a\u0000b") to emptyList(), pathSegmentParts("a\u0000b"))
+    }
+
+    // The placeholder has no digit, so a convention without digits accepts a part with a variable.
+    @Test
+    fun testPathSegmentsWithoutDigits() {
+        assertNamingErrors(
+            "naming-path-segments-camel",
+            listOf(
+                "path segment 'report-{year}' in '/reports/report-{year}' does not match the path segment format ^[a-z]+([A-Z][a-z]+)*$",
+            ),
+            pathSegments(NameConvention.RegexFormat("^[a-z]+([A-Z][a-z]+)*$")),
         )
     }
 }

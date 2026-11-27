@@ -42,6 +42,7 @@ class TestValidatorSettings {
             property = NameConvention.Any
             schema = NameConvention.Any
             pathSegment = NameConvention.Any
+            pathExtension = NameConvention.Any
             parameter {
                 path = NameConvention.Any
                 query = NameConvention.Any

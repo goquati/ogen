@@ -15,6 +15,7 @@ internal data class ValidatorConfig(
         val tag: NameConvention,
         val operationId: NameConvention,
         val pathSegment: NameConvention,
+        val pathExtension: NameConvention,
         val enumValue: NameConvention,
         val parameter: Parameter,
     ) {
