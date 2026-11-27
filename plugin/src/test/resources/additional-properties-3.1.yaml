@@ -1,0 +1,27 @@
+openapi: 3.1.0
+info: {title: additionalProperties, version: '1'}
+paths:
+  /things:
+    post:
+      operationId: createThing
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Reached'}
+      responses: {'204': {description: ok}}
+components:
+  schemas:
+    # Referenced from the path, so swagger-parser's 3.1 dereferencer once treated it differently from the others.
+    Reached:
+      type: object
+      properties:
+        open: {$ref: '#/components/schemas/ReachedOpen'}
+        inlineOpen: {type: object, additionalProperties: true}
+    ReachedOpen: {type: object, additionalProperties: true}
+    FreeForm: {type: object}
+    Open: {type: object, additionalProperties: true}
+    OpenSchema: {type: object, additionalProperties: {}}
+    Closed: {type: object, additionalProperties: false}
+    Strict: {type: object, properties: {id: {type: string}}, additionalProperties: false}
+    WithExtras: {type: object, properties: {id: {type: string}}, additionalProperties: true}
+    WithTypedExtras: {type: object, properties: {id: {type: string}}, additionalProperties: {type: integer}}

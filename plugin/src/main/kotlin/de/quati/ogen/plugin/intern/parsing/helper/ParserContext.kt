@@ -23,26 +23,7 @@ internal class ParserContext(
     private val mediaTypes: Map<String, RefOr<MediaType>> = emptyMap(),
     /** `components/parameters`, as swagger-parser put referenced parameters of operations in place. */
     private val parameters: Map<String, RefOr<Parameter>> = emptyMap(),
-    /** The component schemas the paths refer to, directly or through other schemas. */
-    private val schemasReachedFromPaths: Set<String> = emptySet(),
 ) : SpecInfoContext {
-    /**
-     * Whether the schema being parsed is a component schema that swagger-parser's 3.1 dereferencer reached through
-     * a `$ref` from the paths; in those it turned `additionalProperties: true` into a Boolean. Inline schemas of
-     * the paths kept the boolean schema.
-     */
-    var reachedFromPaths: Boolean = false
-        private set
-
-    fun <T> inComponentSchema(name: String, block: () -> T): T {
-        val before = reachedFromPaths
-        reachedFromPaths = name in schemasReachedFromPaths
-        try {
-            return block()
-        } finally {
-            reachedFromPaths = before
-        }
-    }
 
     /** The parameter a reference to `components/parameters` names, following references; null if there is none. */
     fun resolveParameter(ref: String): Parameter? {

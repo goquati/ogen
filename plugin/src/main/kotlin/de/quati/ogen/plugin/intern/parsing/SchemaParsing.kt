@@ -292,24 +292,22 @@ internal fun Schema.parse(
                 val props = o.properties?.mapValues {
                     it.value.parse(location = location + it.key.toCamelCase(capitalized = true))
                 } ?: emptyMap()
-                val additionalProps = o.additionalProperties ?: return@run if (props.isEmpty())
-                    s.toUnknown(location)
-                else
-                    Component.Schema.Obj(
+                val additionalProps = o.additionalProperties
+                if (props.isNotEmpty()) {
+                    // A class has no place for additional properties yet; without any (`false`) it is the class (#108).
+                    if (additionalProps != null && additionalProps != Schema.Bool(false))
+                        return@run s.toUnknown(location)
+                    return@run Component.Schema.Obj(
                         isNullable = s.isNullable,
                         required = o.required?.toSet() ?: emptySet(),
                         properties = props,
                         name = location.name,
                         typeWithFormat = s.toTypeWithFormatOrNull()
                     )
-                // swagger-parser read `additionalProperties: true/false` as a Boolean in 3.0, and in 3.1 in component
-                // schemas its dereferencer reached from the paths; elsewhere in 3.1 as a boolean schema (ParserContext).
-                val asBoolean = pc.version == Spec.Version.V3_0 || pc.reachedFromPaths
-                if (asBoolean && additionalProps == Schema.Bool(true))
-                    return@run s.toUnknown(location)
-                if (!(o.properties?.isEmpty() ?: true))
-                    return@run s.toUnknown(location)
-                if (asBoolean && additionalProps !is Schema.Obj)
+                }
+                // Without properties, `true` is the same as `{}`: a map of untyped values. An object that must stay
+                // empty (`false`) and one that says nothing about its properties are untyped values (#98).
+                if (additionalProps == null || additionalProps == Schema.Bool(false))
                     return@run s.toUnknown(location)
                 createMap(
                     location = location,

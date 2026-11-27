@@ -260,6 +260,19 @@ Constraints of the items of arrays and the values of maps go on the type argumen
 Hibernate Validator reads them from JVM type annotations, so with `beanValidation` the plugin adds
 `-Xemit-jvm-type-annotations` to the Kotlin JVM compilations.
 
+### Objects and `additionalProperties`
+
+What a `type: object` schema becomes, the same in every OpenAPI version and wherever the schema is used:
+
+| Schema | Kotlin type |
+|---|---|
+| `properties`, without `additionalProperties` or with `additionalProperties: false` | a class |
+| `properties` and `additionalProperties: true` or a schema | `JsonElement`: classes with additional properties are not supported yet |
+| no `properties`, `additionalProperties: true` or `{}` | `Map<String, JsonElement>` |
+| no `properties`, `additionalProperties` with a schema | `Map<String, T>` |
+| no `properties`, `additionalProperties: false` | `JsonElement` |
+| no `properties`, no `additionalProperties` | `JsonElement` |
+
 ## Tasks
 
 The plugin registers the following tasks:

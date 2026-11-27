@@ -1,7 +1,6 @@
 package de.quati.ogen.plugin.intern.validation
 
 import de.quati.ogen.plugin.intern.oas.model.Schema
-import de.quati.ogen.plugin.intern.parsing.schemasReachedFromPaths
 import kotlinx.serialization.json.JsonPrimitive
 
 /*
@@ -22,7 +21,7 @@ internal fun unusedSchemaWarnings(spec: ValidatedSpec): List<String> {
     val kept = schemas.filterValues { schema ->
         ((schema as? Schema.Obj)?.extensions?.get(KEEP_EXTENSION) as? JsonPrimitive)?.content == "true"
     }
-    val used = (spec.api.schemasReachedFromPaths(roots = kept.values, everyKeyword = true) + kept.keys).toMutableSet()
+    val used = (spec.api.schemasReachedFromPaths(roots = kept.values) + kept.keys).toMutableSet()
     // A schema that extends a used one through `allOf` is one of its subtypes, and used with it, as is what it refers to.
     do {
         val subtypes = schemas.filterKeys { it !in used }.filterValues { schema ->
@@ -31,7 +30,7 @@ internal fun unusedSchemaWarnings(spec: ValidatedSpec): List<String> {
             }
         }
         used += subtypes.keys
-        if (subtypes.isNotEmpty()) used += spec.api.schemasReachedFromPaths(roots = subtypes.values, everyKeyword = true)
+        if (subtypes.isNotEmpty()) used += spec.api.schemasReachedFromPaths(roots = subtypes.values)
     } while (subtypes.isNotEmpty())
     return schemas.keys.filter { it !in used }.map { "schema '$it' is not used by any operation" }
 }
