@@ -48,8 +48,12 @@ class TestValidatorSettings {
     }
 
     @Test
-    fun `without any validator block no spec is validated`() {
-        assertEquals(listOf(null), resolved { spec() })
+    fun `without any validator block every spec is validated with the defaults`() {
+        val config = assertNotNull(resolved { spec() }.single())
+        assertEquals(NameConvention.PascalCase, config.schemaNameFormat)
+        assertEquals(emptyMap(), config.rules)
+        assertEquals(Severity.Warning, config.severity(ValidatorRule.NamingConventions))
+        assertEquals(Severity.Off, config.severity(ValidatorRule.OperationIdRequired))
     }
 
     @Test
@@ -168,6 +172,8 @@ class TestValidatorSettings {
         assertEquals(ValidatorRule.entries.toSet(), RuleSet.Lenient.keys)
         assertEquals(Severity.Error, RuleSet.Lenient[ValidatorRule.EnumValues])
         assertEquals(Severity.Warning, RuleSet.Lenient[ValidatorRule.UnusedSchemas])
+        assertEquals(Severity.Off, RuleSet.Lenient[ValidatorRule.NamingConventions])
+        assertEquals(Severity.Off, RuleSet.Lenient[ValidatorRule.OperationIdRequired])
     }
 
     // validator-several-errors has three errors (path parameter, enum value, required property) and a trailing slash.

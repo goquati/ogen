@@ -30,6 +30,8 @@ class TestGeneration {
                 utilPackageName("$group.gen.util")
                 add(packageName = "$group.gen") {
                     specFile(TestGeneration::class.java.getResource("$spec.yaml")!!.path)
+                    // Tests of generation only; some specs, such as keycloak's, have errors the validator reports.
+                    validator { enabled = false }
                     model {}
                     clientKtor {}
                     operationGenerationId?.also { gen ->

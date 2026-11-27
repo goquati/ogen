@@ -46,9 +46,9 @@ public open class SpecsConfigBuilder {
     }
 
     /**
-     * Validator settings every spec inherits: with this block, every spec is validated, also without a `validator {}`
-     * of its own. A spec's `validator {}` changes only the settings it sets; `validator { enabled = false }` turns
-     * validation off for one spec.
+     * Validator settings every spec inherits; every spec is validated, without this block with the defaults. A spec's
+     * `validator {}` changes only the settings it sets; `validator { enabled = false }` turns validation off for one
+     * spec, or here for every spec that doesn't turn it on.
      */
     public fun validator(block: SpecConfingBuilder.ValidatorConfig.() -> Unit): SpecsConfigBuilder = apply {
         validator = (validator ?: SpecConfingBuilder.ValidatorConfig()).apply(block)
@@ -117,8 +117,8 @@ public open class SpecsConfigBuilder {
         }
 
         /**
-         * Validates this spec. The settings start from those of `validator {}` in `ogen {}`, if there is one; this
-         * block changes only what it sets.
+         * The validator settings of this spec. They start from those of `validator {}` in `ogen {}`, if there is one,
+         * else from the defaults; this block changes only what it sets.
          */
         public fun validator(block: ValidatorConfig.() -> Unit): SpecConfingBuilder = apply {
             validatorConfig = (validatorConfig ?: ValidatorConfig()).apply(block)
@@ -340,9 +340,6 @@ public open class SpecsConfigBuilder {
 
                 // Errors by default.
 
-                /** Names that don't match the name formats of `validator {}`. */
-                public var namingConventions: Severity by rule(ValidatorRule.NamingConventions)
-
                 /** Fields the spec's version requires: `paths`, `responses` and `items` in 3.0, a response's `description`. */
                 public var versionRequirements: Severity by rule(ValidatorRule.VersionRequirements)
 
@@ -430,15 +427,23 @@ public open class SpecsConfigBuilder {
 
                 /** Header names with `_`. */
                 public var headerUnderscores: Severity by rule(ValidatorRule.HeaderUnderscores)
+
+                /** Names that don't match the name formats of `validator {}`. */
+                public var namingConventions: Severity by rule(ValidatorRule.NamingConventions)
+
+                // Off by default.
+
+                /** Operations without an `operationId`, for projects that choose every method name in the spec. */
+                public var operationIdRequired: Severity by rule(ValidatorRule.OperationIdRequired)
             }
 
             internal companion object {
                 /**
                  * The settings of a spec: what its own block sets, else what the block in `ogen {}` sets, else the
-                 * default. Null if neither block exists or validation is off.
+                 * default. Null if validation is off.
                  */
                 fun resolve(own: ValidatorConfig?, parent: ValidatorConfig?): de.quati.ogen.plugin.intern.model.config.ValidatorConfig? {
-                    val config = own ?: parent ?: return null
+                    val config = own ?: parent ?: ValidatorConfig()
                     val ownParent = parent.takeIf { own != null }
                     if (!config.pick(ownParent) { enabledSetting }) return null
                     return de.quati.ogen.plugin.intern.model.config.ValidatorConfig(

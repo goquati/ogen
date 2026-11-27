@@ -5,6 +5,7 @@ info:
 paths:
   /items/all/:
     get:
+      operationId: listAllItems
       parameters:
         - name: itemId
           in: path

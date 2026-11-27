@@ -1,4 +1,5 @@
 import de.quati.ogen.plugin.NameConvention
+import de.quati.ogen.plugin.Severity
 import de.quati.ogen.plugin.intern.tasks.Validator
 import org.gradle.api.GradleException
 import org.slf4j.event.Level
@@ -32,7 +33,19 @@ class TestValidator {
     fun testNamingErrorsCountWithTheChecks() {
         assertValidationFails("validator-several-errors", errorsMessage("validator-several-errors", 4)) {
             schemaNameFormat = NameConvention.CamelCase
+            rules { namingConventions = Severity.Error }
         }
+    }
+
+    // Naming conventions are warnings by default: the schema name is reported, but only the three errors count.
+    @Test
+    fun testNamingConventionsAreWarningsByDefault() {
+        val logger = CapturingLogger()
+        val e = assertFailsWith<GradleException> {
+            Validator(logger).validate(validatorConfigs("validator-several-errors") { schemaNameFormat = NameConvention.CamelCase })
+        }
+        assertEquals(errorsMessage("validator-several-errors", 3), e.message)
+        assertTrue(logger.at(Level.WARN).any { "schema name 'Item'" in it }, logger.entries.toString())
     }
 
     // Errors and warnings are printed one per entry; only errors count.
