@@ -1,4 +1,5 @@
 import de.quati.ogen.plugin.NameConvention
+import de.quati.ogen.plugin.Severity
 import de.quati.ogen.plugin.SpecsConfigBuilder
 import de.quati.ogen.plugin.intern.validation.namingConventionErrors
 import kotlin.test.Test
@@ -18,6 +19,7 @@ class TestNamingConventionCheck {
                 header = NameConvention.CamelCase
                 cookie = NameConvention.CamelCase
             }
+            rules { namingConventions = Severity.Error }
         }
 
         private fun assertNamingErrors(spec: String, expected: List<String>) {

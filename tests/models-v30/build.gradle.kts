@@ -1,3 +1,4 @@
+import de.quati.ogen.plugin.Severity
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
@@ -34,6 +35,8 @@ ogen {
     utilPackageName("$group.oas.schemas.gen.util")
     add(packageName = "$group.oas.schemas.gen") {
         specFile("$projectDir/oas.yaml")
+        // Only models, so no operation uses the schemas.
+        validator { rules { unusedSchemas = Severity.Off } }
         model {
             typeMapping(
                 type = "number+big-decimal", clazz = "java.math.BigDecimal",

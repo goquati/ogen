@@ -1,3 +1,4 @@
+import de.quati.ogen.plugin.Severity
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.gradle.api.tasks.testing.Test
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -67,6 +68,8 @@ ogen {
     utilPackageName("$group.oas.schemas.gen.util")
     add(packageName = "$group.oas.schemas.gen") {
         specFile("$projectDir/oas.yaml")
+        // Only models, so no operation uses the schemas.
+        validator { rules { unusedSchemas = Severity.Off } }
         model {
             typeMapping(
                 type = "string+date-time", clazz = "kotlin.time.Instant",

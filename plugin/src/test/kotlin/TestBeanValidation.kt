@@ -35,6 +35,8 @@ class TestBeanValidation {
             utilPackageName("$group.gen.util")
             add(packageName = "$group.gen") {
                 specFile(TestBeanValidation::class.java.getResource("$spec.yaml")!!.path)
+                // Tests of generation only; some specs, such as keycloak's, have errors the validator reports.
+                validator { enabled = false }
                 model {
                     typeMapping(type = "number+big-decimal", clazz = "java.math.BigDecimal")
                     typeMapping(type = "string+date-time", clazz = "java.time.OffsetDateTime")

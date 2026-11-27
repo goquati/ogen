@@ -17,6 +17,7 @@ import de.quati.ogen.plugin.intern.validation.invalidTypeErrors
 import de.quati.ogen.plugin.intern.validation.namingConventionErrors
 import de.quati.ogen.plugin.intern.validation.nullableIn31Warnings
 import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
+import de.quati.ogen.plugin.intern.validation.operationIdRequiredErrors
 import de.quati.ogen.plugin.intern.validation.oneOfWithPropertiesWarnings
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
 import de.quati.ogen.plugin.intern.validation.patternWarnings
@@ -38,7 +39,10 @@ import de.quati.ogen.plugin.intern.validation.versionRequirementErrors
  */
 public enum class ValidatorRule(
     public val default: Severity,
-    /** A recommendation: what may be intended, but often is a mistake. [RuleSet.Lenient] turns these off. */
+    /**
+     * A recommendation: a matter of style, or what may be intended but often is a mistake. [RuleSet.Lenient] turns
+     * these off.
+     */
     internal val recommendation: Boolean,
     /**
      * Whether the check runs only on a spec the parser found no errors in, whatever its severity: it relies on what
@@ -48,7 +52,6 @@ public enum class ValidatorRule(
     internal val needsValidSpec: Boolean,
     internal val check: (ValidatedSpec, ValidatorConfig) -> List<String>,
 ) {
-    NamingConventions(Severity.Error, recommendation = false, needsValidSpec = true, ::namingConventionErrors),
     VersionRequirements(Severity.Error, ::versionRequirementErrors, needsValidSpec = true),
     BrokenPathTemplates(Severity.Error, ::brokenPathTemplateErrors, needsValidSpec = true),
     QueryOrFragmentInPaths(Severity.Error, ::queryOrFragmentInPathErrors, needsValidSpec = true),
@@ -79,6 +82,9 @@ public enum class ValidatorRule(
     OneOfWithProperties(Severity.Warning, ::oneOfWithPropertiesWarnings, recommendation = true),
     GetWithBody(Severity.Warning, ::getWithBodyWarnings, recommendation = true),
     HeaderUnderscores(Severity.Warning, ::headerUnderscoreWarnings, recommendation = true),
+    NamingConventions(Severity.Warning, recommendation = true, needsValidSpec = true, ::namingConventionErrors),
+
+    OperationIdRequired(Severity.Off, ::operationIdRequiredErrors),
     ;
 
     constructor(
@@ -94,17 +100,14 @@ public object RuleSet {
     /** Every rule with its default severity. */
     public val Default: Map<ValidatorRule, Severity> = ValidatorRule.entries.associateWith { it.default }
 
-    /** Every rule an error: any finding fails the build. */
+    /** Every rule an error, also those that are off by default, such as `operationIdRequired`: any finding fails the build. */
     public val Strict: Map<ValidatorRule, Severity> = ValidatorRule.entries.associateWith { Severity.Error }
 
     /**
      * As much as possible allowed, e.g. for specs of third parties: what makes a spec invalid stays an error, other
-     * problems stay warnings, and naming conventions and recommendations are off.
+     * problems stay warnings, and recommendations (naming conventions among them) are off.
      */
     public val Lenient: Map<ValidatorRule, Severity> = ValidatorRule.entries.associateWith {
-        when {
-            it == ValidatorRule.NamingConventions || it.recommendation -> Severity.Off
-            else -> it.default
-        }
+        if (it.recommendation) Severity.Off else it.default
     }
 }

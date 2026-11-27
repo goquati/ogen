@@ -1,0 +1,35 @@
+openapi: 3.0.3
+info:
+  title: Missing operationIds
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      operationId: listItems
+      responses:
+        '200':
+          description: OK
+    post:
+      responses:
+        '204':
+          description: Created
+          content: {}
+      callbacks:
+        onCreated:
+          '{$request.body#/callbackUrl}':
+            post:
+              responses:
+                '204':
+                  description: OK
+  /items/{itemId}:
+    delete:
+      operationId: ''
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted

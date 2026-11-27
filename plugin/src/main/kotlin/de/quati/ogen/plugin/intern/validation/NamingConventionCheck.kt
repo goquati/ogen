@@ -26,7 +26,8 @@ internal fun namingConventionErrors(spec: ValidatedSpec, config: ValidatorConfig
 
     spec.operations().forEach { node ->
         node.operation.tags.orEmpty().forEach { check("tag", it, node.location, config.tagFormat) }
-        node.operation.operationId?.let { check("operationId", it, node.location, config.operationIdFormat) }
+        // A blank operationId counts as none.
+        node.operation.operationId?.takeIf { it.isNotBlank() }?.let { check("operationId", it, node.location, config.operationIdFormat) }
     }
 
     spec.parameters().forEach { node ->
