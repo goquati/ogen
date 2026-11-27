@@ -28,5 +28,37 @@ components:
       properties: {id: {type: string}}
       patternProperties: {'^x-': {type: string}}
       additionalProperties: false
+    # Without additionalProperties, keys that match no pattern are allowed too, with any value.
+    OpenWithPatterns:
+      type: object
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': {type: string}}
+    SameWithPatterns:
+      type: object
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': {type: string}}
+      additionalProperties: {type: string}
+    MixedWithPatterns:
+      type: object
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': {type: string}, '^n-': {type: integer}}
+      additionalProperties: false
+    ForbiddenWithPatterns:
+      type: object
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': false}
+      additionalProperties: false
+    # Without properties, patternProperties share the map with additionalProperties as well.
+    MapWithPatterns:
+      type: object
+      patternProperties: {'^x-': {type: string}}
+      additionalProperties: false
+    OpenMapWithPatterns:
+      type: object
+      patternProperties: {'^x-': {type: string}}
+    MixedMapWithPatterns:
+      type: object
+      patternProperties: {'^x-': {type: string}}
+      additionalProperties: {type: integer}
     WithExtras: {type: object, properties: {id: {type: string}}, additionalProperties: true}
     WithTypedExtras: {type: object, properties: {id: {type: string}}, additionalProperties: {type: integer}}

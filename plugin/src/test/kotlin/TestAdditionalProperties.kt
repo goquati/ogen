@@ -8,34 +8,57 @@ class TestAdditionalProperties {
     private fun schemas(spec: String) =
         validatorConfigs(spec).specs.single().toSpec().components.schemas.mapKeys { it.key.toString() }
 
+    private fun Component.Schema.Inline.kind() = when (this) {
+        is Component.Schema.Unknown -> "untyped"
+        is Component.Schema.Primitiv -> type.name.lowercase()
+        else -> this::class.simpleName
+    }
+
+    private fun Component.Schema.kind() = when (this) {
+        is Component.Schema.MapS -> "map of ${valueSchema.kind()}"
+        is Component.Schema.Unknown -> "untyped"
+        is Component.Schema.Obj -> additionalProperties?.let { "class + map of ${it.kind()}" } ?: "class"
+        else -> this::class.simpleName
+    }
+
     @Test
     fun `additionalProperties has one meaning`() {
         for (spec in listOf("additional-properties", "additional-properties-3.1")) {
             val schemas = schemas(spec)
-            fun kind(name: String) = when (schemas.getValue(name)) {
-                is Component.Schema.MapS -> "map"
-                is Component.Schema.Unknown -> "untyped"
-                is Component.Schema.Obj -> "class"
-                else -> schemas.getValue(name)::class.simpleName
-            }
             assertEquals(
                 mapOf(
-                    "ReachedOpen" to "map",
+                    "ReachedOpen" to "map of untyped",
                     "FreeForm" to "untyped",
-                    "Open" to "map",
-                    "OpenSchema" to "map",
+                    "Open" to "map of untyped",
+                    "OpenSchema" to "map of untyped",
                     "Closed" to "untyped",
                     "Strict" to "class",
-                    "WithExtras" to "untyped",
-                    "WithTypedExtras" to "untyped",
+                    "WithExtras" to "class + map of untyped",
+                    "WithTypedExtras" to "class + map of integer",
                 ),
-                schemas.keys.filter { it != "Reached" && it != "StrictWithPatterns" }.associateWith(::kind),
+                schemas.filterKeys { it != "Reached" && "Patterns" !in it }.mapValues { it.value.kind() },
                 spec,
             )
             val reached = assertIs<Component.Schema.Obj>(schemas.getValue("Reached"), spec)
             assertIs<Component.Schema.MapS>(reached.properties.getValue("inlineOpen"), spec)
         }
-        // `patternProperties` (3.1) allows some additional properties after all, which a class has no place for yet.
-        assertIs<Component.Schema.Unknown>(schemas("additional-properties-3.1").getValue("StrictWithPatterns"))
+    }
+
+    @Test
+    fun `patternProperties share the map with additionalProperties`() {
+        // One schema for all keeps its type; a pattern with `false` allows no key.
+        assertEquals(
+            mapOf(
+                "StrictWithPatterns" to "class + map of string",
+                "OpenWithPatterns" to "class + map of untyped",
+                "SameWithPatterns" to "class + map of string",
+                "MixedWithPatterns" to "class + map of untyped",
+                "ForbiddenWithPatterns" to "class",
+                "MapWithPatterns" to "map of string",
+                "OpenMapWithPatterns" to "map of untyped",
+                "MixedMapWithPatterns" to "map of untyped",
+            ),
+            schemas("additional-properties-3.1").filterKeys { "Patterns" in it }.mapValues { it.value.kind() },
+        )
     }
 }

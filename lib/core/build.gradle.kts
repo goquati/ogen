@@ -19,6 +19,7 @@ extensions.configure<KotlinMultiplatformExtension> {
         commonMain.dependencies {
             implementation(libs.quati.base)
             implementation(libs.kotlinx.serialization)
+            implementation(libs.kotlinx.serialization.json)
         }
         jvmMain.dependencies {
             compileOnly(libs.jakarta.validation.api)

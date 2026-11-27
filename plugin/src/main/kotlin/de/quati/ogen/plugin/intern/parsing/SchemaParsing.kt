@@ -202,6 +202,30 @@ private fun Schema.Obj.unwrapMigratedNullableAllOf(): SchemaView? {
     return SchemaView(copy(anyOf = null, allOf = inner.allOf), is30 = true, nullable = true)
 }
 
+/**
+ * The schema of the values of the keys an object allows beyond its `properties`, or null when it allows none a map
+ * keeps (#108).
+ *
+ * Without `additionalProperties`, other keys are ignored, as they always were; with `false` there are none. All keys
+ * `patternProperties` and `additionalProperties` allow share one map: its values have their schema when they all have
+ * the same one, otherwise they are untyped. Without `additionalProperties`, keys that match no pattern are allowed
+ * too, with any value. A pattern whose schema is `false` allows no key.
+ */
+private fun Schema.Obj.additionalValueSchemaOrNull(): Schema? {
+    val patterns = patternProperties.orEmpty().values.filter { it != Schema.Bool(false) }
+    val additional = when (val it = additionalProperties) {
+        null -> if (patterns.isEmpty()) return null else Schema.Bool(true)
+        Schema.Bool(false) -> null
+        else -> it
+    }
+    val schemas = (patterns + listOfNotNull(additional)).distinct()
+    return when {
+        schemas.isEmpty() -> null
+        schemas.size == 1 -> schemas.single()
+        else -> Schema.Bool(true)
+    }
+}
+
 context(pc: ParserContext)
 internal fun Schema.parse(
     location: SchemaLocation,
@@ -292,29 +316,24 @@ internal fun Schema.parse(
                 val props = o.properties?.mapValues {
                     it.value.parse(location = location + it.key.toCamelCase(capitalized = true))
                 } ?: emptyMap()
-                val additionalProps = o.additionalProperties
                 if (props.isNotEmpty()) {
-                    // A class has no place for additional properties yet; without any (`false`) it is the class (#108),
-                    // unless `patternProperties` allows some after all.
-                    val noAdditional = additionalProps == null ||
-                        additionalProps == Schema.Bool(false) && o.patternProperties.isNullOrEmpty()
-                    if (!noAdditional) return@run s.toUnknown(location)
                     return@run Component.Schema.Obj(
                         isNullable = s.isNullable,
                         required = o.required?.toSet() ?: emptySet(),
                         properties = props,
                         name = location.name,
-                        typeWithFormat = s.toTypeWithFormatOrNull()
+                        typeWithFormat = s.toTypeWithFormatOrNull(),
+                        additionalProperties = o.additionalValueSchemaOrNull()
+                            ?.parse(location = location + "AdditionalProperty"),
                     )
                 }
                 // Without properties, `true` is the same as `{}`: a map of untyped values. An object that must stay
                 // empty (`false`) and one that says nothing about its properties are untyped values (#98).
-                if (additionalProps == null || additionalProps == Schema.Bool(false))
-                    return@run s.toUnknown(location)
+                val valueSchema = o.additionalValueSchemaOrNull() ?: return@run s.toUnknown(location)
                 createMap(
                     location = location,
                     isNullable = s.isNullable,
-                    valueSchema = additionalProps.parse(
+                    valueSchema = valueSchema.parse(
                         location = when (location.isValueSchema()) {
                             true -> location + "Value"
                             false -> location.updateLast { "${it}Value" }

@@ -319,11 +319,12 @@ class ModelsKmpTest {
 
     @Test
     fun `test additional properties`() {
-        AdditionalPropertiesObjectDto(buildJsonObject {
-            put("knownProperty", "value")
-            put("extra1", 1)
-            put("extra2", 2)
-        }).test(expectedString = """{"knownProperty":"value","extra1":1,"extra2":2}""")
+        // A class of the declared properties, the others in a map of the type of `additionalProperties`.
+        AdditionalPropertiesObjectDto(
+            knownProperty = "value".toOption(),
+            additionalProperties = mapOf("extra1" to 1, "extra2" to 2),
+        ).test(expectedString = """{"knownProperty":"value","extra1":1,"extra2":2}""")
+        AdditionalPropertiesObjectDto().test(expectedString = """{}""")
 
         AdditionalPropertiesAnyObjectDto(buildJsonObject {
             put("foo", "bar")

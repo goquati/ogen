@@ -210,12 +210,17 @@ internal sealed interface Component {
             }
         }
 
+        /**
+         * A class of [properties]. [additionalProperties] is the schema of the values of the other keys, when the
+         * object allows such keys (`additionalProperties` or `patternProperties`); the class then keeps them in a map.
+         */
         data class Obj(
             val required: Set<String>,
             val properties: Map<String, Inline>,
             override val name: ComponentName.Schema,
             override val isNullable: Boolean,
             override val typeWithFormat: TypeWithFormat?,
+            val additionalProperties: Inline? = null,
         ) : NonInline
 
         data object Null : Inline {
