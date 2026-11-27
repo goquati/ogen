@@ -56,6 +56,9 @@ private fun InputConfig.Merge.getAllSpecDataInDirectory(): List<SpecData> = try 
     @OptIn(ExperimentalPathApi::class)
     directoryPath.walk()
         .filter { it.isRegularFile() && it.absolute() != ignorePath }
+        // walk() returns the files in the filesystem's order, which differs between platforms; sorted, the
+        // merged spec is the same everywhere.
+        .sortedBy { it.relativeTo(directoryPath).invariantSeparatorsPathString }
         .mapNotNull { readSpecData(it) }
         .toList()
 } catch (e: IOException) {
