@@ -20,8 +20,6 @@ import kotlin.reflect.KProperty
 
 public open class SpecsConfigBuilder {
     private val specs = mutableListOf<SpecConfig>()
-    // The validator block of each spec, resolved against the one of `ogen {}` in [build], which may come after it.
-    private val specValidators = mutableListOf<SpecConfingBuilder.ValidatorConfig?>()
     private var validator: SpecConfingBuilder.ValidatorConfig? = null
     private var utilPackageName: PackageName? = null
     /** Whether any spec generates Bean Validation annotations, for models or the Spring server. */
@@ -32,9 +30,8 @@ public open class SpecsConfigBuilder {
         }
 
     internal fun build() = SpecConfigs(
-        specs = specs.zip(specValidators) { spec, specValidator ->
-            spec.copy(validatorConfig = SpecConfingBuilder.ValidatorConfig.resolve(own = specValidator, parent = validator))
-        },
+        // The same instances on every call, so that the tasks share each spec's parse result.
+        specs = specs.toList(),
         util = SpecConfigs.Util(
             packageName = utilPackageName ?: error("utilPackageName is required"),
         ),
@@ -45,8 +42,8 @@ public open class SpecsConfigBuilder {
         block: SpecConfingBuilder.() -> Unit,
     ): SpecsConfigBuilder = apply {
         val builder = SpecConfingBuilder(rootPackageName = packageName).apply(block)
-        specs += builder.build()
-        specValidators += builder.validatorConfig
+        // The validator block of `ogen {}` may come after the spec, so its settings are read when the validator runs.
+        specs += builder.build { validator }
     }
 
     /**
@@ -69,8 +66,7 @@ public open class SpecsConfigBuilder {
     ) {
         private var inputConfig: InputConfig? = null
         private val generatorConfigs = mutableMapOf<KClass<out GeneratorConfig>, GeneratorConfig>()
-        internal var validatorConfig: ValidatorConfig? = null
-            private set
+        private var validatorConfig: ValidatorConfig? = null
         private var operationIdGenerator: ((EndpointInfo) -> String?)? = null
         private fun addConfig(config: GeneratorConfig) {
             generatorConfigs[config::class] = config
@@ -160,13 +156,13 @@ public open class SpecsConfigBuilder {
             generatorConfigs[config::class] = config
         }
 
-        internal fun build(): SpecConfig {
+        internal fun build(parentValidator: () -> ValidatorConfig?): SpecConfig {
             val modelConfig = generatorConfigs[GeneratorConfig.Model::class] as? GeneratorConfig.Model
                 ?: error("model config is required")
             return SpecConfig(
                 inputConfig = inputConfig ?: error("input spec is required"),
                 generatorConfigs = generatorConfigs.values.toList(),
-                validatorConfig = null, // resolved in SpecsConfigBuilder.build()
+                resolveValidatorConfig = { ValidatorConfig.resolve(own = validatorConfig, parent = parentValidator()) },
                 modelConfig = modelConfig,
                 operationIdGenerator = operationIdGenerator,
             )

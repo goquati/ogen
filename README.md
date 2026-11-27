@@ -157,8 +157,9 @@ ogen {
   `ambiguousPaths`, `getWithBody`, …; see `ValidatorConfig.Rules`). Each defaults to what the list below says.
   `recommendations = false` turns off the recommendations that `rules {}` doesn't set. The parser's own errors and
   warnings have no rule. A component schema that no operation uses on purpose, such as an enum the code uses
-  directly, is kept from the `unusedSchemas` warning by `x-ogen-keep: true` on the schema; the schemas it refers to
-  count as used, too.
+  directly, is kept from the `unusedSchemas` warning by `x-ogen-keep: true` (or `"true"`) on the schema; the schemas
+  it refers to count as used, too. On a spec with parser errors, the checks that are errors by default and
+  `unusedSchemas` don't run, whatever their severity.
 - **What the validator checks**: the parser's errors, the naming conventions and these checks fail the build: broken
   path templates (an empty `{}`, an unclosed `{` or a stray `}`), a query string or fragment in a path key, path
   parameters missing from the path template, paths that differ only in their variables' names, security schemes not

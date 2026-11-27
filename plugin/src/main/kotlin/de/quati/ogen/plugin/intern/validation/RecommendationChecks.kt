@@ -13,12 +13,15 @@ internal const val KEEP_EXTENSION = "x-ogen-keep"
 
 /**
  * Component schemas no operation uses: not reached from any path, directly or through other schemas, and no
- * subtype (`allOf` member) of a schema that is. A schema with `x-ogen-keep: true` counts as used, and so does what
+ * subtype (`allOf` member) of a schema that is. A schema with `x-ogen-keep: true` (or `"true"`) counts as used, and so does what
  * it refers to.
  */
 internal fun unusedSchemaWarnings(spec: ValidatedSpec): List<String> {
     val schemas = spec.api.components?.schemas.orEmpty()
-    val kept = schemas.filterValues { (it as? Schema.Obj)?.extensions?.get(KEEP_EXTENSION) == JsonPrimitive(true) }
+    // `true` as a boolean or a string: JSON specs often quote the values of extensions.
+    val kept = schemas.filterValues { schema ->
+        ((schema as? Schema.Obj)?.extensions?.get(KEEP_EXTENSION) as? JsonPrimitive)?.content == "true"
+    }
     val used = (spec.api.schemasReachedFromPaths(roots = kept.values) + kept.keys).toMutableSet()
     // A schema that extends a used one through `allOf` is one of its subtypes, and used with it.
     do {

@@ -4,9 +4,16 @@ import de.quati.ogen.plugin.SpecsConfigBuilder
 import de.quati.ogen.plugin.intern.model.config.ValidatorConfig
 import de.quati.ogen.plugin.intern.tasks.Validator
 import de.quati.ogen.plugin.intern.validation.Rule
+import org.gradle.api.GradleException
 import org.slf4j.helpers.NOPLogger
+import kotlin.io.path.createTempFile
+import kotlin.io.path.deleteIfExists
+import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -183,6 +190,63 @@ class TestValidatorSettings {
         assertValidationFails(spec, errorsMessage(spec, 3)) {
             schemaNameFormat = NameConvention.CamelCase
             rules { namingConventions = Severity.Off }
+        }
+    }
+
+    // The tasks share the parse result of each spec, so it must be the same instance on every build().
+    @Test
+    fun `build returns the same spec instances with the settings of ogen declared later`() {
+        val builder = SpecsConfigBuilder().apply {
+            utilPackageName("de.quati.ogen.test.gen.util")
+            spec()
+        }
+        val first = builder.build().specs.single()
+        builder.validator { tagFormat = NameConvention.PascalCase }
+        val second = builder.build().specs.single()
+        assertSame(first, second)
+        assertSame(first.oasParseResult, second.oasParseResult)
+        assertEquals(NameConvention.PascalCase, second.validatorConfig?.tagFormat)
+    }
+
+    // The spec's only path refers to a schema that doesn't exist, so every schema would look unused.
+    @Test
+    fun `checks that need a valid spec don't run on one with parser errors, whatever their severity`() {
+        val file = createTempFile(suffix = ".yaml").apply {
+            writeText(
+                """
+                openapi: 3.1.0
+                info: {title: t, version: '1'}
+                paths:
+                  /pets:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                          content:
+                            application/json:
+                              schema: {${'$'}ref: '#/components/schemas/Missing'}
+                components:
+                  schemas:
+                    Unused: {type: object}
+                """.trimIndent()
+            )
+        }
+        try {
+            val configs = SpecsConfigBuilder().apply {
+                utilPackageName("de.quati.ogen.test.gen.util")
+                add(packageName = "de.quati.ogen.test.gen") {
+                    specFile(file.toString())
+                    model {}
+                    validator { rules { unusedSchemas = Severity.Error } }
+                }
+            }.build()
+            val logger = CapturingLogger()
+            val e = assertFailsWith<GradleException> { Validator(logger).validate(configs) }
+            assertTrue(e.message!!.endsWith("failed."), e.message)
+            assertTrue(logger.entries.any { "cannot resolve" in it.second }, logger.entries.toString())
+            assertTrue(logger.entries.none { "is not used by any operation" in it.second }, logger.entries.toString())
+        } finally {
+            file.deleteIfExists()
         }
     }
 

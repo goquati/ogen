@@ -15,9 +15,12 @@ internal data class SpecConfig(
     val inputConfig: InputConfig,
     val modelConfig: GeneratorConfig.Model,
     val generatorConfigs: List<GeneratorConfig>,
-    val validatorConfig: ValidatorConfig?,
+    private val resolveValidatorConfig: () -> ValidatorConfig?,
     val operationIdGenerator: ((EndpointInfo) -> String?)?,
 ) {
+    /** The validator settings: the spec's own over those of `ogen {}`; null if the spec isn't validated. */
+    val validatorConfig: ValidatorConfig? get() = resolveValidatorConfig()
+
     private val path by lazy {
         when (inputConfig) {
             is InputConfig.File -> inputConfig.path

@@ -44,7 +44,7 @@ class TestRecommendationChecks {
         )
     }
 
-    // A kept schema counts as used, and so do the schemas it refers to; only `true` keeps one.
+    // A kept schema counts as used, and so do the schemas it refers to; only `true`, also quoted, keeps one.
     @Test
     fun `schemas kept with x-ogen-keep`() {
         for (version in listOf("3.0.3", "3.1.0")) {
@@ -56,6 +56,7 @@ class TestRecommendationChecks {
                     Problem: {properties: {detail: {${'$'}ref: '#/components/schemas/Detail'}}, x-ogen-keep: true}
                     Detail: {type: object}
                     NotKept: {type: object, x-ogen-keep: false}
+                    KeptAsString: {type: object, x-ogen-keep: "true"}
                 """.trimIndent()
             )
             assertEquals(listOf("schema 'NotKept' is not used by any operation"), unusedSchemaWarnings(spec), version)
