@@ -6,14 +6,22 @@ import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Discriminator
 import de.quati.ogen.plugin.intern.model.RefString
 import de.quati.ogen.plugin.intern.model.Tag
+import de.quati.ogen.plugin.intern.oas.model.MediaType
+import de.quati.ogen.plugin.intern.oas.model.Operation
+import de.quati.ogen.plugin.intern.oas.model.RefOr
 import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
 import de.quati.ogen.plugin.intern.parsing.helper.SchemaLocation
-import io.swagger.v3.oas.models.Operation
 
-internal fun Operation.parseTag()  = Tag.parse(tags?.firstOrNull() ?: "base")
+internal fun Operation.parseTag() = Tag.parse(tags?.firstOrNull() ?: "base")
+
+context(c: ParserContext)
+internal fun RefOr<MediaType>.parse(
+    contentType: ContentType,
+    name: ComponentName.Schema.Root,
+): ContentMediaType = c.resolveMediaType(this).parse(contentType = contentType, name = name)
 
 context(_: ParserContext)
-internal fun io.swagger.v3.oas.models.media.MediaType.parse(
+internal fun MediaType.parse(
     contentType: ContentType,
     name: ComponentName.Schema.Root,
 ): ContentMediaType {
@@ -29,9 +37,7 @@ internal fun io.swagger.v3.oas.models.media.MediaType.parse(
     )
 }
 
-internal fun io.swagger.v3.oas.models.media.Discriminator.parse(): Discriminator? {
-    return Discriminator(
-        propertyName = propertyName ?: return null,
-        mapping = mapping?.mapValues { RefString.Schema.parse(it.value ?: return null) },
-    )
+/** The discriminator; null without `propertyName`, which makes the schema an untyped value. */
+internal fun de.quati.ogen.plugin.intern.oas.model.Discriminator.parse(): Discriminator? = propertyName?.let {
+    Discriminator(propertyName = it, mapping = mapping?.mapValues { (_, ref) -> RefString.Schema.parse(ref) })
 }

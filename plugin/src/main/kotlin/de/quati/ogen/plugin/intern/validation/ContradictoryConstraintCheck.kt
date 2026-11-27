@@ -1,28 +1,23 @@
 package de.quati.ogen.plugin.intern.validation
 
-import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.media.Schema
+import de.quati.ogen.plugin.intern.oas.model.Schema
 import java.math.BigDecimal
 
-private class Bound(val value: BigDecimal, val exclusive: Boolean, keyword: String, suffix: String = "") {
-    val description = "$keyword ${value.toPlainString()}$suffix"
-}
+private class Bound(val value: BigDecimal, val exclusive: Boolean, val description: String)
 
-// 3.0 marks `minimum` exclusive with a boolean, 3.1 gives `exclusiveMinimum` its own number.
-private fun Schema<*>.lowerBounds() = listOfNotNull(
-    minimum?.let {
-        val exclusive = exclusiveMinimum == true
-        Bound(it, exclusive, "minimum", if (exclusive) " (exclusiveMinimum: true)" else "")
+// Messages name the bounds as written: in 3.0 an exclusive bound is `minimum` with `exclusiveMinimum: true`.
+private fun Schema.Obj.lowerBounds(is30: Boolean) = listOfNotNull(
+    minimum?.let { Bound(it, false, "minimum ${it.toPlainString()}") },
+    exclusiveMinimum?.let {
+        Bound(it, true, if (is30) "minimum ${it.toPlainString()} (exclusiveMinimum: true)" else "exclusiveMinimum ${it.toPlainString()}")
     },
-    exclusiveMinimumValue?.let { Bound(it, true, "exclusiveMinimum") },
 )
 
-private fun Schema<*>.upperBounds() = listOfNotNull(
-    maximum?.let {
-        val exclusive = exclusiveMaximum == true
-        Bound(it, exclusive, "maximum", if (exclusive) " (exclusiveMaximum: true)" else "")
+private fun Schema.Obj.upperBounds(is30: Boolean) = listOfNotNull(
+    maximum?.let { Bound(it, false, "maximum ${it.toPlainString()}") },
+    exclusiveMaximum?.let {
+        Bound(it, true, if (is30) "maximum ${it.toPlainString()} (exclusiveMaximum: true)" else "exclusiveMaximum ${it.toPlainString()}")
     },
-    exclusiveMaximumValue?.let { Bound(it, true, "exclusiveMaximum") },
 )
 
 // Ordered so that maxWith picks the tighter bound: the greater lower, the smaller upper; on equal values the exclusive one.
@@ -33,14 +28,14 @@ private val tighterUpper = compareByDescending<Bound> { it.value }.thenBy { it.e
  * Schemas whose bounds leave no valid value: a lower bound above the upper one, or equal bounds with an exclusive
  * side. Branches of `not`, `anyOf` and `oneOf` count too, since an empty branch is a mistake in the spec.
  */
-internal fun contradictoryConstraintErrors(spec: OpenAPI): List<String> {
+internal fun contradictoryConstraintErrors(spec: ValidatedSpec): List<String> {
     val errors = mutableListOf<String>()
     spec.walkSchemas { node ->
         val schema = node.schema
         fun error(problem: String) = errors.add("contradictory constraints in '${node.location}': $problem")
 
-        val lower = schema.lowerBounds().maxWithOrNull(tighterLower)
-        val upper = schema.upperBounds().maxWithOrNull(tighterUpper)
+        val lower = schema.lowerBounds(spec.is30).maxWithOrNull(tighterLower)
+        val upper = schema.upperBounds(spec.is30).maxWithOrNull(tighterUpper)
         if (lower != null && upper != null) {
             val cmp = lower.value.compareTo(upper.value)
             if (cmp > 0) error("${lower.description} is above ${upper.description}")
@@ -58,13 +53,14 @@ internal fun contradictoryConstraintErrors(spec: OpenAPI): List<String> {
 }
 
 /**
- * OpenAPI 3.1 schemas with both `minimum` and `exclusiveMinimum`, or both `maximum` and `exclusiveMaximum`: the tighter
- * bound applies and the other has no effect. 3.0's boolean `exclusiveMinimum` modifies `minimum`, so it never doubles.
+ * Schemas with both `minimum` and `exclusiveMinimum`, or both `maximum` and `exclusiveMaximum` (3.1 and later): the
+ * tighter bound applies and the other has no effect. In 3.0 the boolean `exclusiveMinimum` modifies `minimum`, so
+ * migration leaves only one of them.
  */
-internal fun redundantBoundWarnings(spec: OpenAPI): List<String> {
+internal fun redundantBoundWarnings(spec: ValidatedSpec): List<String> {
     val warnings = mutableListOf<String>()
     spec.walkSchemas { node ->
-        listOf(node.schema.lowerBounds() to tighterLower, node.schema.upperBounds() to tighterUpper)
+        listOf(node.schema.lowerBounds(spec.is30) to tighterLower, node.schema.upperBounds(spec.is30) to tighterUpper)
             .filter { (bounds, _) -> bounds.size == 2 }
             .forEach { (bounds, tighter) ->
                 val effective = bounds.maxWith(tighter)

@@ -11,7 +11,7 @@ internal data class Spec(
     val multipartBodySchemas: Set<ComponentName.Schema>,
 ) {
     enum class Version {
-        V3_0, V3_1
+        V3_0, V3_1, V3_2
     }
 
     data class Endpoints(

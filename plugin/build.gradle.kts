@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 plugins {
     alias(libs.plugins.gradlePluginPublish)
     alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 val groupStr = "de.quati.ogen"
@@ -20,11 +21,12 @@ dependencies {
     implementation(libs.poet)
     implementation(libs.goquati.base)
     implementation(libs.goquati.poet)
-    implementation(libs.swagger.parser)
-    implementation(libs.swagger.generator)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.snakeyaml.engine)
     compileOnly(kotlin("gradle-plugin"))
 
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation(libs.json.schema.validator)
 }
 
 kotlin {
@@ -36,6 +38,7 @@ kotlin {
         apiVersion.set(KotlinVersion.KOTLIN_2_2)
         languageVersion.set(KotlinVersion.KOTLIN_2_2)
         freeCompilerArgs.add("-Xcontext-parameters")
+        optIn.add("kotlinx.serialization.ExperimentalSerializationApi")
     }
 }
 
@@ -52,7 +55,7 @@ gradlePlugin {
         implementationClass = "$groupStr.plugin.OgenPlugin"
         displayName = "ogen: OpenAPI generator for Kotlin"
         description =
-            "Idiomatic OpenAPI generator for Kotlin and KMP, supporting kotlinx.serialization, OpenAPI 3.0/3.1, and Spring Boot."
+            "Idiomatic OpenAPI generator for Kotlin and KMP, supporting kotlinx.serialization, OpenAPI 3.0/3.1/3.2, and Spring Boot."
         tags = listOf(
             "openapi",
             "kotlin",

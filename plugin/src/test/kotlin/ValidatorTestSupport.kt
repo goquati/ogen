@@ -2,7 +2,7 @@ import de.quati.ogen.plugin.NameConvention
 import de.quati.ogen.plugin.SpecsConfigBuilder
 import de.quati.ogen.plugin.intern.model.config.SpecConfigs
 import de.quati.ogen.plugin.intern.tasks.Validator
-import io.swagger.v3.oas.models.OpenAPI
+import de.quati.ogen.plugin.intern.validation.ValidatedSpec
 import org.gradle.api.GradleException
 import org.slf4j.LoggerFactory
 import org.slf4j.Marker
@@ -38,10 +38,15 @@ internal fun validatorConfigs(
     }
 }.build()
 
-internal fun parsedSpec(spec: String): OpenAPI = validatorConfigs(spec).specs.single().parseResult.openAPI
+/** The spec as the checks read it: parsed, migrated and bundled. */
+internal fun parsedSpec(spec: String): ValidatedSpec {
+    val result = validatorConfigs(spec).specs.single().oasParseResult
+    val api = result.openApi ?: error("spec '$spec' does not parse: ${result.errors}")
+    return ValidatedSpec(api, result.sourceVersion!!, result.bundle)
+}
 
-/** The spec without swagger-parser's inferred types, as the checks that compare types read it. */
-internal fun declaredTypesSpec(spec: String): OpenAPI = validatorConfigs(spec).specs.single().declaredTypesSpec!!
+/** The same as [parsedSpec]: there is only one model now, with the types the spec declares. */
+internal fun declaredTypesSpec(spec: String): ValidatedSpec = parsedSpec(spec)
 
 /** The spec as the validator's messages name it. */
 internal fun specName(spec: String) = "spec '${validatorConfigs(spec).specs.single().inputConfig}'"
@@ -70,10 +75,10 @@ internal fun assertValidationFails(
 /** Asserts the check's messages, and that validation fails on them. */
 internal fun assertErrors(
     spec: String,
-    check: (OpenAPI) -> List<String>,
+    check: (ValidatedSpec) -> List<String>,
     expected: List<String>,
     validator: SpecsConfigBuilder.SpecConfingBuilder.ValidatorConfig.() -> Unit = {},
-    parse: (String) -> OpenAPI = ::parsedSpec,
+    parse: (String) -> ValidatedSpec = ::parsedSpec,
 ) {
     assertEquals(expected, check(parse(spec)))
     assertValidationFails(spec, errorsMessage(spec, expected.size), validator)
@@ -82,9 +87,9 @@ internal fun assertErrors(
 /** Asserts the check's messages, and that validation fails on them with `failOnWarnings` only. */
 internal fun assertWarnings(
     spec: String,
-    check: (OpenAPI) -> List<String>,
+    check: (ValidatedSpec) -> List<String>,
     expected: List<String>,
-    parse: (String) -> OpenAPI = ::parsedSpec,
+    parse: (String) -> ValidatedSpec = ::parsedSpec,
 ) {
     assertEquals(expected, check(parse(spec)))
     validate(spec)
@@ -92,7 +97,7 @@ internal fun assertWarnings(
 }
 
 /** Asserts that the check finds nothing and that the spec validates. */
-internal fun assertPasses(spec: String, check: (OpenAPI) -> List<String>, parse: (String) -> OpenAPI = ::parsedSpec) {
+internal fun assertPasses(spec: String, check: (ValidatedSpec) -> List<String>, parse: (String) -> ValidatedSpec = ::parsedSpec) {
     assertEquals(emptyList(), check(parse(spec)))
     validate(spec)
 }

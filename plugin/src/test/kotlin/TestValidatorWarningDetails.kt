@@ -6,47 +6,36 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
+/** The recommendations that replace two of openapi-generator's rules, as the validator logs them. */
 class TestValidatorWarningDetails {
-    // validator-warnings has invalid types on purpose, for openapi-generator's warning about them; they also fail
-    // validation, after every warning is logged.
-    private fun warnings(spec: String): List<String> {
+    // validator-warnings has invalid types on purpose; they fail validation, after every warning is logged.
+    private fun warnings(spec: String, recommendations: Boolean = true): List<String> {
         val logger = CapturingLogger()
         val e = assertFailsWith<GradleException> {
-            Validator(logger = logger).validate(configs = validatorConfigs(spec))
+            Validator(logger = logger).validate(configs = validatorConfigs(spec) { this.recommendations = recommendations })
         }
         assertEquals(errorsMessage(spec, 2), e.message)
         return logger.at(Level.WARN)
     }
 
-    private val invalidType =
-        "\tThe 'type' attribute must be one of 'null', 'boolean', 'object', 'array', 'number', 'string', or 'integer'.\n"
-    private val getWithBody =
-        "\tWhile technically allowed, GET/HEAD with request body may indicate programming error, and is considered an anti-pattern.\n"
-
     @Test
-    fun testWarningsNameTheirLocation() {
-        val warnings = warnings("validator-warnings")
-        assertContains(warnings, invalidType + "\t\tSchema 'Pet' uses the 'strin' type, which is not a valid type.\n")
-        assertContains(warnings, invalidType + "\t\tSchema 'Owner.age' uses the 'strin' type, which is not a valid type.\n")
-        assertContains(warnings, getWithBody + "\t\tGET listPets contains a request body and is considered an anti-pattern.\n")
-        assertContains(warnings, getWithBody + "\t\tGET /owners contains a request body and is considered an anti-pattern.\n")
+    fun testUnusedSchema() {
+        assertContains(warnings("validator-warnings"), "\tschema 'Orphan' is not used by any operation\n")
     }
 
     @Test
-    fun testWarningWithoutDetails() {
-        val warnings = warnings("validator-warnings")
-        assertContains(warnings, "\tUnused model: Orphan\n")
+    fun testGetWithBody() {
+        assertContains(
+            warnings("validator-warnings"),
+            "\toperation '/pets:GET' has a request body, which GET requests should not have\n",
+        )
     }
 
+    // Unused schemas are always reported, recommendations only when enabled.
     @Test
-    fun testLocationNamesAreRestored() {
-        val configs = validatorConfigs("validator-warnings")
-        val spec = configs.specs.single().parseResult.openAPI
-        val schemas = spec.components.schemas
-        schemas.getValue("Orphan").name = "Custom"
-        assertFailsWith<GradleException> { Validator(logger = CapturingLogger()).validate(configs = configs) }
-        assertEquals(mapOf("Pet" to null, "Owner" to null, "Orphan" to "Custom"), schemas.mapValues { it.value.name })
-        assertEquals(null, schemas.getValue("Owner").properties.getValue("age").name)
-        assertEquals(listOf("listPets", null), spec.paths.values.map { it.get.operationId })
+    fun testRecommendationsCanBeDisabled() {
+        val warnings = warnings("validator-warnings", recommendations = false)
+        assertEquals(emptyList(), warnings.filter { "request body" in it })
+        assertContains(warnings, "\tschema 'Orphan' is not used by any operation\n")
     }
 }

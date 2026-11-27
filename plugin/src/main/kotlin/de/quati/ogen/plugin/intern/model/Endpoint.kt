@@ -13,11 +13,10 @@ import de.quati.ogen.plugin.intern.codegen.isNullableResolved
 import de.quati.ogen.plugin.intern.codegen.prettyName
 import de.quati.ogen.plugin.intern.codegen.resolveAlias
 import de.quati.ogen.plugin.intern.codegen.toTypeSpecData
-import io.swagger.v3.oas.models.PathItem
 
 
 internal data class Endpoint(
-    val method: PathItem.HttpMethod,
+    val method: HttpMethod,
     val path: String,
     val tag: Tag,
     val operationName: OperationName,

@@ -16,7 +16,7 @@ class TestDefaultOutsideEnumCheck {
         )
     }
 
-    // In 3.0 swagger-parser turns a default that doesn't fit the type into null, which the check can't tell from none.
+    // In 3.0 a default that does not fit the type counts as none, as swagger-parser turned it into null.
     @Test
     fun testValidDefaults() {
         assertPasses("default-outside-enum-valid", ::defaultOutsideEnumErrors)

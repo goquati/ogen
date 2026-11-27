@@ -1,12 +1,10 @@
 package de.quati.ogen.plugin.intern.validation
 
-import io.swagger.v3.oas.models.OpenAPI
-
 /**
  * Path templates whose braces don't form variables: an empty `{}`, an unclosed `{`, a `}` without a `{`, or a variable
- * inside a variable. swagger-parser and the path-parameter check only see well-formed `{name}` variables.
+ * inside a variable. The path-parameter check only sees well-formed `{name}` variables.
  */
-internal fun brokenPathTemplateErrors(spec: OpenAPI): List<String> = spec.paths.orEmpty().keys.mapNotNull { path ->
+internal fun brokenPathTemplateErrors(spec: ValidatedSpec): List<String> = spec.api.paths?.pathItems.orEmpty().keys.mapNotNull { path ->
     templateProblem(path)?.let { "path '$path' $it" }
 }
 
@@ -14,7 +12,7 @@ internal fun brokenPathTemplateErrors(spec: OpenAPI): List<String> = spec.paths.
  * Path keys with a query string or a fragment. A path key is only the path: query parameters belong in `parameters` with
  * `in: query`, and a fragment never reaches the server.
  */
-internal fun queryOrFragmentInPathErrors(spec: OpenAPI): List<String> = spec.paths.orEmpty().keys.mapNotNull { path ->
+internal fun queryOrFragmentInPathErrors(spec: ValidatedSpec): List<String> = spec.api.paths?.pathItems.orEmpty().keys.mapNotNull { path ->
     when {
         '?' in path -> "path '$path' contains a query string; query parameters belong in 'parameters' with 'in: query'"
         '#' in path -> "path '$path' contains a fragment, which never reaches the server"

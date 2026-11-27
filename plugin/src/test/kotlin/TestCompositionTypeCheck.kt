@@ -1,15 +1,14 @@
 import de.quati.ogen.plugin.intern.validation.compositionTypeErrors
-import io.swagger.v3.oas.models.Components
-import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.media.Schema
+import de.quati.ogen.plugin.intern.oas.OasVersion
+import de.quati.ogen.plugin.intern.oas.model.Components
+import de.quati.ogen.plugin.intern.oas.model.Info
+import de.quati.ogen.plugin.intern.oas.model.OpenApi
+import de.quati.ogen.plugin.intern.oas.model.Schema
+import de.quati.ogen.plugin.intern.validation.ValidatedSpec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TestCompositionTypeCheck {
-    companion object {
-        private fun ref(target: String) = Schema<Any>().also { it.`$ref` = target }
-        private fun stringWithAllOf(vararg members: Schema<*>) = Schema<Any>().type("string").allOf(members.toList())
-    }
 
     @Test
     fun testConflictingCompositionTypes() {
@@ -54,15 +53,25 @@ class TestCompositionTypeCheck {
         assertPasses("composition-types-valid-3.1", ::compositionTypeErrors, parse = ::declaredTypesSpec)
     }
 
-    // Built by hand: swagger-parser reports both references before ogen's checks run.
+    // Built by hand: the parser reports both references before ogen's checks run.
     @Test
     fun testUnresolvableReferencesCountAsUntyped() {
-        val spec = OpenAPI().components(
-            Components()
-                .addSchemas("A", ref("#/components/schemas/B"))
-                .addSchemas("B", ref("#/components/schemas/A"))
-                .addSchemas("Cycle", stringWithAllOf(ref("#/components/schemas/A"), Schema<Any>().type("integer")))
-                .addSchemas("External", stringWithAllOf(ref("other.yaml#/components/schemas/Count")))
+        fun ref(target: String) = Schema.Obj(ref = target)
+        fun stringWithAllOf(vararg members: Schema) = Schema.Obj(type = listOf("string"), allOf = members.toList())
+        val spec = ValidatedSpec(
+            OpenApi(
+                openapi = "3.1.0",
+                info = Info(title = "t", version = "1"),
+                components = Components(
+                    schemas = mapOf(
+                        "A" to ref("#/components/schemas/B"),
+                        "B" to ref("#/components/schemas/A"),
+                        "Cycle" to stringWithAllOf(ref("#/components/schemas/A"), Schema.Obj(type = listOf("integer"))),
+                        "External" to stringWithAllOf(ref("other.yaml#/components/schemas/Count")),
+                    )
+                ),
+            ),
+            OasVersion.V3_1,
         )
         assertEquals(
             listOf("type string in 'Cycle' has no type in common with its allOf member 1 (integer)"),

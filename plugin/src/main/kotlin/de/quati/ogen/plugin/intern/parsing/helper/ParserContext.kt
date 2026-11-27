@@ -8,7 +8,10 @@ import de.quati.ogen.plugin.intern.model.Security
 import de.quati.ogen.plugin.intern.model.Spec
 import de.quati.ogen.plugin.intern.model.SpecInfoContext
 import de.quati.ogen.plugin.intern.model.Tag
-import io.swagger.v3.oas.models.PathItem
+import de.quati.ogen.plugin.intern.model.HttpMethod
+import de.quati.ogen.plugin.intern.oas.model.MediaType
+import de.quati.ogen.plugin.intern.oas.model.Parameter
+import de.quati.ogen.plugin.intern.oas.model.RefOr
 
 internal class ParserContext(
     override val version: Spec.Version,
@@ -16,7 +19,61 @@ internal class ParserContext(
     override val securityRequirementObjects: Map<String, Security.RequirementObject>,
     val operationIdGenerator: ((EndpointInfo) -> String?)?,
     val tagPathPrefixes: Map<Tag, String>,
+    /** `components/mediaTypes` (3.2), for references to media types. */
+    private val mediaTypes: Map<String, RefOr<MediaType>> = emptyMap(),
+    /** `components/parameters`, as swagger-parser put referenced parameters of operations in place. */
+    private val parameters: Map<String, RefOr<Parameter>> = emptyMap(),
+    /** The component schemas the paths refer to, directly or through other schemas. */
+    private val schemasReachedFromPaths: Set<String> = emptySet(),
 ) : SpecInfoContext {
+    /**
+     * Whether the schema being parsed is a component schema that swagger-parser's 3.1 dereferencer reached through
+     * a `$ref` from the paths; in those it turned `additionalProperties: true` into a Boolean. Inline schemas of
+     * the paths kept the boolean schema.
+     */
+    var reachedFromPaths: Boolean = false
+        private set
+
+    fun <T> inComponentSchema(name: String, block: () -> T): T {
+        val before = reachedFromPaths
+        reachedFromPaths = name in schemasReachedFromPaths
+        try {
+            return block()
+        } finally {
+            reachedFromPaths = before
+        }
+    }
+
+    /** The parameter a reference to `components/parameters` names, following references; null if there is none. */
+    fun resolveParameter(ref: String): Parameter? {
+        val seen = mutableSetOf<String>()
+        var current = ref
+        while (true) {
+            val name = current.removePrefix(PARAMETERS).takeIf { current.startsWith(PARAMETERS) && seen.add(it) } ?: return null
+            current = when (val parameter = parameters[name] ?: return null) {
+                is RefOr.Value -> return parameter.value
+                is RefOr.Ref -> parameter.ref
+            }
+        }
+    }
+
+    /** The media type itself; a reference is followed to `components/mediaTypes`. */
+    fun resolveMediaType(mediaType: RefOr<MediaType>): MediaType {
+        val seen = mutableSetOf<String>()
+        var current = mediaType
+        while (true) {
+            current = when (current) {
+                is RefOr.Value -> return current.value
+                is RefOr.Ref -> {
+                    val name = current.ref.removePrefix("#/components/mediaTypes/")
+                        .takeIf { current.ref.startsWith("#/components/mediaTypes/") && seen.add(it) }
+                        ?: error("Media type reference '${current.ref}' cannot be resolved")
+                    mediaTypes[name] ?: error("Media type reference '${current.ref}' cannot be resolved")
+                }
+            }
+        }
+    }
+
     private val schemas = mutableMapOf<ComponentName.Schema, Component.Schema.NonInline>()
     private val reservedNames = mutableSetOf<ComponentName.Schema>()
     private val generatedOperationIds = mutableSetOf<GeneratedOperationId>()
@@ -62,7 +119,7 @@ internal class ParserContext(
 
     fun generateOperationId(
         path: String,
-        method: PathItem.HttpMethod,
+        method: HttpMethod,
         tag: Tag,
     ): OperationName? {
         if (operationIdGenerator == null) return null
@@ -75,6 +132,10 @@ internal class ParserContext(
             )
         ) ?: return null
         return OperationName.parse(name)
+    }
+
+    private companion object {
+        const val PARAMETERS = "#/components/parameters/"
     }
 
     fun checkOperationId(id: OperationName, tag: Tag) {

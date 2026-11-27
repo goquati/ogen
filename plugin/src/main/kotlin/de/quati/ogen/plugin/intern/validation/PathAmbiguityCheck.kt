@@ -1,6 +1,6 @@
 package de.quati.ogen.plugin.intern.validation
 
-import io.swagger.v3.oas.models.OpenAPI
+import de.quati.ogen.plugin.intern.parsing.operations
 
 private class PathKey(val path: String, val methods: Set<String>) {
     // A trailing slash stays an empty last segment: `/items/` is another path than `/items`.
@@ -17,12 +17,12 @@ private class PathKey(val path: String, val methods: Set<String>) {
     val shape = segments.joinToString("/", prefix = "/")
 }
 
-private fun OpenAPI.pathKeys() = paths.orEmpty().map { (path, item) ->
-    PathKey(path, item.readOperationsMap().keys.map { it.name }.toSet())
+private fun ValidatedSpec.pathKeys() = api.paths?.pathItems.orEmpty().map { (path, item) ->
+    PathKey(path, item.operations().map { it.first.name }.toSet())
 }
 
 /** Paths that differ only in their variables' names, which OpenAPI forbids: they match the same requests. */
-internal fun identicalPathErrors(spec: OpenAPI): List<String> = spec.pathKeys()
+internal fun identicalPathErrors(spec: ValidatedSpec): List<String> = spec.pathKeys()
     .groupBy { it.shape }.values
     .filter { it.size > 1 }
     .flatMap { group ->
@@ -37,7 +37,7 @@ internal fun identicalPathErrors(spec: OpenAPI): List<String> = spec.pathKeys()
  * A segment that mixes a variable and text (`{id}:cancel`) is compared as written, so an ambiguity it causes with a
  * literal segment (`x:cancel`) goes unreported.
  */
-internal fun ambiguousPathWarnings(spec: OpenAPI): List<String> {
+internal fun ambiguousPathWarnings(spec: ValidatedSpec): List<String> {
     val keys = spec.pathKeys()
     return keys.flatMapIndexed { i, a ->
         keys.drop(i + 1).mapNotNull { b ->

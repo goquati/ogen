@@ -1,0 +1,29 @@
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  description: "Mistakes swagger-parser read past, so code was generated anyway: no info.title, unknown fields, wrong types."
+paths:
+  /items:
+    get:
+      operationId: listItems
+      vendorField: not an extension
+      parameters:
+        - {name: limit, in: query, schema: {type: integer}}
+        - {name: dropped, in: Query, schema: {type: string}}
+      requestBody:
+        description: no content
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: {type: string, required: true}
+                  pet:
+                    oneOf: [{$ref: '#/components/schemas/Cat'}]
+                    discriminator: {mapping: {cat: '#/components/schemas/Cat'}}
+components:
+  schemas:
+    Cat: {type: object, properties: {name: {type: string}}}
