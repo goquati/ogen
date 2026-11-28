@@ -404,6 +404,9 @@ private fun CodeBlock.Builder.addFileAppend(wireName: String, access: String) {
 }
 
 private fun CodeBlock.Builder.addRequestBody(info: RequestBodyInfo) {
+    // an optional body that is left out is sent as no body at all, not as a JSON `null`
+    val optional = !info.body.required
+    if (optional) beginControlFlow("if (%L != null)", info.name)
     val contentType = info.body.contentType?.values?.firstOrNull()
     if (contentType != null)
         addStatement("this.%T(%L)", Poet.Ktor.contentTypeFun, Poet.Ktor.contentTypeCodeBlock(contentType))
@@ -412,4 +415,5 @@ private fun CodeBlock.Builder.addRequestBody(info: RequestBodyInfo) {
         if (info.typeInfoName != null)
             add(", %L", info.typeInfoName)
     })
+    if (optional) endControlFlow()
 }

@@ -38,6 +38,30 @@ paths:
       responses:
         '204':
           description: no content
+  /raw/binary:
+    post:
+      operationId: postRawBinary
+      tags:
+        - raw
+      requestBody:
+        required: false
+        content:
+          application/octet-stream: {}
+      responses:
+        '204':
+          description: no content
+  /raw/binary-required:
+    post:
+      operationId: postRawBinaryRequired
+      tags:
+        - raw
+      requestBody:
+        required: true
+        content:
+          application/octet-stream: {}
+      responses:
+        '204':
+          description: no content
 components:
   schemas:
     Leaf:

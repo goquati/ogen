@@ -1,6 +1,7 @@
 package de.quati.ogen.api
 
 import de.quati.ogen.gen.model.DebugLabelDto
+import de.quati.ogen.gen.model.DebugNoteDto
 import de.quati.ogen.gen.model.DebugTraceIdDto
 import de.quati.ogen.gen.server.DebugApi
 import org.springframework.stereotype.Service
@@ -37,5 +38,19 @@ class DebugController : DebugApi {
         tags: List<String>,
     ) = op.createResponse200 {
         addInputHeader(label, tags.joinToString(","))
+    }
+
+    override suspend fun debugOptionalBinaryBody(
+        op: DebugApi.DebugOptionalBinaryBodyContext,
+        body: Any?,
+    ) = op.createResponse200 {
+        addInputHeader(body?.let { it::class.simpleName })
+    }
+
+    override suspend fun debugOptionalJsonBody(
+        op: DebugApi.DebugOptionalJsonBodyContext,
+        debugNoteDto: DebugNoteDto?,
+    ) = op.createResponse200 {
+        addInputHeader(debugNoteDto?.text)
     }
 }

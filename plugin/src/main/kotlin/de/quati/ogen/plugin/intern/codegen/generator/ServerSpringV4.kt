@@ -174,12 +174,16 @@ private fun TypeSpec.Builder.createController(
                 else -> {
                     val isJson = requestBody.contentType is ContentType.Json
                     val (type, validation) = when (val bodySchema = requestBody.schema.takeIf { isJson }) {
-                        // a JSON body without a schema is `Any`, nullable when it is optional
-                        null -> (if (isJson) requestBody.typeName else Any::class.asClassName()) to emptyList()
+                        // a body without a JSON schema is `Any`, nullable when it is optional
+                        null -> (if (isJson) requestBody.typeName else Any::class.asClassName())
+                            .copy(nullable = !requestBody.required) to emptyList()
                         else -> bodySchema.validated(type = requestBody.typeName, nullable = !requestBody.required)
                     }
                     addParameter(name = paramNameResolver.resolve(requestBody.prettyBodyName), type = type) {
-                        addAnnotation(Poet.Spring.requestBody)
+                        // @RequestBody is required by default, so an optional body that is left out would get a 400
+                        addAnnotation(Poet.Spring.requestBody) {
+                            if (!requestBody.required) addMember("required = false")
+                        }
                         addAnnotations(validation)
                     }
                 }

@@ -7,6 +7,7 @@ import de.quati.ogen.gen.search.client.SearchApi.Companion.searchApi
 import de.quati.ogen.gen.search.model.SearchRequestDto
 import de.quati.ogen.gen.search.model.SearchResultDto
 import de.quati.ogen.gen.model.DebugLabelDto
+import de.quati.ogen.gen.model.DebugNoteDto
 import de.quati.ogen.gen.model.DebugTraceIdDto
 import de.quati.ogen.gen.model.LocaleDto
 import de.quati.ogen.gen.model.TenantIdDto
@@ -390,6 +391,16 @@ class KtorClientTest {
     fun `test parameters passed on as strings`(): TestResult = runTest {
         clientPublic.debugApi.debugStringParameters(label = DebugLabelDto("foo"), tags = "a,b")
             .check(expectedStatus = 200, expectedInput = "foo|a,b")
+    }
+
+    @Test
+    fun `test optional request bodies`(): TestResult = runTest {
+        clientPublic.debugApi.debugOptionalJsonBody(DebugNoteDto(text = "foo"))
+            .check(expectedStatus = 200, expectedInput = "foo")
+        clientPublic.debugApi.debugOptionalJsonBody()
+            .check(expectedStatus = 200, expectedInput = "null")
+        clientPublic.debugApi.debugOptionalBinaryBody(bodyType = typeInfo<ByteArray>())
+            .check(expectedStatus = 200, expectedInput = "null")
     }
 
     @Test
