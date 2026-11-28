@@ -49,7 +49,7 @@ class DebugController : DebugApi {
 
     override suspend fun debugTextBody(
         op: DebugApi.DebugTextBodyContext,
-        body: String,
+        body: String?,
     ) = op.createResponse200 {
         addInputHeader(body)
     }

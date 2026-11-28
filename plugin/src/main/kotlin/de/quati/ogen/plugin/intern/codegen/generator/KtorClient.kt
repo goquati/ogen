@@ -183,11 +183,12 @@ private fun TypeSpec.Builder.addEndpoint(
         parts.map { part -> part.toPartInfo(taken).also { taken += it.prettyName } }
     }
     val requestBodyInfo = endpoint.requestBodyResolved?.takeIf { requestBodyParts.isEmpty() }?.let { body ->
-        val name = body.prettyBodyName.makeDifferent(reservedNames)
         val type = when (body.contentType) {
             null, is ContentType.Unknown, is ContentType.Multipart -> null
             is ContentType.Json -> body.typeName
         }
+        // like in the Spring server, a body that isn't JSON keeps no name of its schema's type
+        val name = (if (type != null) body.prettyBodyName else "body").makeDifferent(reservedNames)
         RequestBodyInfo(
             name = name,
             typeName = type ?: Any::class.asClassName(),

@@ -442,12 +442,12 @@ paths:
     post:
       tags:
         - debug
-      summary: Echo a text body
-      description: Echoes a plain text body.
+      summary: Echo an optional text body
+      description: Echoes an optional plain text body, or null when it is left out.
       operationId: debugTextBody
       security: [ ]
       requestBody:
-        required: true
+        required: false
         content:
           text/plain: {}
       responses:

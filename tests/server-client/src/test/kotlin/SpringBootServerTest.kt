@@ -448,9 +448,12 @@ class SpringBootServerTest {
 
     @Test
     fun `test bodies read as is`() {
-        client.post().uri("/api/v1/public/debug/body/text").header("Content-Type", "text/plain")
-            .bodyValue("\"foo\" bar")
+        val text = "/api/v1/public/debug/body/text"
+        client.post().uri(text).header("Content-Type", "text/plain").bodyValue("\"foo\" bar")
             .exchange().expectStatus().isOk.expectHeader().valueEquals("input-data", "\"foo\" bar")
+        // an optional text body that is left out is null, not an empty string
+        client.post().uri(text).exchange()
+            .expectStatus().isOk.expectHeader().valueEquals("input-data", "null")
     }
 
     @Test

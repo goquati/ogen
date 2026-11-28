@@ -206,6 +206,8 @@ class TestBeanValidation {
         assertContains(api, "fun postRawTextOrBinary(@RequestBody body: ByteArray)")
         // the schema of a body that is not JSON gives neither its type nor its name
         assertContains(api, "fun postRawTyped(@RequestBody body: ByteArray)")
+        val client = generate("bean-validation-edge-cases").file("RawClient.kt")
+        assertContains(client, "fun postRawTyped( body: Any, bodyType: TypeInfo,")
     }
 
     @Test

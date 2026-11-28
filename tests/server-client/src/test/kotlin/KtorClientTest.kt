@@ -245,7 +245,7 @@ class KtorClientTest {
 
         clientUser.usersApi.uploadUserDocument(
             userId = userId,
-            uploadUserDocumentRequestBodyDto = MultiPartFormDataContent(formData {
+            body = MultiPartFormDataContent(formData {
                 append("title", "report")
                 append("author", "jane")
                 append(
@@ -409,6 +409,8 @@ class KtorClientTest {
     fun `test bodies read as is`(): TestResult = runTest {
         clientPublic.debugApi.debugTextBody("\"foo\" bar", typeInfo<String>())
             .check(expectedStatus = 200, expectedInput = "\"foo\" bar")
+        clientPublic.debugApi.debugTextBody()
+            .check(expectedStatus = 200, expectedInput = "null")
     }
 
     @Test

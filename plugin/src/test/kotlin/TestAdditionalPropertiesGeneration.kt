@@ -42,6 +42,6 @@ class TestAdditionalPropertiesGeneration {
         val client = generate().entries.single { "suspend fun upload(" in it.value }.value
         val upload = client.substringAfter("suspend fun upload(").substringBefore(")")
         assertFalse("file:" in upload, upload)
-        assertContains(upload, "uploadRequestBody: Any")
+        assertContains(upload, "body: Any")
     }
 }
