@@ -72,3 +72,16 @@ components:
       patternProperties:
         '^x-[^]*': { type: string }
       required: [x-tenant]
+    # A `false` pattern of one alternative doesn't forbid what another allows.
+    PatternsAlternatives:
+      required: [x-id]
+      oneOf:
+        - type: object
+          additionalProperties: false
+          patternProperties:
+            '^x-': { type: string }
+        - type: object
+          additionalProperties: false
+          patternProperties:
+            '^x-': { type: string }
+            '^x-id$': false

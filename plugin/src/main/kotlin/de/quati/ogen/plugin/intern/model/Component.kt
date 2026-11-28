@@ -222,7 +222,7 @@ internal sealed interface Component {
             override val typeWithFormat: TypeWithFormat?,
             val additionalProperties: Inline? = null,
             /** Of these only `minProperties` and `maxProperties` apply, see [additionalPropertiesConstraints]. */
-            val constraints: Constraints = Constraints(),
+            val constraints: Constraints = Constraints.NONE,
         ) : NonInline
 
         data object Null : Inline {

@@ -232,9 +232,10 @@ private fun Schema.Obj.additionalValueSchemaOrNull(): Schema? {
  *
  * In JSON Schema such a key is validated by the `patternProperties` whose patterns match it, otherwise by
  * `additionalProperties`; several matching patterns with different schemas leave the value untyped. Patterns are
- * matched with the JVM's regex, unanchored as in JSON Schema; one it can't compile may match, so the value is untyped. Without `additionalProperties` and without a matching
- * pattern the key is allowed freely only if there are patterns whose schema isn't `false`: an object without (an
- * `allOf` member requiring what a sibling defines, say) leaves the key to the schema that defines it.
+ * matched with the JVM's regex, unanchored as in JSON Schema; one it can't compile may match, so the value is untyped.
+ * Without `additionalProperties` and without a matching pattern the key is allowed freely only if there are patterns
+ * whose schema isn't `false`: an object without (an `allOf` member requiring what a sibling defines, say) leaves the
+ * key to the schema that defines it.
  */
 private fun Schema.Obj.undeclaredRequiredSchemaOrNull(name: String): Schema? {
     val matching = patternProperties.orEmpty()

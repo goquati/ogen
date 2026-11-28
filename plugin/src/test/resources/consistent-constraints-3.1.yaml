@@ -42,3 +42,16 @@ components:
       properties:
         a: { type: string }
         b: { type: string }
+    NullOrObject:
+      type: [object, 'null']
+      required: [a, b]
+      maxProperties: 1
+      properties:
+        a: { type: string }
+        b: { type: string }
+    AnyType:
+      required: [a, b]
+      maxProperties: 1
+      properties:
+        a: { type: string }
+        b: { type: string }

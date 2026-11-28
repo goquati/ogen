@@ -55,3 +55,12 @@ components:
         '^x-': { type: string }
         'tenant': false
       required: [x-tenant, x-other]
+    # A property that a `false` pattern matches can't be present either.
+    PropertyForbidden:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        '^x-': false
+      required: [x-a]
+      properties:
+        x-a: { type: string }

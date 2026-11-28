@@ -351,9 +351,9 @@ val thing = ThingDto(id = "a".toOption(), additionalProperties = mapOf("count" t
   With `additionalProperties: false`, a required name that no pattern allows is a spec error, and so is one that a
   pattern with `false` matches. A required name whose Kotlin name another property already has stays in the map.
 - With `beanValidation`, `minProperties` and `maxProperties` of a class with a map are checked as the map's size
-  when every property is required, so that the number of keys is known (a class discriminator counts as a key): a
-  class that only has required names from `required` keeps the bounds of the map it was. With an optional property
-  they are not checked.
+  when every property is required, so that the number of keys is known: a class that only has required names from
+  `required` keeps the bounds of the map it was. With an optional property they are not checked, nor in a variant of a
+  sealed interface, whose class discriminator is a key only when the value is (de)serialized as the interface.
 
 ### The QUERY method
 
