@@ -7,6 +7,7 @@ import kotlin.io.path.walk
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class TestBeanValidation {
     private val logger = LoggerFactory.getLogger(TestBeanValidation::class.java)!!
@@ -247,7 +248,7 @@ class TestBeanValidation {
         assertContains(api, "fun postJsonWithCharset(@RequestBody @Valid leafDto: LeafDto): ResponseEntity<LeafDto>")
         assertContains(api, "fun postMultipartWithBoundary(@RequestPart(value = \"title\", required = true) title: String)")
         // Spring would reject a request whose parameters differ, so `consumes` has none; `produces` keeps them
-        assertContains(api, "produces = [\"application/json; charset=UTF-8\"], consumes = [\"application/json\"],")
+        assertContains(api, "produces = [\"application/json; charset=utf-8\"], consumes = [\"application/json\"],")
         // each message chooses its `boundary`, so it is left out everywhere
         assertContains(api, "produces = [\"multipart/mixed\"], consumes = [\"multipart/form-data\"],")
         val client = files.file("MediaTypeParametersClient.kt")
@@ -261,8 +262,11 @@ class TestBeanValidation {
     @Test
     fun `the Ktor client sends the preferred request media type`() {
         val client = generate("bean-validation-edge-cases").file("MediaTypeParametersClient.kt")
-        val body = client.substringAfter("fun postPreferredJson(").substringBefore("\n    }")
-        assertContains(body, "this.contentType(ContentType.Application.Json)")
+        fun function(name: String) = client.substringAfter("fun $name(", "").substringBefore("\n    }")
+            .also { assertTrue(it.isNotEmpty(), "function $name not generated") }
+        // JSON is preferred among JSON types, and next to a non-JSON type, whatever the spec order
+        assertContains(function("postPreferredJson"), "this.contentType(ContentType.Application.Json)")
+        assertContains(function("postPreferredMixed"), "this.contentType(ContentType.Application.Json)")
     }
 
     @Test
@@ -273,5 +277,13 @@ class TestBeanValidation {
         assertContains(client, """this.contentType(ContentType.parse("application/json; profile=\"https://Example.com/a;B\""))""")
         val api = files.file("MediaTypeParametersApi.kt")
         assertContains(api, "fun postJsonWithProfile(@RequestBody @Valid leafDto: LeafDto)")
+        // the `charset` value is case-insensitive, so both spellings are one media type
+        assertContains(api, "produces = [\"application/json; charset=utf-8\"], consumes")
+    }
+
+    @Test
+    fun `a media type with an unbalanced quote still loses its boundary`() {
+        val api = generate("bean-validation-edge-cases").file("MediaTypeParametersApi.kt")
+        assertContains(api, "produces = [\"multipart/mixed; foo=\\\"x\"]")
     }
 }

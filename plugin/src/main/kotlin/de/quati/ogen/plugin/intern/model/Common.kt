@@ -41,10 +41,7 @@ internal sealed interface ContentType {
         constructor(value: String) : this(setOf(value))
 
         override fun toString() = values.toString()
-        override val preferredType
-            get() = values.firstOrNull { it.essence == "application/json" }
-                ?: values.firstOrNull { it.essence.startsWith("application/") && it.essence.endsWith("+json") }
-                ?: values.first()
+        override val preferredType get() = values.preferJson()
     }
 
     @JvmInline
@@ -61,7 +58,8 @@ internal sealed interface ContentType {
         constructor(value: String) : this(setOf(value))
 
         override fun toString() = values.toString()
-        override val preferredType get() = values.first()
+        /** a JSON type if offered next to others (e.g. `application/xml`), as the generated code speaks JSON */
+        override val preferredType get() = values.preferJson()
     }
 
     /** the media types without their parameters (e.g. `; charset=utf-8`), for matching */
@@ -78,13 +76,15 @@ internal sealed interface ContentType {
          * classifies by the media type without its parameters, but keeps them in [values]; except `boundary`, which
          * each message chooses itself, and Spring rejects a request whose `boundary` differs from the one given.
          * The type, subtype and parameter names are case-insensitive and lowercased; parameter values can be
-         * case-sensitive (e.g. a quoted `profile` URL) and are kept as written.
+         * case-sensitive (e.g. a quoted `profile` URL) and are kept as written, except `charset`, whose value is
+         * case-insensitive too.
          */
         fun parse(value: String): ContentType {
             val parts = value.splitParameters()
             val params = parts.drop(1).filter { it.isNotEmpty() }.map {
                 val name = it.substringBefore('=').trim().lowercase()
-                if ('=' in it) "$name=${it.substringAfter('=').trim()}" else name
+                val paramValue = it.substringAfter('=', "").trim().let { v -> if (name == "charset") v.lowercase() else v }
+                if ('=' in it) "$name=$paramValue" else name
             }.filter { it.substringBefore('=') != "boundary" }
             val value = (listOf(parts.first().lowercase()) + params).joinToString("; ")
             val essence = value.essence
@@ -99,7 +99,14 @@ internal sealed interface ContentType {
     }
 }
 
-/** splits a media type at the `;` between its parameters, but not at one inside a quoted value */
+private fun Set<String>.preferJson() = firstOrNull { it.essence == "application/json" }
+    ?: firstOrNull { it.essence.startsWith("application/") && it.essence.endsWith("+json") }
+    ?: first()
+
+/**
+ * splits a media type at the `;` between its parameters, but not at one inside a quoted value; with a quote left
+ * open, at every `;`
+ */
 private fun String.splitParameters(): List<String> {
     val parts = mutableListOf<String>()
     val current = StringBuilder()
@@ -119,7 +126,7 @@ private fun String.splitParameters(): List<String> {
         current.append(c)
     }
     parts += current.toString().trim()
-    return parts
+    return if (quoted) split(';').map { it.trim() } else parts
 }
 
 /** a media type without its parameters, e.g. `application/json` for `application/json; charset=utf-8` */
