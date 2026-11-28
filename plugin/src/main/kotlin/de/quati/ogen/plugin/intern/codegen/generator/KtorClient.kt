@@ -410,7 +410,7 @@ private fun CodeBlock.Builder.addRequestBody(info: RequestBodyInfo) {
     // whose schema is nullable can't be sent as an explicit `null`
     val optional = !info.body.required
     if (optional) beginControlFlow("if (%L != null)", info.name)
-    val contentType = info.body.contentType?.values?.firstOrNull()
+    val contentType = info.body.contentType?.preferredType
     if (contentType != null)
         addStatement("this.%T(%L)", Poet.Ktor.contentTypeFun, Poet.Ktor.contentTypeCodeBlock(contentType))
     addStatement("this.%T(%L)", Poet.Ktor.Request.setBody, buildCodeBlock {

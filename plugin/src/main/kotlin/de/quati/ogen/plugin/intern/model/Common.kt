@@ -76,12 +76,17 @@ internal sealed interface ContentType {
     companion object {
         /**
          * classifies by the media type without its parameters, but keeps them in [values]; except `boundary`, which
-         * each message chooses itself, and Spring rejects a request whose `boundary` differs from the one given
+         * each message chooses itself, and Spring rejects a request whose `boundary` differs from the one given.
+         * The type, subtype and parameter names are case-insensitive and lowercased; parameter values can be
+         * case-sensitive (e.g. a quoted `profile` URL) and are kept as written.
          */
         fun parse(value: String): ContentType {
-            val value = value.trim().lowercase().split(';').map { it.trim() }
-                .filterIndexed { i, part -> i == 0 || part.substringBefore('=').trim() != "boundary" }
-                .joinToString("; ")
+            val parts = value.splitParameters()
+            val params = parts.drop(1).filter { it.isNotEmpty() }.map {
+                val name = it.substringBefore('=').trim().lowercase()
+                if ('=' in it) "$name=${it.substringAfter('=').trim()}" else name
+            }.filter { it.substringBefore('=') != "boundary" }
+            val value = (listOf(parts.first().lowercase()) + params).joinToString("; ")
             val essence = value.essence
             if (essence == "application/json") return Json(value)
             if (essence == "application/ndjson") return Json(value)
@@ -92,6 +97,29 @@ internal sealed interface ContentType {
             return Unknown(value)
         }
     }
+}
+
+/** splits a media type at the `;` between its parameters, but not at one inside a quoted value */
+private fun String.splitParameters(): List<String> {
+    val parts = mutableListOf<String>()
+    val current = StringBuilder()
+    var quoted = false
+    var escaped = false
+    for (c in this) {
+        when {
+            escaped -> escaped = false
+            quoted && c == '\\' -> escaped = true
+            c == '"' -> quoted = !quoted
+            c == ';' && !quoted -> {
+                parts += current.toString().trim()
+                current.clear()
+                continue
+            }
+        }
+        current.append(c)
+    }
+    parts += current.toString().trim()
+    return parts
 }
 
 /** a media type without its parameters, e.g. `application/json` for `application/json; charset=utf-8` */

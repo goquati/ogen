@@ -247,7 +247,7 @@ class TestBeanValidation {
         assertContains(api, "fun postJsonWithCharset(@RequestBody @Valid leafDto: LeafDto): ResponseEntity<LeafDto>")
         assertContains(api, "fun postMultipartWithBoundary(@RequestPart(value = \"title\", required = true) title: String)")
         // Spring would reject a request whose parameters differ, so `consumes` has none; `produces` keeps them
-        assertContains(api, "produces = [\"application/json; charset=utf-8\"], consumes = [\"application/json\"],")
+        assertContains(api, "produces = [\"application/json; charset=UTF-8\"], consumes = [\"application/json\"],")
         // each message chooses its `boundary`, so it is left out everywhere
         assertContains(api, "produces = [\"multipart/mixed\"], consumes = [\"multipart/form-data\"],")
         val client = files.file("MediaTypeParametersClient.kt")
@@ -256,5 +256,22 @@ class TestBeanValidation {
         assertContains(client, "fun postMultipartWithBoundary(title: String,")
         assertContains(client, "acceptContentType = ContentType.parse(\"multipart/mixed\")")
         assertContains(client, "fun getNdjsonAsFlow(")
+    }
+
+    @Test
+    fun `the Ktor client sends the preferred request media type`() {
+        val client = generate("bean-validation-edge-cases").file("MediaTypeParametersClient.kt")
+        val body = client.substringAfter("fun postPreferredJson(").substringBefore("\n    }")
+        assertContains(body, "this.contentType(ContentType.Application.Json)")
+    }
+
+    @Test
+    fun `media type parameter values keep their case`() {
+        val files = generate("bean-validation-edge-cases")
+        // type, subtype and parameter names are lowercased; the quoted value, with its `;`, is kept as written
+        val client = files.file("MediaTypeParametersClient.kt")
+        assertContains(client, """this.contentType(ContentType.parse("application/json; profile=\"https://Example.com/a;B\""))""")
+        val api = files.file("MediaTypeParametersApi.kt")
+        assertContains(api, "fun postJsonWithProfile(@RequestBody @Valid leafDto: LeafDto)")
     }
 }
