@@ -399,7 +399,7 @@ class KtorClientTest {
             .check(expectedStatus = 200, expectedInput = "foo")
         clientPublic.debugApi.debugOptionalJsonBody()
             .check(expectedStatus = 200, expectedInput = "null")
-        clientPublic.debugApi.debugOptionalBinaryBody(bodyType = typeInfo<ByteArray>())
+        clientPublic.debugApi.debugOptionalBinaryBody()
             .check(expectedStatus = 200, expectedInput = "null")
     }
 

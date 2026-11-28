@@ -434,7 +434,8 @@ class SpringBootServerTest {
     @Test
     fun `test optional request bodies`() {
         val binary = "/api/v1/public/debug/optional-body/binary"
-        // a body that is neither JSON nor multipart is `Any`, which Spring can't decode (#137)
+        // TODO(#137): a body that is neither JSON nor multipart is `Any`, which Spring can't decode yet; expect 200 and
+        //  the body's type once #137 is fixed
         client.post().uri(binary).header("Content-Type", "application/octet-stream")
             .bodyValue("raw bytes".encodeToByteArray())
             .exchange().expectStatus().isEqualTo(415)

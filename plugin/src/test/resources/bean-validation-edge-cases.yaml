@@ -50,6 +50,24 @@ paths:
       responses:
         '204':
           description: no content
+  /raw/binary-stream:
+    post:
+      operationId: postRawBinaryStream
+      tags:
+        - raw
+      requestBody:
+        required: true
+        content:
+          application/octet-stream: {}
+      responses:
+        '200':
+          description: the items
+          content:
+            application/x-ndjson:
+              schema:
+                type: array
+                items:
+                  type: string
   /raw/binary-required:
     post:
       operationId: postRawBinaryRequired
