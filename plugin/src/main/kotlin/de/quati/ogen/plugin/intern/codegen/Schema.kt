@@ -436,9 +436,10 @@ private fun Component.Schema.Obj.generateObjectTypeSpec(discInfo: ElementDiscrim
  * the map's keys and the properties, so they are only known when every property is required and thus present; with an
  * optional property they are not checked.
  */
-private fun Component.Schema.Obj.additionalPropertiesConstraints(): Constraints {
+private fun Component.Schema.Obj.additionalPropertiesConstraints(discInfo: ElementDiscriminatorInfo?): Constraints {
     if (!properties.keys.all { it in required }) return Constraints()
-    val count = properties.size
+    // the class discriminator is a key of the object, also when the variant doesn't declare it
+    val count = (properties.keys + listOfNotNull(discInfo?.discriminatorName)).size
     return Constraints(
         minProperties = constraints.minProperties?.let { it - count }?.takeIf { it > 0 },
         maxProperties = constraints.maxProperties?.let { (it - count).coerceAtLeast(0) },
@@ -465,7 +466,7 @@ private fun FunSpec.Builder.addAdditionalProperties(
     val className = obj.name.typename
     val propName = additionalPropertiesName(obj)
     val mapSchema = Component.Schema.MapS.Inline(
-        valueSchema, isNullable = false, typeWithFormat = null, constraints = obj.additionalPropertiesConstraints(),
+        valueSchema, isNullable = false, typeWithFormat = null, constraints = obj.additionalPropertiesConstraints(discInfo),
     )
     val mapType = mapSchema.getTypeName(withFlow = false) as Type.NonPrimitiveType.Map
     val mapTypeName = if (!beanValidation) mapType.poet

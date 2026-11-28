@@ -24,6 +24,9 @@ internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> 
         if (schema.additionalProperties.allowsAnyName() || schema.unevaluatedProperties.allowsAnyName() ||
             (patterns.isNotEmpty() && schema.additionalProperties == null)
         ) return null
+        // A pattern the JVM can't compile (a warning of its own) may match any name.
+        if (patterns.any { (pattern, schema) -> schema != Schema.Bool(false) && runCatching { Regex(pattern) }.isFailure })
+            return null
         fun regexes(forbidden: Boolean) = patterns.filterValues { (it == Schema.Bool(false)) == forbidden }.keys
             .mapNotNull { runCatching { Regex(it) }.getOrNull() }
         var names = DefinedNames(

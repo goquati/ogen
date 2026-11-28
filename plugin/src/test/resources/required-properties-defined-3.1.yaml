@@ -65,3 +65,10 @@ components:
       patternProperties:
         '^x-': { type: string }
       required: [x-tenant]
+    # A pattern the JVM can't compile may match any name.
+    PatternsClosedUncompiled:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        '^x-[^]*': { type: string }
+      required: [x-tenant]

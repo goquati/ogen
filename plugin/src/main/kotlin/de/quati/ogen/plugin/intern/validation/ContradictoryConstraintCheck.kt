@@ -50,7 +50,9 @@ internal fun contradictoryConstraintErrors(spec: ValidatedSpec): List<String> {
         checkRange("minProperties", schema.minProperties, "maxProperties", schema.maxProperties)
         val required = schema.required.orEmpty().distinct().size
         val maxProperties = schema.maxProperties
-        if (maxProperties != null && required > maxProperties)
+        // Both only constrain objects, so a schema that allows other values has some.
+        val onlyObjects = schema.type?.all { it == "object" || it == "null" } ?: true
+        if (onlyObjects && maxProperties != null && required > maxProperties)
             error("$required required properties are above maxProperties $maxProperties")
     }
     return errors

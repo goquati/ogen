@@ -92,6 +92,8 @@ class TestAdditionalProperties {
         // A key nothing allows stays undeclared; the validator reports it.
         assertEquals(mapOf("id" to "string?") to null, obj("RequiredExtraForbidden").shape())
         assertEquals(mapOf("id" to "string?") to null, obj("RequiredExtraOnlyForbidden").shape())
+        assertEquals(mapOf("id" to "string?", "x-tenant" to "untyped") to "string", obj("RequiredExtraUncompiled").shape())
+        assertEquals(mapOf("tenant_id" to "string") to "string", obj("RequiredExtraSameKotlinName").shape())
         val composed = assertIs<Component.Schema.Composed>(schemas.getValue("RequiredExtraComposed"))
         assertEquals("untyped", composed.schemas[1].kind())
     }

@@ -232,7 +232,7 @@ private fun Schema.Obj.additionalValueSchemaOrNull(): Schema? {
  *
  * In JSON Schema such a key is validated by the `patternProperties` whose patterns match it, otherwise by
  * `additionalProperties`; several matching patterns with different schemas leave the value untyped. Patterns are
- * matched with the JVM's regex, unanchored as in JSON Schema. Without `additionalProperties` and without a matching
+ * matched with the JVM's regex, unanchored as in JSON Schema; one it can't compile may match, so the value is untyped. Without `additionalProperties` and without a matching
  * pattern the key is allowed freely only if there are patterns whose schema isn't `false`: an object without (an
  * `allOf` member requiring what a sibling defines, say) leaves the key to the schema that defines it.
  */
@@ -240,8 +240,11 @@ private fun Schema.Obj.undeclaredRequiredSchemaOrNull(name: String): Schema? {
     val matching = patternProperties.orEmpty()
         .filterKeys { pattern -> runCatching { Regex(pattern).containsMatchIn(name) }.getOrDefault(false) }
         .values.distinct()
+    val uncompiled = patternProperties.orEmpty()
+        .filter { (pattern, schema) -> schema != Schema.Bool(false) && runCatching { Regex(pattern) }.isFailure }
     return when {
         Schema.Bool(false) in matching -> null
+        uncompiled.isNotEmpty() -> Schema.Bool(true)
         matching.size == 1 -> matching.single()
         matching.isNotEmpty() -> Schema.Bool(true)
         else -> when (val it = additionalProperties) {
@@ -342,8 +345,11 @@ internal fun Schema.parse(
                 // A required key that `properties` doesn't declare has the schema of the pattern or additional
                 // properties that allow it; as a property of its own, it is checked like any other (#121).
                 val declared = o.properties.orEmpty()
+                // A key whose Kotlin name another property has stays in the map, as two would clash (#129).
+                val kotlinNames = declared.keys.mapTo(mutableSetOf()) { it.toCamelCase(capitalized = false) }
                 val undeclaredRequired = o.required.orEmpty().filter { it !in declared }.distinct()
                     .mapNotNull { name -> o.undeclaredRequiredSchemaOrNull(name)?.let { name to it } }
+                    .filter { (name, _) -> kotlinNames.add(name.toCamelCase(capitalized = false)) }
                 val declaredProps = declared.mapValues {
                     it.value.parse(location = location + it.key.toCamelCase(capitalized = true))
                 }

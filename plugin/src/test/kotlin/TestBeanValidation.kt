@@ -68,6 +68,13 @@ class TestBeanValidation {
     }
 
     @Test
+    fun `property count of a class with a map`() {
+        // `name` and the discriminator `petType` are keys besides the map's
+        val cat = generate("bean-validation-3.1").file("CatDto.kt")
+        assertContains(cat, "@field:Size( min = 1, max = 2, ) public val additionalProperties: Map<String, String>")
+    }
+
+    @Test
     fun `no annotations without beanValidation`() {
         val files = generate("bean-validation-3.1", beanValidation = false)
         files.values.forEach { assertFalse(it.contains("validation")) }

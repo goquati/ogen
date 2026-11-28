@@ -93,6 +93,19 @@ components:
       properties: {id: {type: string}}
       patternProperties: {'^x-': false}
       additionalProperties: false
+    # A pattern the JVM can't compile may match, so the value is untyped.
+    RequiredExtraUncompiled:
+      type: object
+      required: [x-tenant]
+      properties: {id: {type: string}}
+      patternProperties: {'^x-[^]*': {type: string}}
+      additionalProperties: false
+    # A key whose Kotlin name a property has stays in the map.
+    RequiredExtraSameKotlinName:
+      type: object
+      required: [tenantId, tenant-id, tenant_id]
+      properties: {tenant_id: {type: string}}
+      additionalProperties: {type: string}
     # Patterns that all have `false` allow no other key either.
     RequiredExtraOnlyForbidden:
       type: object

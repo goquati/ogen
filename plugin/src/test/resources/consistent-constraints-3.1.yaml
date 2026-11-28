@@ -34,3 +34,11 @@ components:
           minimum: 5
           maximum: 5
           exclusiveMaximum: 6
+    # maxProperties and required only constrain objects; strings are valid.
+    StringOrObject:
+      type: [string, object]
+      required: [a, b]
+      maxProperties: 1
+      properties:
+        a: { type: string }
+        b: { type: string }
