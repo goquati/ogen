@@ -53,5 +53,6 @@ class TestUndefinedRequiredPropertyCheck {
     fun testRequiredPropertiesDefined() {
         assertPasses("required-properties-defined", ::undefinedRequiredPropertyErrors)
         assertPasses("required-properties-defined-3.1", ::undefinedRequiredPropertyErrors)
+        assertPasses("unevaluated-properties-3.0", ::undefinedRequiredPropertyErrors)
     }
 }

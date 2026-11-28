@@ -94,3 +94,11 @@ components:
       if: { required: [x-kind] }
       then: { properties: { tenant: { type: string } } }
       required: [x-tenant, tenant]
+    # Neither do the names a $dynamicRef may evaluate.
+    PatternsClosedUnevaluatedDynamicRef:
+      type: object
+      $dynamicRef: '#node'
+      unevaluatedProperties: false
+      patternProperties:
+        '^x-': { type: string }
+      required: [x-tenant, tenant]

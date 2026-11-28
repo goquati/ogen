@@ -7,8 +7,9 @@ import de.quati.ogen.plugin.intern.oas.model.Schema
  * `then`, …) may require what the parent and its other members define (`allOf: [{ $ref: Base }, { required: [name] }]`),
  * and a schema that allows any name (`additionalProperties`, `unevaluatedProperties`, or `patternProperties` without
  * `additionalProperties: false` or `unevaluatedProperties: false`) may require any. With either `false`,
- * `patternProperties` define the names their patterns match, matched with the JVM's regex (#121). A name that a pattern whose schema is `false`
- * matches is not defined by that schema, also when it is a property. Schemas under `not` are skipped.
+ * `patternProperties` define the names their patterns match, matched with the JVM's regex (#121, #130). A name that a
+ * pattern whose schema is `false` matches is not defined by that schema, also when it is a property. Schemas under
+ * `not` are skipped.
  */
 internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> {
     val componentSchemas = spec.api.components?.schemas.orEmpty()
@@ -21,11 +22,13 @@ internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> 
         // A boolean schema defines no names of its own.
         val schema = this as? Schema.Obj ?: return DefinedNames.NONE
         val patterns = schema.patternProperties.orEmpty()
-        // `unevaluatedProperties: false` closes the object like `additionalProperties: false`, as the names of a
-        // `$ref` and of composition members count below; `if`/`then`/`else` and `dependentSchemas` aren't (#130).
-        val closedUnevaluated = schema.unevaluatedProperties == Schema.Bool(false) &&
+        // Next to `patternProperties`, `unevaluatedProperties: false` closes the object like `additionalProperties:
+        // false`, as the names of a `$ref` and of composition members count below (#130). The names `if`/`then`/
+        // `else`, `dependentSchemas` and `$dynamicRef` evaluate don't count, so next to them patterns stay open;
+        // OpenAPI 3.0 doesn't know the keyword.
+        val closedUnevaluated = !spec.is30 && schema.unevaluatedProperties == Schema.Bool(false) &&
             schema.ifSchema == null && schema.thenSchema == null && schema.elseSchema == null &&
-            schema.dependentSchemas == null
+            schema.dependentSchemas == null && "\$dynamicRef" !in schema.other
         if (schema.additionalProperties.allowsAnyName() || schema.unevaluatedProperties.allowsAnyName() ||
             (patterns.isNotEmpty() && schema.additionalProperties == null && !closedUnevaluated)
         ) return null

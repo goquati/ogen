@@ -124,6 +124,7 @@ class TestAdditionalProperties {
                 "UnevaluatedRequiredForbidden" to "class + map of string",
                 "UnevaluatedBesideAdditional" to "class + map of string",
                 "UnevaluatedConditional" to "class",
+                "UnevaluatedDynamicRef" to "class",
             ),
             schemas.filterKeys { it.startsWith("Unevaluated") }.mapValues { it.value.kind() },
         )
@@ -133,5 +134,6 @@ class TestAdditionalProperties {
         assertEquals(mapOf("id" to "string?", "tenant" to "string"), properties("UnevaluatedRequired"))
         assertEquals(mapOf("id" to "string?", "tenant" to "integer"), properties("UnevaluatedRequiredWithPattern"))
         assertEquals(mapOf("id" to "string?"), properties("UnevaluatedRequiredForbidden"))
+        assertEquals("class", schemas("unevaluated-properties-3.0").getValue("UnevaluatedIgnored").kind())
     }
 }

@@ -172,3 +172,9 @@ components:
       if: {required: [id]}
       then: {properties: {tenant: {type: string}}}
       unevaluatedProperties: {type: integer}
+    # The keys a $dynamicRef evaluates depend on its target, so unevaluatedProperties is ignored too.
+    UnevaluatedDynamicRef:
+      type: object
+      $dynamicRef: '#node'
+      properties: {id: {type: string}}
+      unevaluatedProperties: {type: integer}
