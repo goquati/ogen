@@ -321,9 +321,10 @@ wherever the schema is used (with a composition, any `additionalProperties` make
 
 Without `additionalProperties`, `unevaluatedProperties` (OpenAPI 3.1 and later) counts as `additionalProperties`,
 as in such an object only `properties` and `patternProperties` evaluate keys. Next to `if`/`then`/`else`,
-`dependentSchemas` or `$dynamicRef`, which evaluate keys too, and in OpenAPI 3.0, it is ignored. Only a required key
-that `properties` doesn't declare is still kept next to them, as an untyped property. Example validation follows the
-same rules.
+`dependentSchemas` or `$dynamicRef`, which evaluate keys too, and in OpenAPI 3.0, it is ignored. Next to these
+applicators (OpenAPI 3.1 and later), a required key that `properties` doesn't declare and `unevaluatedProperties`
+allows is still kept, as an untyped property; in 3.0 the validator reports such a key as not defined. Example
+validation follows the same rules.
 
 A class that allows other keys keeps them in its last property, `additionalProperties: Map<String, T>` (with a `_`
 appended while a declared property has that name). Its serializer reads every key the schema doesn't declare into

@@ -40,3 +40,11 @@ components:
       examples:
         - id: a
           extra: text
+    # A pattern the JVM can't compile may match any key.
+    LabeledUncompiledPattern:
+      type: object
+      patternProperties:
+        '^x-[^]*': { type: string }
+      unevaluatedProperties: false
+      examples:
+        - x-a: b

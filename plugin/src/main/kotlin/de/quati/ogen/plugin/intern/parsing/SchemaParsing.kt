@@ -262,8 +262,8 @@ private fun Schema.Obj.undeclaredRequiredSchemaOrNull(name: String): Schema? {
                 patternProperties.orEmpty().values.any { it != Schema.Bool(false) } -> Schema.Bool(true)
                 // Next to applicators, `unevaluatedProperties` allows the keys they don't evaluate; which ones they do
                 // depends on their schemas, so the key is kept untyped (#149).
-                pc.version != Spec.Version.V3_0 && unevaluatedProperties.let { it != null && it != Schema.Bool(false) } ->
-                    Schema.Bool(true)
+                pc.version != Spec.Version.V3_0 &&
+                    unevaluatedProperties.let { it != null && it != Schema.Bool(false) } -> Schema.Bool(true)
                 else -> null
             }
             Schema.Bool(false) -> null
