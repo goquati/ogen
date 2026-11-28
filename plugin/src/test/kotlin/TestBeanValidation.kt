@@ -195,8 +195,19 @@ class TestBeanValidation {
     @Test
     fun `an optional body that is not JSON is nullable and not required`() {
         val api = generate("bean-validation-edge-cases").file("RawApi.kt")
-        assertContains(api, "fun postRawBinary(@RequestBody(required = false) body: Any?)")
-        assertContains(api, "fun postRawBinaryRequired(@RequestBody body: Any)")
+        assertContains(api, "fun postRawBinary(@RequestBody(required = false) body: ByteArray?)")
+        assertContains(api, "fun postRawBinaryRequired(@RequestBody body: ByteArray)")
+    }
+
+    @Test
+    fun `a body that is not JSON is read as text or bytes`() {
+        val api = generate("bean-validation-edge-cases").file("RawApi.kt")
+        assertContains(api, "fun postRawText(@RequestBody(required = false) body: String?)")
+        assertContains(api, "fun postRawTextOrBinary(@RequestBody body: ByteArray)")
+        // the schema of a body that is not JSON gives neither its type nor its name
+        assertContains(api, "fun postRawTyped(@RequestBody body: ByteArray)")
+        val client = generate("bean-validation-edge-cases").file("RawClient.kt")
+        assertContains(client, "fun postRawTyped( body: Any, bodyType: TypeInfo,")
     }
 
     @Test

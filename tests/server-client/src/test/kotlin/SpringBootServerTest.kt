@@ -434,11 +434,9 @@ class SpringBootServerTest {
     @Test
     fun `test optional request bodies`() {
         val binary = "/api/v1/public/debug/optional-body/binary"
-        // TODO(#137): a body that is neither JSON nor multipart is `Any`, which Spring can't decode yet; expect 200 and
-        //  the body's type once #137 is fixed
         client.post().uri(binary).header("Content-Type", "application/octet-stream")
             .bodyValue("raw bytes".encodeToByteArray())
-            .exchange().expectStatus().isEqualTo(415)
+            .exchange().expectStatus().isOk.expectHeader().valueEquals("input-data", "9")
         // an optional body may be left out
         client.post().uri(binary).exchange()
             .expectStatus().isOk.expectHeader().valueEquals("input-data", "null")
@@ -446,6 +444,33 @@ class SpringBootServerTest {
         val json = Operation(HttpMethod.POST, "/api/v1/public/debug/optional-body/json")
         client.doRequest(op = json, user = null, body = mapOf("text" to "foo"), expectedStatus = 200, expectedInput = "foo")
         client.doRequest(op = json, user = null, expectedStatus = 200, expectedInput = "null")
+    }
+
+    @Test
+    fun `test bodies read as is`() {
+        val text = "/api/v1/public/debug/body/text"
+        client.post().uri(text).header("Content-Type", "text/plain").bodyValue("\"foo\" bar")
+            .exchange().expectStatus().isOk.expectHeader().valueEquals("input-data", "\"foo\" bar")
+        // an optional text body that is left out is null, not an empty string
+        client.post().uri(text).exchange()
+            .expectStatus().isOk.expectHeader().valueEquals("input-data", "null")
+    }
+
+    @Test
+    fun `test JSON bodies with a string schema`() {
+        // TODO(#138): Spring reads a `String` (also a value class over it) with its StringDecoder, so the JSON quotes
+        //  are kept and invalid JSON is accepted; expect `foo"bar` for the first and a 400 for the second once fixed
+        val component = "/api/v1/public/debug/body/json-string"
+        client.post().uri(component).header("Content-Type", "application/json").bodyValue("\"foo\\\"bar\"")
+            .exchange().expectStatus().isOk.expectHeader().valueEquals("input-data", "\"foo\\\"bar\"")
+        client.post().uri(component).header("Content-Type", "application/json").bodyValue("foo")
+            .exchange().expectStatus().isOk.expectHeader().valueEquals("input-data", "foo")
+
+        val inline = "/api/v1/public/debug/body/json-inline-string"
+        client.post().uri(inline).header("Content-Type", "application/json").bodyValue("\"foo\"")
+            .exchange().expectStatus().isOk.expectHeader().valueEquals("input-data", "\"foo\"")
+        client.post().uri(inline).exchange()
+            .expectStatus().isOk.expectHeader().valueEquals("input-data", "null")
     }
 
     @Test

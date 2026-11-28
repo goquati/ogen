@@ -193,7 +193,7 @@ class UsersController : UsersApi {
         ctx: AuthContext,
         op: UsersApi.PatchUserContext,
         userId: UserId,
-        listUserUpdateDto: Any
+        body: ByteArray,
     ) = TODO("Not yet implemented")
 
     override suspend fun getUserFile(
