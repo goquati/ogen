@@ -508,6 +508,24 @@ paths:
         '200':
           description: "the body, echoed"
 
+  /api/v1/public/debug/body/json-charset:
+    post:
+      tags:
+        - debug
+      summary: Echo a JSON body with a charset
+      description: Echoes a JSON body whose media type has a charset parameter.
+      operationId: debugJsonCharsetBody
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: "#/components/schemas/DebugNote"
+      responses:
+        '200':
+          description: "the body, echoed"
+
 security:
   - user: [ ]
   - service: [ ]

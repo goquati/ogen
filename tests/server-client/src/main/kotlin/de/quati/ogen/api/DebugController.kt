@@ -74,4 +74,11 @@ class DebugController : DebugApi {
     ) = op.createResponse200 {
         addInputHeader(debugNoteDto?.text)
     }
+
+    override suspend fun debugJsonCharsetBody(
+        op: DebugApi.DebugJsonCharsetBodyContext,
+        debugNoteDto: DebugNoteDto,
+    ) = op.createResponse200 {
+        addInputHeader(debugNoteDto.text)
+    }
 }

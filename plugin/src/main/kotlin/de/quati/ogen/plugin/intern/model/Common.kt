@@ -42,8 +42,8 @@ internal sealed interface ContentType {
 
         override fun toString() = values.toString()
         override val preferredType
-            get() = "application/json".takeIf { it in values }
-                ?: values.firstOrNull { it.startsWith("application/") && it.endsWith("+json") }
+            get() = values.firstOrNull { it.essence == "application/json" }
+                ?: values.firstOrNull { it.essence.startsWith("application/") && it.essence.endsWith("+json") }
                 ?: values.first()
     }
 
@@ -53,7 +53,7 @@ internal sealed interface ContentType {
 
         override fun toString() = values.toString()
         override val preferredType
-            get() = "multipart/form-data".takeIf { it in values } ?: values.first()
+            get() = values.firstOrNull { it.essence == "multipart/form-data" } ?: values.first()
     }
 
     @JvmInline
@@ -64,6 +64,9 @@ internal sealed interface ContentType {
         override val preferredType get() = values.first()
     }
 
+    /** the media types without their parameters (e.g. `; charset=utf-8`), for matching */
+    val essences: Set<String> get() = values.mapTo(LinkedHashSet()) { it.essence }
+
     operator fun plus(other: ContentType) = when {
         this is Json && other is Json -> Json(values + other.values)
         this is Multipart && other is Multipart -> Multipart(values + other.values)
@@ -71,18 +74,28 @@ internal sealed interface ContentType {
     }
 
     companion object {
+        /**
+         * classifies by the media type without its parameters, but keeps them in [values]; except `boundary`, which
+         * each message chooses itself, and Spring rejects a request whose `boundary` differs from the one given
+         */
         fun parse(value: String): ContentType {
-            val value = value.lowercase()
-            if (value == "application/json") return Json(value)
-            if (value == "application/ndjson") return Json(value)
-            if (value == "application/x-ndjson") return Json(value)
-            if (value.startsWith("application/") && value.endsWith("+json"))
+            val value = value.trim().lowercase().split(';').map { it.trim() }
+                .filterIndexed { i, part -> i == 0 || part.substringBefore('=').trim() != "boundary" }
+                .joinToString("; ")
+            val essence = value.essence
+            if (essence == "application/json") return Json(value)
+            if (essence == "application/ndjson") return Json(value)
+            if (essence == "application/x-ndjson") return Json(value)
+            if (essence.startsWith("application/") && essence.endsWith("+json"))
                 return Json(value)
-            if (value == "multipart/form-data") return Multipart(value)
+            if (essence == "multipart/form-data") return Multipart(value)
             return Unknown(value)
         }
     }
 }
+
+/** a media type without its parameters, e.g. `application/json` for `application/json; charset=utf-8` */
+internal val String.essence get() = substringBefore(';').trim()
 
 @JvmInline
 internal value class OperationName private constructor(val name: String) {

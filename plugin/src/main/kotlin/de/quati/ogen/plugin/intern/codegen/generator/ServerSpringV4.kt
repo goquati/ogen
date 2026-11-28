@@ -107,7 +107,9 @@ private fun TypeSpec.Builder.createController(
                 responseBody.successContentType?.values?.takeIfNotEmpty()?.toList()?.also { types ->
                     addStringArrayMember(name = "produces", values = types)
                 }
-                requestBody?.contentType?.values?.takeIfNotEmpty()?.toList()?.also { types ->
+                // without parameters: Spring rejects a request whose parameter differs, e.g. `charset=iso-8859-1` for
+                // `consumes = ["application/json; charset=utf-8"]`
+                requestBody?.contentType?.essences?.takeIfNotEmpty()?.toList()?.also { types ->
                     addStringArrayMember(name = "consumes", values = types)
                 }
             }

@@ -31,6 +31,7 @@ import de.quati.ogen.plugin.intern.codegen.toParameterMapCodeBlock
 import de.quati.ogen.plugin.intern.model.ContentType
 import de.quati.ogen.plugin.intern.model.Endpoint
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
+import de.quati.ogen.plugin.intern.model.essence
 
 
 context(d: DirectorySyncService, c: CodeGenContext)
@@ -71,7 +72,7 @@ private fun Endpoint.Part.toPartInfo(reservedNames: Set<String>) = PartInfo(
     file = file,
 )
 
-private val streamContentTypes = setOf("application/x-ndjson")
+private val streamContentTypes = setOf("application/x-ndjson", "application/ndjson")
 
 private data class ResponseBodyInfo(
     val typeName: TypeName,
@@ -161,7 +162,7 @@ private fun TypeSpec.Builder.addEndpoint(
             is ContentType.Json -> responseBody.getSchemaSuccessTypeName(withFlow = false)
         }
         val contentTypeStream = contentType?.values
-            ?.firstOrNull { it in streamContentTypes }
+            ?.firstOrNull { it.essence in streamContentTypes }
         val innerListTypeName = (typeName as? ParameterizedTypeName)
             ?.takeIf { it.rawType == List::class.asClassName() }
             ?.typeArguments?.singleOrNull()
@@ -170,7 +171,7 @@ private fun TypeSpec.Builder.addEndpoint(
                 typeName = innerListTypeName,
                 contentType = contentTypeStream,
             ) else null
-        val info = if (contentType?.preferredType !in streamContentTypes)
+        val info = if (contentType?.preferredType?.essence !in streamContentTypes)
             ResponseBodyInfo(
                 typeName = typeName,
                 contentType = contentType?.preferredType,

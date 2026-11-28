@@ -406,6 +406,12 @@ class KtorClientTest {
     }
 
     @Test
+    fun `test JSON body whose media type has a charset`(): TestResult = runTest {
+        clientPublic.debugApi.debugJsonCharsetBody(DebugNoteDto(text = "foo"))
+            .check(expectedStatus = 200, expectedInput = "foo")
+    }
+
+    @Test
     fun `test bodies read as is`(): TestResult = runTest {
         clientPublic.debugApi.debugTextBody("\"foo\" bar", typeInfo<String>())
             .check(expectedStatus = 200, expectedInput = "\"foo\" bar")
