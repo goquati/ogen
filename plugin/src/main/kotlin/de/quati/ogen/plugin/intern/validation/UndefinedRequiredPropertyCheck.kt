@@ -1,15 +1,16 @@
 package de.quati.ogen.plugin.intern.validation
 
 import de.quati.ogen.plugin.intern.oas.model.Schema
+import de.quati.ogen.plugin.intern.oas.model.hasConditionalOrDynamicApplicators
 
 /**
  * `required` names that the schema does not define. A schema that constrains its parent's value (an `allOf` member,
  * `then`, …) may require what the parent and its other members define (`allOf: [{ $ref: Base }, { required: [name] }]`),
- * and a schema that allows any name (`additionalProperties`, `unevaluatedProperties`, or `patternProperties` without
- * `additionalProperties: false` or `unevaluatedProperties: false`) may require any. With either `false`,
- * `patternProperties` define the names their patterns match, matched with the JVM's regex (#121, #130). A name that a
- * pattern whose schema is `false` matches is not defined by that schema, also when it is a property. Schemas under
- * `not` are skipped.
+ * and a schema that allows any name (`additionalProperties`, `unevaluatedProperties` since 3.1 without
+ * `additionalProperties`, or `patternProperties` without `additionalProperties: false` or `unevaluatedProperties:
+ * false`) may require any. With either `false`, `patternProperties` define the names their patterns match, matched
+ * with the JVM's regex (#121, #130). A name that a pattern whose schema is `false` matches is not defined by that
+ * schema, also when it is a property. Schemas under `not` are skipped.
  */
 internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> {
     val componentSchemas = spec.api.components?.schemas.orEmpty()
@@ -27,9 +28,12 @@ internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> 
         // `else`, `dependentSchemas` and `$dynamicRef` evaluate don't count, so next to them patterns stay open;
         // OpenAPI 3.0 doesn't know the keyword.
         val closedUnevaluated = !spec.is30 && schema.unevaluatedProperties == Schema.Bool(false) &&
-            schema.ifSchema == null && schema.thenSchema == null && schema.elseSchema == null &&
-            schema.dependentSchemas == null && "\$dynamicRef" !in schema.other
-        if (schema.additionalProperties.allowsAnyName() || schema.unevaluatedProperties.allowsAnyName() ||
+            !schema.hasConditionalOrDynamicApplicators
+        // Code generation keeps a required name that `unevaluatedProperties` allows (#149), but not in 3.0, and not
+        // next to `additionalProperties`, which then evaluates every other name.
+        val openUnevaluated = !spec.is30 && schema.additionalProperties == null &&
+            schema.unevaluatedProperties.allowsAnyName()
+        if (schema.additionalProperties.allowsAnyName() || openUnevaluated ||
             (patterns.isNotEmpty() && schema.additionalProperties == null && !closedUnevaluated)
         ) return null
         // A pattern the JVM can't compile (a warning of its own) may match any name.

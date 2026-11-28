@@ -18,3 +18,33 @@ components:
         - name: a
         - name: b
           color: red
+    # unevaluatedProperties checks the keys additionalProperties would (#149).
+    Labeled:
+      type: object
+      properties:
+        id: { type: string }
+      unevaluatedProperties: { type: integer }
+      examples:
+        - id: a
+          size: 1
+        - id: b
+          extra: text
+    # Next to if/then it is not checked.
+    LabeledConditional:
+      type: object
+      properties:
+        id: { type: string }
+      if: { required: [id] }
+      then: { properties: { extra: { type: string } } }
+      unevaluatedProperties: { type: integer }
+      examples:
+        - id: a
+          extra: text
+    # A pattern the JVM can't compile may match any key.
+    LabeledUncompiledPattern:
+      type: object
+      patternProperties:
+        '^x-[^]*': { type: string }
+      unevaluatedProperties: false
+      examples:
+        - x-a: b

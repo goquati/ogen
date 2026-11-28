@@ -78,3 +78,10 @@ components:
       patternProperties:
         '^x-': { type: string }
       required: [x-tenant, tenant]
+    # additionalProperties evaluates every other name, so unevaluatedProperties allows none (#149).
+    ClosedBesideUnevaluated:
+      type: object
+      required: [tenant]
+      properties: { id: { type: string } }
+      additionalProperties: false
+      unevaluatedProperties: { type: string }

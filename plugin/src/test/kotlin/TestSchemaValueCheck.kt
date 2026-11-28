@@ -1,6 +1,7 @@
 import de.quati.ogen.plugin.intern.validation.invalidDefaultErrors
 import de.quati.ogen.plugin.intern.validation.invalidExampleWarnings
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class TestSchemaValueCheck {
     @Test
@@ -62,8 +63,11 @@ class TestSchemaValueCheck {
             "invalid-examples-3.1", ::invalidExampleWarnings, listOf(
                 "examples[1] in 'Size' does not match its schema: 'big' is not of type integer",
                 "examples[1] in 'Tag' does not match its schema: property 'color' is not allowed",
+                "examples[1] in 'Labeled' does not match its schema: at 'extra': 'text' is not of type integer",
             )
         )
+        // OpenAPI 3.0 doesn't know unevaluatedProperties (#149).
+        assertEquals(emptyList(), invalidExampleWarnings(parsedSpec("unevaluated-properties-3.0")))
         // A media type of components.mediaTypes; the discriminator's defaultMapping picks Other. PetXml is only used
         // as XML.
         assertWarnings(

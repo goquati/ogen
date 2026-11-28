@@ -7,7 +7,17 @@ paths: {}
 components:
   schemas:
     # A class without a map of other keys.
-    UnevaluatedIgnored: {type: object, properties: {id: {type: string}}, unevaluatedProperties: {type: integer}}
+    UnevaluatedIgnored:
+      type: object
+      properties: {id: {type: string}}
+      unevaluatedProperties: {type: integer}
+      example: {id: a, extra: text}
+    # A required key it would allow is left out of the class; the validator reports it (#149).
+    UnevaluatedRequiredIgnored:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      unevaluatedProperties: {type: string}
     # unevaluatedProperties false doesn't close the object, so the patterns allow every name.
     PatternsUnevaluatedIgnored:
       type: object

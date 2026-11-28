@@ -44,7 +44,18 @@ class TestUndefinedRequiredPropertyCheck {
                 "x-a" to "PropertyForbidden",
                 "x-tenant" to "ForbiddenNextToOpen",
                 "tenant" to "PatternsClosedUnevaluated",
+                "tenant" to "ClosedBesideUnevaluated",
             ).map { (name, location) -> "required property '$name' in '$location' is not defined in its properties" }
+        )
+    }
+
+    // OpenAPI 3.0 doesn't know unevaluatedProperties, so the class leaves out a required key it would allow (#149).
+    @Test
+    fun testUnevaluatedPropertiesIgnored30() {
+        assertErrors(
+            "unevaluated-properties-3.0", ::undefinedRequiredPropertyErrors, listOf(
+                "required property 'tenant' in 'UnevaluatedRequiredIgnored' is not defined in its properties",
+            )
         )
     }
 
@@ -53,6 +64,5 @@ class TestUndefinedRequiredPropertyCheck {
     fun testRequiredPropertiesDefined() {
         assertPasses("required-properties-defined", ::undefinedRequiredPropertyErrors)
         assertPasses("required-properties-defined-3.1", ::undefinedRequiredPropertyErrors)
-        assertPasses("unevaluated-properties-3.0", ::undefinedRequiredPropertyErrors)
     }
 }

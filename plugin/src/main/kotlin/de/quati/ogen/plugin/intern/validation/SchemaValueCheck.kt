@@ -5,6 +5,7 @@ import de.quati.ogen.plugin.intern.oas.model.Example
 import de.quati.ogen.plugin.intern.oas.model.RefOr
 import de.quati.ogen.plugin.intern.oas.model.Schema
 import de.quati.ogen.plugin.intern.oas.model.SchemaSerializer
+import de.quati.ogen.plugin.intern.oas.model.additionalOrUnevaluatedProperties
 import de.quati.ogen.plugin.intern.oas.ref.JsonPointer
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -95,7 +96,10 @@ private fun ValidatedSpec.example(refOr: RefOr<Example>, pointer: JsonPointer): 
  *   or the one 3.2's `defaultMapping` names.
  * - With [checkFormats], formats are checked for `date`, `date-time`, `time`, `uuid`, `email`, `ipv4`, `int32` and
  *   `int64`; others pass.
- * - `unevaluatedProperties`, `unevaluatedItems`, and `$ref`s other than to `#/components/schemas/…` are not checked.
+ * - `unevaluatedProperties` is checked only where it stands for a missing `additionalProperties`, in an object
+ *   without in-place applicators (#149); `unevaluatedItems` and `$ref`s other than to `#/components/schemas/…` are
+ *   not checked.
+ * - A key that no pattern matches passes `additionalProperties` if a pattern the JVM can't compile may match it.
  *
  * A value the reader took for a boolean, number or null only as YAML 1.1 has it (`no`, `12:30`) is shown as written.
  */
@@ -248,13 +252,18 @@ internal class ValueChecker(private val spec: ValidatedSpec, private val checkFo
         s.minProperties?.let { if (json.size < it) add("has ${json.size} properties, fewer than minProperties $it") }
         s.maxProperties?.let { if (json.size > it) add("has ${json.size} properties, more than maxProperties $it") }
         val patterns = s.patternProperties.orEmpty().mapNotNull { (pattern, schema) -> pattern.regex()?.let { it to schema } }
+        // A pattern the JVM can't compile (a warning of its own) may match any key.
+        val uncompiled = s.patternProperties.orEmpty().any { (pattern, schema) ->
+            schema != Schema.Bool(false) && pattern.regex() == null
+        }
+        val additional = s.additionalOrUnevaluatedProperties(spec.is30)?.takeIf { !uncompiled }
         json.keys.forEach { name ->
             val child = value.child(name)
             fun nested(schema: Schema) = check(child, schema, if (at.isEmpty()) name else "$at.$name", emptySet(), emptySet())
             properties[name]?.let { problems += nested(it) }
             val matched = patterns.filter { (regex, _) -> regex.containsMatchIn(name) }
             matched.forEach { (_, schema) -> problems += nested(schema) }
-            if (name !in properties && matched.isEmpty()) s.additionalProperties?.let { additional ->
+            if (name !in properties && matched.isEmpty()) additional?.let {
                 if (additional == Schema.Bool(false)) add("property '$name' is not allowed")
                 else problems += nested(additional)
             }
