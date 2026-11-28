@@ -10,6 +10,7 @@ import de.quati.ogen.oas.schemas.gen.model.PatternPropertiesObjectDto
 import de.quati.ogen.oas.schemas.gen.model.RequiredAdditionalPropertyDto
 import de.quati.ogen.oas.schemas.gen.model.RequiredObjectAdditionalPropertyDto
 import de.quati.ogen.oas.schemas.gen.model.RequiredOpenAdditionalPropertyDto
+import de.quati.ogen.oas.schemas.gen.model.SameKotlinNameDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesInlineObjectDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesOpenObjectDto
 import de.quati.kotlin.util.toOption
@@ -433,6 +434,20 @@ class ModelsV31Test {
         // A declared key in the map would be written twice.
         assertFailsWith<SerializationException> {
             json.encodeToString(AdditionalPropertiesObjectDto(additionalProperties = mapOf("knownProperty" to 1)))
+        }
+    }
+
+    @Test
+    fun `test properties with the same Kotlin name`() {
+        // The name that already is the Kotlin name keeps it; the others get `_` appended and keep their JSON name.
+        SameKotlinNameDto(
+            xTenant_ = "a",
+            xTenant = 1.toOption(),
+            xTenant__ = false,
+            additionalProperties = mapOf("x-other" to true),
+        ).test(expectedString = """{"x-tenant":"a","xTenant":1,"x_tenant":false,"x-other":true}""")
+        assertFailsWith<SerializationException> {
+            json.decodeFromString<SameKotlinNameDto>("""{"x-tenant":"a"}""")
         }
     }
 

@@ -346,11 +346,8 @@ internal fun Schema.parse(
                 // A required key that `properties` doesn't declare has the schema of the pattern or additional
                 // properties that allow it; as a property of its own, it is checked like any other (#121).
                 val declared = o.properties.orEmpty()
-                // A key whose Kotlin name another property has stays in the map, as two would clash (#129).
-                val kotlinNames = declared.keys.mapTo(mutableSetOf()) { it.toCamelCase(capitalized = false) }
                 val undeclaredRequired = o.required.orEmpty().filter { it !in declared }.distinct()
                     .mapNotNull { name -> o.undeclaredRequiredSchemaOrNull(name)?.let { name to it } }
-                    .filter { (name, _) -> kotlinNames.add(name.toCamelCase(capitalized = false)) }
                 val declaredProps = declared.mapValues {
                     it.value.parse(location = location + it.key.toCamelCase(capitalized = true))
                 }

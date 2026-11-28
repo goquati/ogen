@@ -366,9 +366,10 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
             discInfo.interfaces.forEach { addSuperinterface(it.name.typename) }
         }
         primaryConstructor {
+            val kotlinNames = this@generateDataClassTypeSpec.propertyKotlinNames()
             this@generateDataClassTypeSpec.properties.forEach { (fieldName, prop) ->
                 if (fieldName == discInfo?.discriminatorName) return@forEach
-                val prettyFieldName = fieldName.toCamelCase(capitalized = false)
+                val prettyFieldName = kotlinNames.getValue(fieldName)
                 val isRequired = this@generateDataClassTypeSpec.required.contains(fieldName)
                 val propType = prop.getTypeName(withFlow = false)
                     .nullable(prop.isNullableResolved())
@@ -446,9 +447,21 @@ private fun Component.Schema.Obj.additionalPropertiesConstraints(discInfo: Eleme
     )
 }
 
+/**
+ * The Kotlin name of each property of [this]: its name in camel case. Of the names that have the same one, a name that
+ * already is it keeps it, and the others get `_` appended until it is free; `@SerialName` keeps their JSON name (#129).
+ */
+private fun Component.Schema.Obj.propertyKotlinNames(): Map<String, String> {
+    val camelCase = properties.keys.associateWith { it.toCamelCase(capitalized = false) }
+    val taken = mutableSetOf<String>()
+    val kotlinNames = camelCase.entries.sortedBy { (name, kotlinName) -> name != kotlinName }
+        .associate { (name, kotlinName) -> name to generateSequence(kotlinName) { "${it}_" }.first(taken::add) }
+    return properties.keys.associateWith(kotlinNames::getValue)
+}
+
 /** The Kotlin name of the map of additional properties; one that no property of [obj] has. */
 private fun additionalPropertiesName(obj: Component.Schema.Obj): String {
-    val taken = obj.properties.keys.map { it.toCamelCase(capitalized = false) }.toSet()
+    val taken = obj.propertyKotlinNames().values.toSet()
     return generateSequence("additionalProperties") { "${it}_" }.first { it !in taken }
 }
 

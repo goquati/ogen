@@ -491,6 +491,18 @@ components:
           name:
             type: string
 
+    SameKotlinName:
+      description: Object whose property names have the same Kotlin name (#129).
+      type: object
+      required: [x-tenant, x_tenant]
+      properties:
+        x-tenant:
+          type: string
+        xTenant:
+          type: integer
+      additionalProperties:
+        type: boolean
+
     OneOfExtras:
       description: Union whose variant allows additional properties.
       oneOf:

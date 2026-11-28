@@ -100,7 +100,10 @@ class TestAdditionalProperties {
             mapOf("id" to "string?", "x-tenant" to "untyped") to "string",
             obj("RequiredExtraUncompiled").shape(),
         )
-        assertEquals(mapOf("tenant_id" to "string") to "string", obj("RequiredExtraSameKotlinName").shape())
+        assertEquals(
+            mapOf("tenant_id" to "string", "tenantId" to "string", "tenant-id" to "string") to "string",
+            obj("RequiredExtraSameKotlinName").shape(),
+        )
         val composed = assertIs<Component.Schema.Composed>(schemas.getValue("RequiredExtraComposed"))
         assertEquals("untyped", composed.schemas[1].kind())
     }
