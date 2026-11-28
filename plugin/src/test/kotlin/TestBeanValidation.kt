@@ -7,6 +7,7 @@ import kotlin.io.path.walk
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class TestBeanValidation {
     private val logger = LoggerFactory.getLogger(TestBeanValidation::class.java)!!
@@ -256,5 +257,33 @@ class TestBeanValidation {
         assertContains(client, "fun postMultipartWithBoundary(title: String,")
         assertContains(client, "acceptContentType = ContentType.parse(\"multipart/mixed\")")
         assertContains(client, "fun getNdjsonAsFlow(")
+    }
+
+    @Test
+    fun `the Ktor client sends the preferred request media type`() {
+        val client = generate("bean-validation-edge-cases").file("MediaTypeParametersClient.kt")
+        fun function(name: String) = client.substringAfter("fun $name(", "").substringBefore("\n    }")
+            .also { assertTrue(it.isNotEmpty(), "function $name not generated") }
+        // JSON is preferred among JSON types, and next to a non-JSON type, whatever the spec order
+        assertContains(function("postPreferredJson"), "this.contentType(ContentType.Application.Json)")
+        assertContains(function("postPreferredMixed"), "this.contentType(ContentType.Application.Json)")
+    }
+
+    @Test
+    fun `media type parameter values keep their case`() {
+        val files = generate("bean-validation-edge-cases")
+        // type, subtype and parameter names are lowercased; the quoted value, with its `;`, is kept as written
+        val client = files.file("MediaTypeParametersClient.kt")
+        assertContains(client, """this.contentType(ContentType.parse("application/json; profile=\"https://Example.com/a;B\""))""")
+        val api = files.file("MediaTypeParametersApi.kt")
+        assertContains(api, "fun postJsonWithProfile(@RequestBody @Valid leafDto: LeafDto)")
+        // the `charset` value is case-insensitive, so both spellings are one media type
+        assertContains(api, "produces = [\"application/json; charset=utf-8\"], consumes")
+    }
+
+    @Test
+    fun `a media type with an unbalanced quote still loses its boundary`() {
+        val api = generate("bean-validation-edge-cases").file("MediaTypeParametersApi.kt")
+        assertContains(api, "produces = [\"multipart/mixed; foo=\\\"x\"]")
     }
 }
