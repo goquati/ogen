@@ -486,6 +486,36 @@ class SpringBootServerTest {
     }
 
     @Test
+    fun `test optional multipart body with a required part`() {
+        val op = Operation(HttpMethod.POST, "/api/v1/public/debug/optional-body/multipart")
+        client.doMultipartRequest(
+            op = op,
+            user = null,
+            parts = mapOf("note" to "foo"),
+            fileName = "notes.txt",
+            fileContent = "file content",
+            expectedStatus = 200,
+            expectedInput = "notes.txt|foo",
+        )
+        // an optional body may be left out, although it has a required part
+        client.post().uri(op.url).exchange()
+            .expectStatus().isOk.expectHeader().valueEquals("input-data", "null|null")
+        // without `consumes`, a body of another media type has no parts, so it counts as left out
+        client.post().uri(op.url).header("Content-Type", "application/json").bodyValue("{}").exchange()
+            .expectStatus().isOk.expectHeader().valueEquals("input-data", "null|null")
+        // a present body that lacks its required part can't be told apart from a left-out one per part
+        client.doMultipartRequest(
+            op = op,
+            user = null,
+            parts = mapOf("note" to "foo"),
+            fileName = null,
+            fileContent = null,
+            expectedStatus = 200,
+            expectedInput = "null|foo",
+        )
+    }
+
+    @Test
     fun `test operation context`() {
         UsersApi.GetUsersContext.name shouldBe "getUsers"
         UsersApi.GetUsersContext.description shouldBe "Returns users, optionally filtered by tenant, verification status, search term, locale or email."

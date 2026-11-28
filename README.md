@@ -12,7 +12,7 @@
 - **Ktor Client Support**: Generates Ktor clients (a Ktor server generator is planned).
 - **Bean Validation**: Optionally generates Jakarta Bean Validation annotations from the schemas' validation
   keywords, for models (also in multiplatform code) and the Spring server.
-- **Multipart Requests**: Supports `multipart/form-data` request bodies, including file uploads, in the Spring server and the Ktor client. A body whose parts aren't all known (an object with `additionalProperties`, or no object) comes to the Spring server as `MultiValueMap<String, Part>`.
+- **Multipart Requests**: Supports `multipart/form-data` request bodies, including file uploads, in the Spring server and the Ktor client. A body whose parts aren't all known (an object with `additionalProperties`, or no object) comes to the Spring server as `MultiValueMap<String, Part>`. In an optional multipart body (`required: false`), every part is optional, as the whole body may be left out; the Spring server then accepts a present body without a required part, and a body of another media type as a left-out one.
 - **Other Request Bodies**: A request body that is neither JSON nor multipart (e.g. `application/octet-stream`) comes to the Spring server as `ByteArray`, or as `String` when all its media types are `text/*`. WebFlux reads it fully into memory, up to `spring.codec.max-in-memory-size` (256 KB by default); a larger body fails with `DataBufferLimitException` unless that limit is raised.
 - **OpenAPI Validation**: Built-in validator to ensure your OpenAPI specs follow best practices and naming conventions.
 - **Highly Configurable**: Custom type mappings, schema mappings, and naming convention enforcement.

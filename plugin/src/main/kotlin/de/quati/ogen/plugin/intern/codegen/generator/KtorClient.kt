@@ -313,7 +313,10 @@ private fun TypeSpec.Builder.addEndpoint(
                 }
                 addStatement("%L?.also { this.%T(it) }", acceptParamName, Poet.Ktor.Request.accept)
                 if (requestBodyParts.isNotEmpty())
-                    addMultipartRequestBody(requestBodyParts)
+                    addMultipartRequestBody(
+                        parts = requestBodyParts,
+                        optional = endpoint.requestBodyResolved?.required == false,
+                    )
                 if (requestBodyInfo != null)
                     addRequestBody(requestBodyInfo)
                 addStatement("this@$controllerName.client.baseModifier(this)")
@@ -356,7 +359,9 @@ private fun CodeBlock.Builder.addPath(
 }
 
 context(_: CodeGenContext)
-private fun CodeBlock.Builder.addMultipartRequestBody(parts: List<PartInfo>) {
+private fun CodeBlock.Builder.addMultipartRequestBody(parts: List<PartInfo>, optional: Boolean) {
+    // an optional body whose parts are all left out is sent as no body at all, not as an empty form
+    if (optional) beginControlFlow("if (%L)", parts.joinToString(" || ") { "${it.prettyName} != null" })
     addStatement(
         "this.%T(%T(%T {",
         Poet.Ktor.Request.setBody,
@@ -367,6 +372,7 @@ private fun CodeBlock.Builder.addMultipartRequestBody(parts: List<PartInfo>) {
         parts.forEach { part -> addPart(part) }
     }
     addStatement("}))")
+    if (optional) endControlFlow()
 }
 
 context(_: CodeGenContext)

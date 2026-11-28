@@ -420,6 +420,15 @@ class KtorClientTest {
     }
 
     @Test
+    fun `test optional multipart body with a required part`(): TestResult = runTest {
+        val file = FileUpload(fileName = "notes.txt", content = "file content".encodeToByteArray())
+        clientPublic.debugApi.debugOptionalMultipartBody(file = file, note = "foo")
+            .check(expectedStatus = 200, expectedInput = "notes.txt|foo")
+        clientPublic.debugApi.debugOptionalMultipartBody()
+            .check(expectedStatus = 200, expectedInput = "null|null")
+    }
+
+    @Test
     fun `test QUERY method with a request body`(): TestResult = runTest {
         clientPublic.searchApi.searchUsers(SearchRequestDto(term = "doe")).check(expectedStatus = 200)
             .body() shouldBe SearchResultDto(names = listOf("John Doe"))
