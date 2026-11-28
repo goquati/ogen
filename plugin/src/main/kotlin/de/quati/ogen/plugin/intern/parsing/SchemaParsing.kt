@@ -226,6 +226,32 @@ private fun Schema.Obj.additionalValueSchemaOrNull(): Schema? {
     }
 }
 
+/**
+ * The schema of the value of [name], a key this object requires but doesn't declare in `properties` (#121), or null
+ * when the object doesn't allow it freely.
+ *
+ * In JSON Schema such a key is validated by the `patternProperties` whose patterns match it, otherwise by
+ * `additionalProperties`; several matching patterns with different schemas leave the value untyped. Patterns are
+ * matched with the JVM's regex, unanchored as in JSON Schema. Without `additionalProperties` and without a matching
+ * pattern the key is allowed freely only if there are patterns at all: an object without either (an `allOf` member
+ * requiring what a sibling defines, say) leaves the key to the schema that defines it.
+ */
+private fun Schema.Obj.undeclaredRequiredSchemaOrNull(name: String): Schema? {
+    val matching = patternProperties.orEmpty()
+        .filterKeys { pattern -> runCatching { Regex(pattern).containsMatchIn(name) }.getOrDefault(false) }
+        .values.distinct()
+    return when {
+        Schema.Bool(false) in matching -> null
+        matching.size == 1 -> matching.single()
+        matching.isNotEmpty() -> Schema.Bool(true)
+        else -> when (val it = additionalProperties) {
+            null -> if (patternProperties.isNullOrEmpty()) null else Schema.Bool(true)
+            Schema.Bool(false) -> null
+            else -> it
+        }
+    }
+}
+
 context(pc: ParserContext)
 internal fun Schema.parse(
     location: SchemaLocation,
@@ -313,9 +339,14 @@ internal fun Schema.parse(
             null -> s.toUnknown(location)
 
             "object" -> run {
-                val props = o.properties?.mapValues {
+                // A required key that `properties` doesn't declare has the schema of the pattern or additional
+                // properties that allow it; as a property of its own, it is checked like any other (#121).
+                val declared = o.properties.orEmpty()
+                val undeclaredRequired = o.required.orEmpty().filter { it !in declared }.distinct()
+                    .mapNotNull { name -> o.undeclaredRequiredSchemaOrNull(name)?.let { name to it } }
+                val props = (declared + undeclaredRequired).mapValues {
                     it.value.parse(location = location + it.key.toCamelCase(capitalized = true))
-                } ?: emptyMap()
+                }
                 if (props.isNotEmpty()) {
                     return@run Component.Schema.Obj(
                         isNullable = s.isNullable,

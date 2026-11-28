@@ -329,7 +329,26 @@ val thing = ThingDto(id = "a".toOption(), additionalProperties = mapOf("count" t
 - A key of the map that the schema declares as a property fails serialization.
 - A class discriminator that `Json` writes into the object (in a sealed interface, or in every object with
   `ClassDiscriminatorMode.ALL_JSON_OBJECTS`) is no additional property.
-- `required` names that are not declared as properties are not checked.
+- A `required` name that `properties` doesn't declare becomes a property of its own when the object allows it, with
+  the schema that allows it: that of the matching pattern (`JsonElement` if several with different schemas match;
+  patterns are matched as Java regexes), otherwise that of `additionalProperties`. Without `additionalProperties`, it
+  is `JsonElement` if there are patterns, and the name is left as it is (to an `allOf` sibling, say) if there are
+  none. Such a property is required and checked like any declared one, and it makes a class also of an object without
+  `properties`:
+
+  ```yaml
+  Thing:
+    type: object
+    required: [tenant]
+    properties: { id: { type: string } }
+    additionalProperties: { type: string }
+  ```
+
+  ```kotlin
+  ThingDto(id: Option<String>, tenant: String, additionalProperties: Map<String, String>)
+  ```
+
+  With `additionalProperties: false`, a required name that no pattern allows is a spec error.
 
 ### The QUERY method
 

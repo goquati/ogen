@@ -37,3 +37,13 @@ components:
       type: object
       properties:
         x: { required: [zzz] }
+    # With additionalProperties false, patternProperties define only the names they match (#121).
+    PatternsClosed:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        '^x-': { type: string }
+        '^no-': false
+      required: [x-tenant, no-way, code]
+      properties:
+        name: { type: string }

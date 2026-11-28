@@ -38,6 +38,8 @@ class TestUndefinedRequiredPropertyCheck {
                 "code" to "ClosedUnevaluated",
                 "nmae" to "RefSibling",
                 "zzz" to "SharedLater.x",
+                "no-way" to "PatternsClosed",
+                "code" to "PatternsClosed",
             ).map { (name, location) -> "required property '$name' in '$location' is not defined in its properties" }
         )
     }

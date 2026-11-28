@@ -7,6 +7,7 @@ import de.quati.ogen.oas.schemas.gen.model.OneOfExtrasDto
 import de.quati.ogen.oas.schemas.gen.model.OneOfExtras2Dto
 import de.quati.ogen.oas.schemas.gen.model.OneOfExtras1Dto
 import de.quati.ogen.oas.schemas.gen.model.PatternPropertiesObjectDto
+import de.quati.ogen.oas.schemas.gen.model.RequiredAdditionalPropertyDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesInlineObjectDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesOpenObjectDto
 import de.quati.kotlin.util.toOption
@@ -403,6 +404,13 @@ class ModelsV31Test {
             .test(expectedString = """{"knownProperty":"k","x-a":"1"}""")
         assertFailsWith<SerializationException> {
             json.decodeFromString<PatternPropertiesObjectDto>("""{"x-a":1}""")
+        }
+
+        // A required key that properties don't declare is a property of its own, checked like any other (#121).
+        RequiredAdditionalPropertyDto(tenant = "t", additionalProperties = mapOf("a" to "x"))
+            .test(expectedString = """{"tenant":"t","a":"x"}""")
+        assertFailsWith<SerializationException> {
+            json.decodeFromString<RequiredAdditionalPropertyDto>("""{"id":"a"}""")
         }
 
         // A declared key in the map would be written twice.

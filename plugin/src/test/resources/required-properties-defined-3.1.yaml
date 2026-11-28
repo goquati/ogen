@@ -53,3 +53,15 @@ components:
       dependentSchemas:
         nickname:
           required: [name]
+    # Without additionalProperties, patternProperties allow every name; with false, the names they match (#121).
+    PatternsOpen:
+      type: object
+      patternProperties:
+        '^x-': { type: string }
+      required: [x-tenant, code]
+    PatternsClosedMatching:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        '^x-': { type: string }
+      required: [x-tenant]

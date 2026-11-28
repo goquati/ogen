@@ -458,6 +458,16 @@ components:
           type: string
       additionalProperties: false
 
+    RequiredAdditionalProperty:
+      description: Object that requires a key its properties don't declare (#121).
+      type: object
+      required: [tenant]
+      properties:
+        id:
+          type: string
+      additionalProperties:
+        type: string
+
     OneOfExtras:
       description: Union whose variant allows additional properties.
       oneOf:
