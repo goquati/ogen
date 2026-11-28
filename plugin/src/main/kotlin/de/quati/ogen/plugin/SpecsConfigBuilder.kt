@@ -416,8 +416,8 @@ public open class SpecsConfigBuilder {
                 /** Enum values that don't match their schema's type or are listed twice. */
                 public var enumValues: Severity by rule(ValidatorRule.EnumValues)
 
-                /** A `default` its `enum` doesn't list. */
-                public var defaultOutsideEnum: Severity by rule(ValidatorRule.DefaultOutsideEnum)
+                /** A `default` its schema doesn't allow: of another type, outside its `enum`, above its `maximum`, … */
+                public var invalidDefaults: Severity by rule(ValidatorRule.InvalidDefaults)
 
                 /** A `type` that isn't a JSON Schema type. */
                 public var invalidTypes: Severity by rule(ValidatorRule.InvalidTypes)
@@ -465,6 +465,12 @@ public open class SpecsConfigBuilder {
                  * get `_` appended, so adding or reordering one can move a Kotlin name to another JSON key.
                  */
                 public var sameKotlinNames: Severity by rule(ValidatorRule.SameKotlinNames)
+
+                /**
+                 * Examples their schema doesn't allow: of schemas, parameters, headers, and JSON media types. Not
+                 * checked: an Example Object's `externalValue`, and examples of other media types such as XML.
+                 */
+                public var invalidExamples: Severity by rule(ValidatorRule.InvalidExamples)
 
                 // Recommendations: warnings by default, off in [RuleSet.Lenient].
 

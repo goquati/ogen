@@ -1,0 +1,46 @@
+openapi: 3.1.0
+info:
+  title: Valid defaults
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        state:
+          type: [string, 'null']
+          enum: [open, closed, null]
+          default: null
+        ratio:
+          description: "1.0 and 1 are the same JSON number."
+          type: number
+          enum: [1, 2.5]
+          default: 1.0
+        pair:
+          type: array
+          prefixItems:
+            - type: string
+            - type: integer
+          default: [a, 1]
+        shape:
+          oneOf:
+            - $ref: '#/components/schemas/Circle'
+            - $ref: '#/components/schemas/Square'
+          discriminator:
+            propertyName: kind
+          default: {kind: Circle, size: 1}
+    Circle:
+      type: object
+      properties:
+        kind:
+          type: string
+        size:
+          type: number
+    Square:
+      type: object
+      properties:
+        kind:
+          type: string
+        size:
+          type: number

@@ -39,6 +39,22 @@ internal object Yaml11Schema : Schema {
     override fun getScalarResolver(): ScalarResolver = resolver
     override fun getSchemaTagConstructors(): Map<Tag, ConstructNode> = emptyMap()
 
+    // The YAML 1.2 core schema: what it reads as null, a boolean or a number.
+    private val CORE_NON_STRING = Regex(
+        "null|Null|NULL|~|true|True|TRUE|false|False|FALSE|[-+]?[0-9]+|0o[0-7]+|0x[0-9a-fA-F]+" +
+            "|[-+]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?|[-+]?\\.(inf|Inf|INF)|\\.(nan|NaN|NAN)"
+    )
+
+    // An integer with a leading zero: octal in YAML 1.1, decimal in YAML 1.2.
+    private val LEADING_ZERO = Regex("[-+]?0[0-9]+")
+
+    /**
+     * Whether YAML 1.2's core schema reads the plain scalar [value], which YAML 1.1 reads as null, a boolean or a
+     * number, the same: not as a string (`no`, `12:30`), and not as another number (`010`, octal only in YAML 1.1).
+     */
+    fun readsAlikeInYaml12(value: String): Boolean =
+        (value.isEmpty() || CORE_NON_STRING.matches(value)) && !LEADING_ZERO.matches(value)
+
     fun toBoolean(value: String): Boolean = value.lowercase() in setOf("yes", "true", "on")
 
     /** An int as snakeyaml's ConstructYamlInt reads it: signs, `_`, `0b`, `0x`, a leading `0` for octal, `:` for base 60. */

@@ -4,10 +4,13 @@ import de.quati.ogen.plugin.intern.model.HttpMethod
 import de.quati.ogen.plugin.intern.oas.OasVersion
 import de.quati.ogen.plugin.intern.oas.load.Bundle
 import de.quati.ogen.plugin.intern.oas.ref.JsonPointer
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import de.quati.ogen.plugin.intern.oas.model.Callback
 import de.quati.ogen.plugin.intern.oas.model.Content
+import de.quati.ogen.plugin.intern.oas.model.Example
 import de.quati.ogen.plugin.intern.oas.model.Header
+import de.quati.ogen.plugin.intern.oas.model.MediaType
 import de.quati.ogen.plugin.intern.oas.model.OpenApi
 import de.quati.ogen.plugin.intern.oas.model.Operation
 import de.quati.ogen.plugin.intern.oas.model.Parameter
@@ -27,6 +30,9 @@ internal class ValidatedSpec(val api: OpenApi, val sourceVersion: OasVersion, va
 
     /** The object at [pointer] (a place in the bundle) as its file has it, before migration; null if unknown. */
     fun source(pointer: JsonPointer): JsonObject? = bundle?.source(pointer) as? JsonObject
+
+    /** The text of the plain scalar at [pointer] if YAML 1.1 reads it otherwise than YAML 1.2, such as `no` or `010`. */
+    fun yaml11Text(pointer: JsonPointer): String? = bundle?.yaml11Text(pointer)
 
     /** Where [pointer] is in the spec's files, for messages: `oas.yaml:12:5`. */
     fun position(pointer: JsonPointer): String? = bundle?.locate(pointer)?.let { location ->
@@ -65,9 +71,27 @@ internal class SchemaNode(
     val pointer: JsonPointer = JsonPointer.ROOT,
     /** The schema as its file has it, before migration; null for a spec built in code. */
     val source: JsonObject? = null,
+    /** The schema as migration made it, with 3.0's `nullable` a `null` type: what a value must match. */
+    val migrated: Schema.Obj = schema,
 ) {
     val isInsideNot: Boolean get() = role == SchemaRole.NEGATED || parent?.isInsideNot == true
 }
+
+/**
+ * A parameter, header or media type, with the examples it gives for the values [schema] describes. [json] is false for
+ * a media type whose examples need not be JSON, such as `application/xml`. [componentMediaType] names a media type of
+ * `components.mediaTypes`.
+ */
+internal data class ExampleNode(
+    val location: String,
+    /** Its place in the bundle. */
+    val pointer: JsonPointer,
+    val schema: Schema?,
+    val example: JsonElement?,
+    val examples: Map<String, RefOr<Example>>?,
+    val json: Boolean = true,
+    val componentMediaType: String? = null,
+)
 
 /** A parameter; [ownerLocation] is where it is declared: a component, a path or an operation. */
 internal class ParameterNode(val parameter: Parameter, val ownerLocation: String)
@@ -92,6 +116,23 @@ internal fun String.componentName(section: String): String? =
 
 /** Visits every schema the spec defines, at every place it is written, without following `$ref`s. */
 internal fun ValidatedSpec.walkSchemas(visit: (SchemaNode) -> Unit) = SpecWalker(this, visitSchema = visit).walk()
+
+/**
+ * Every parameter, header and media type, with its examples. A media type of `components.mediaTypes` counts as JSON
+ * only if every content entry that refers to it is of a JSON media type.
+ */
+internal fun ValidatedSpec.exampleNodes(): List<ExampleNode> {
+    val nodes = mutableListOf<ExampleNode>()
+    val usedAsJson = mutableMapOf<String, MutableSet<Boolean>>()
+    SpecWalker(
+        this,
+        visitExamples = { nodes.add(it) },
+        visitMediaTypeReference = { name, json -> usedAsJson.getOrPut(name) { mutableSetOf() }.add(json) },
+    ).walk()
+    return nodes.map { node ->
+        node.componentMediaType?.let { node.copy(json = usedAsJson[it] == setOf(true)) } ?: node
+    }
+}
 
 /** Every operation: in `paths`, webhooks, callbacks and component path items. */
 internal fun ValidatedSpec.operations(): List<OperationNode> =
@@ -133,6 +174,9 @@ private class SpecWalker(
     private val visitOperation: (OperationNode) -> Unit = {},
     private val visitParameter: (ParameterNode) -> Unit = {},
     private val visitReference: (ReferenceNode) -> Unit = {},
+    private val visitExamples: (ExampleNode) -> Unit = {},
+    /** A content entry that refers to a media type of `components.mediaTypes`, and whether it is of a JSON one. */
+    private val visitMediaTypeReference: (String, Boolean) -> Unit = { _, _ -> },
 ) {
     fun walk() {
         val root = JsonPointer.ROOT
@@ -147,6 +191,9 @@ private class SpecWalker(
             headers?.forEach { (name, header) -> header.walkHeader("components.headers.$name", components / "headers" / name) }
             callbacks?.forEach { (name, callback) -> callback.walkCallback("components.callbacks.$name", components / "callbacks" / name) }
             pathItems?.forEach { (name, item) -> item.walk("components.pathItems.$name", components / "pathItems" / name) }
+            mediaTypes?.forEach { (name, media) ->
+                media.walkMedia("components.mediaTypes.$name", components / "mediaTypes" / name, componentName = name)
+            }
         }
         spec.api.paths?.pathItems?.forEach { (path, item) -> item.walk(path, root / "paths" / path) }
         spec.api.webhooks?.forEach { (name, item) -> item.walk("webhooks.$name", root / "webhooks" / name) }
@@ -162,7 +209,7 @@ private class SpecWalker(
     ) {
         if (schema !is Schema.Obj) return
         val written = if (spec.is30) schema.asWritten30() else schema
-        walk(SchemaNode(written, location, parent, role, componentName, pointer, spec.source(pointer)))
+        walk(SchemaNode(written, location, parent, role, componentName, pointer, spec.source(pointer), migrated = schema))
     }
 
     private fun walk(node: SchemaNode) {
@@ -206,18 +253,33 @@ private class SpecWalker(
     }
 
     private fun Content.walk(location: String, pointer: JsonPointer) = forEach { (mediaType, refOrMedia) ->
-        val at = pointer / mediaType
-        if (refOrMedia.isReference("$location.$mediaType", at)) return@forEach
-        val media = (refOrMedia as RefOr.Value).value
-        schema(media.schema, "$location.$mediaType", at / "schema")
+        (refOrMedia as? RefOr.Ref)?.ref?.componentName("mediaTypes")?.let { visitMediaTypeReference(it, mediaType.isJson()) }
+        refOrMedia.walkMedia("$location.$mediaType", pointer / mediaType, mediaType.isJson())
+    }
+
+    // A media type of `components.mediaTypes` has no name to tell its examples' format by: see [exampleNodes].
+    private fun RefOr<MediaType>.walkMedia(location: String, at: JsonPointer, json: Boolean = true, componentName: String? = null) {
+        if (isReference(location, at)) return
+        val media = (this as RefOr.Value).value
+        visitExamples(ExampleNode(location, at, media.schema, media.example, media.examples, json, componentName))
+        schema(media.schema, location, at / "schema")
         media.encoding?.forEach { (property, encoding) ->
             encoding.headers?.forEach { (name, header) ->
-                header.walkHeader("$location.$mediaType.encoding.$property.headers.$name", at / "encoding" / property / "headers" / name)
+                header.walkHeader("$location.encoding.$property.headers.$name", at / "encoding" / property / "headers" / name)
             }
         }
     }
 
-    private fun walkSchemaOrContent(schema: Schema?, content: Content?, location: String, pointer: JsonPointer) {
+    private fun walkSchemaOrContent(
+        schema: Schema?,
+        content: Content?,
+        location: String,
+        pointer: JsonPointer,
+        example: JsonElement?,
+        examples: Map<String, RefOr<Example>>?,
+    ) {
+        // With `content` instead of `schema`, examples belong in the media type.
+        if (schema != null) visitExamples(ExampleNode(location, pointer, schema, example, examples))
         schema(schema, location, pointer / "schema")
         content?.walk(location, pointer / "content")
     }
@@ -226,13 +288,13 @@ private class SpecWalker(
         if (isReference(ownerLocation, pointer)) return
         val parameter = (this as RefOr.Value).value
         visitParameter(ParameterNode(parameter, ownerLocation))
-        walkSchemaOrContent(parameter.schema, parameter.content, location(parameter), pointer)
+        walkSchemaOrContent(parameter.schema, parameter.content, location(parameter), pointer, parameter.example, parameter.examples)
     }
 
     private fun RefOr<Header>.walkHeader(location: String, pointer: JsonPointer) {
         if (isReference(location, pointer)) return
         val header = (this as RefOr.Value).value
-        walkSchemaOrContent(header.schema, header.content, location, pointer)
+        walkSchemaOrContent(header.schema, header.content, location, pointer, header.example, header.examples)
     }
 
     private fun RefOr<RequestBody>.walkBody(location: String, pointer: JsonPointer) {
@@ -270,4 +332,10 @@ private class SpecWalker(
             operation.callbacks?.forEach { (name, callback) -> callback.walkCallback("${node.location}.callbacks.$name", at / "callbacks" / name) }
         }
     }
+}
+
+/** `application/json`, `application/problem+json`, `application/json; charset=utf-8`, … */
+private fun String.isJson(): Boolean {
+    val subtype = substringBefore(';').trim().lowercase().substringAfter('/', "")
+    return subtype == "json" || subtype.endsWith("+json")
 }

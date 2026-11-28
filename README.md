@@ -194,27 +194,35 @@ ogen {
   kept from the `unusedSchemas` warning by `x-ogen-keep: true` (or `"true"`) on the schema; the schemas it refers to
   count as used, too. On a spec with parser errors, the checks that are errors by default and `unusedSchemas` don't
   run, whatever their severity.
-- **What the validator checks**: the parser's errors fail the build, and by default these checks: broken
-  path templates (an empty `{}`, an unclosed `{` or a stray `}`), a query string or fragment in a path key, path
-  parameters missing from the path template, paths that differ only in their variables' names, security schemes not
-  defined in `components.securitySchemes`, a `type` that isn't a JSON Schema type, enum values that don't match their
-  schema's type or are listed twice, a `default` its `enum` doesn't list, `required` names without a matching property,
-  contradictory constraints such as `minimum` above `maximum`, and compositions no value can match: `allOf` members
-  whose types exclude each other or the schema's own type, or a type that excludes every `oneOf` or `anyOf` member.
-  These are warnings: paths with a trailing slash, operations without a 2xx or 3xx response, operation tags missing from
-  the top-level `tags` (when it declares any), `nullable` without a `type` in OpenAPI 3.0, schemas no operation uses,
-  `pattern` regexes and
-  `patternProperties` keys that don't compile as Java regexes (OpenAPI's are JavaScript's, which differ slightly),
-  keywords that apply to none of the schema's declared types, such as `maxLength` on an integer, in OpenAPI 3.1
-  `maximum` next to `exclusiveMaximum` or `minimum` next to `exclusiveMinimum`, where only the tighter bound has an
-  effect, and ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and
-  `/books/{id}`), and property names of one schema with the same Kotlin name (`xTenant` and `x-tenant`), which get
-  distinct names, see below. Recommendations are warnings too, and `RuleSet.Lenient` turns them off: `properties`
-  next to `oneOf`, a request body on GET or HEAD, header names with `_`, `nullable` in OpenAPI 3.1 and later (which
-  has no effect there), schema keywords the spec's version deprecates (`example` since 3.1, the XML Object's
-  `attribute` and `wrapped` since 3.2), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without
-  `minimum` in 3.0, operations ogen generates no code for (3.2's `additionalOperations`), and names that
-  don't match the naming conventions. Off by default: `operationIdRequired`, operations under `paths` without an
+- **What the validator checks**: the parser's errors fail the build, and by default these checks: broken path
+  templates (an empty `{}`, an unclosed `{` or a stray `}`), a query string or fragment in a path key, path parameters
+  missing from the path template, paths that differ only in their variables' names, security schemes not defined in
+  `components.securitySchemes`, a `type` that isn't a JSON Schema type, enum values that don't match their schema's
+  type or are listed twice, a `default` its schema doesn't allow (of another type, outside its `enum`, below its
+  `minimum`, …), `required` names without a matching property, contradictory constraints such as `minimum` above
+  `maximum`, and compositions no value can match: `allOf` members whose types exclude each other or the schema's own
+  type, or a type that excludes every `oneOf` or `anyOf` member. These are warnings: paths with a trailing slash,
+  operations without a 2xx or 3xx response, operation tags missing from the top-level `tags` (when it declares any),
+  `nullable` without a `type` in OpenAPI 3.0, schemas no operation uses, `pattern` regexes and `patternProperties`
+  keys that don't compile as Java regexes (OpenAPI's are JavaScript's, which differ slightly), keywords that apply to
+  none of the schema's declared types, such as `maxLength` on an integer, in OpenAPI 3.1 `maximum` next to
+  `exclusiveMaximum` or `minimum` next to `exclusiveMinimum`, where only the tighter bound has an effect, and
+  ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and `/books/{id}`),
+  property names of one schema with the same Kotlin name (`xTenant` and `x-tenant`), which get distinct names, see
+  below, and examples their schema doesn't allow: the `example` and `examples` of schemas, parameters, headers and
+  JSON media types (`json` and `+json` subtypes such as `application/problem+json`, and `components.mediaTypes`;
+  examples of other media types, such as XML or the wildcard `*/*`, are often the serialized text and not checked, nor
+  is an Example Object's `externalValue`). Defaults and examples are checked as JSON Schema does, except that in
+  OpenAPI 3.0 a nullable `enum` allows `null`, a missing required property that is `readOnly` or `writeOnly` is no
+  finding, a `discriminator` (and 3.2's `defaultMapping`) picks the `oneOf` or `anyOf` alternative, and formats are
+  checked only for examples, and only `date`, `date-time`, `time`, `uuid`, `email`, `ipv4`, `int32` and `int64`.
+  Unquoted values are read as YAML 1.1, as swagger-parser did: `no` is `false`, `12:30` is `750` and `010` is `8`;
+  quote such values to keep them as written. Recommendations are warnings too, and `RuleSet.Lenient` turns them off:
+  `properties` next to `oneOf`, a request body on GET or HEAD, header names with `_`, `nullable` in OpenAPI 3.1 and
+  later (which has no effect there), schema keywords the spec's version deprecates (`example` since 3.1, the XML
+  Object's `attribute` and `wrapped` since 3.2), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true`
+  without `minimum` in 3.0, operations ogen generates no code for (3.2's `additionalOperations`), and names that don't
+  match the naming conventions. Off by default: `operationIdRequired`, operations under `paths` without an
   `operationId`, for projects that choose every generated method name in the spec instead of letting ogen derive it.
   Specs that are only generated as models, often with no operation at all, get an `unusedSchemas` warning for every
   schema; such projects set `rules { unusedSchemas = Severity.Off }`.

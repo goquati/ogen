@@ -1,0 +1,115 @@
+openapi: 3.0.3
+info:
+  title: Examples their schema doesn't allow
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            maximum: 100
+          example: 500
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+          examples:
+            up:
+              value: asc
+            sideways:
+              value: left
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate-Limit:
+              schema:
+                type: integer
+              example: many
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+              examples:
+                one:
+                  $ref: '#/components/examples/OnePet'
+            application/xml:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+              example: '<pets><pet>Rex</pet></pets>'
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+            example:
+              name: Rex
+      responses:
+        '201':
+          description: Created
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+              example:
+                id: 1
+components:
+  schemas:
+    Pet:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        count:
+          type: integer
+          example: lots
+        born:
+          type: string
+          format: date
+          example: yesterday
+    NewPet:
+      description: "A request example may leave out id, which another allOf member defines as readOnly."
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - required: [id, name]
+          properties:
+            name:
+              type: string
+      example:
+        name: Rex
+    Base:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+    Order:
+      type: object
+      required: [id]
+      properties:
+        id:
+          allOf:
+            - $ref: '#/components/schemas/Id'
+      example: {}
+    Id:
+      type: integer
+      readOnly: true
+  examples:
+    OnePet:
+      value:
+        - id: 1
+          name: Rex
+          count: -1.5

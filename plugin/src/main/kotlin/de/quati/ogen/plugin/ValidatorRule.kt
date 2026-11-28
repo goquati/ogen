@@ -6,13 +6,14 @@ import de.quati.ogen.plugin.intern.validation.ambiguousPathWarnings
 import de.quati.ogen.plugin.intern.validation.brokenPathTemplateErrors
 import de.quati.ogen.plugin.intern.validation.compositionTypeErrors
 import de.quati.ogen.plugin.intern.validation.contradictoryConstraintErrors
-import de.quati.ogen.plugin.intern.validation.defaultOutsideEnumErrors
 import de.quati.ogen.plugin.intern.validation.deprecatedKeywordWarnings
 import de.quati.ogen.plugin.intern.validation.enumValueErrors
 import de.quati.ogen.plugin.intern.validation.exclusiveFlagWithoutBoundWarnings
 import de.quati.ogen.plugin.intern.validation.getWithBodyWarnings
 import de.quati.ogen.plugin.intern.validation.headerUnderscoreWarnings
 import de.quati.ogen.plugin.intern.validation.identicalPathErrors
+import de.quati.ogen.plugin.intern.validation.invalidDefaultErrors
+import de.quati.ogen.plugin.intern.validation.invalidExampleWarnings
 import de.quati.ogen.plugin.intern.validation.ignoredNextToRefWarnings
 import de.quati.ogen.plugin.intern.validation.invalidTypeErrors
 import de.quati.ogen.plugin.intern.validation.namingConventionErrors
@@ -61,7 +62,7 @@ public enum class ValidatorRule(
     IdenticalPaths(Severity.Error, ::identicalPathErrors, needsValidSpec = true),
     UndefinedSecuritySchemes(Severity.Error, ::undefinedSecuritySchemeErrors, needsValidSpec = true),
     EnumValues(Severity.Error, ::enumValueErrors, needsValidSpec = true),
-    DefaultOutsideEnum(Severity.Error, ::defaultOutsideEnumErrors, needsValidSpec = true),
+    InvalidDefaults(Severity.Error, ::invalidDefaultErrors, needsValidSpec = true),
     InvalidTypes(Severity.Error, ::invalidTypeErrors, needsValidSpec = true),
     ContradictoryConstraints(Severity.Error, ::contradictoryConstraintErrors, needsValidSpec = true),
     UndefinedRequiredProperties(Severity.Error, ::undefinedRequiredPropertyErrors, needsValidSpec = true),
@@ -77,6 +78,7 @@ public enum class ValidatorRule(
     NullableWithoutType(Severity.Warning, ::nullableWithoutTypeWarnings),
     UnusedSchemas(Severity.Warning, ::unusedSchemaWarnings, needsValidSpec = true),
     SameKotlinNames(Severity.Warning, ::sameKotlinNameWarnings),
+    InvalidExamples(Severity.Warning, ::invalidExampleWarnings, needsValidSpec = true),
 
     NullableIn31(Severity.Warning, ::nullableIn31Warnings, recommendation = true),
     DeprecatedKeywords(Severity.Warning, ::deprecatedKeywordWarnings, recommendation = true),

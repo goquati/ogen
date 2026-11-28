@@ -1,0 +1,34 @@
+openapi: 3.1.0
+info:
+  title: Defaults their schema doesn't allow
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Level:
+      type: integer
+      enum: [1, 2]
+      default: lots
+    State:
+      description: "In 3.1 an enum lists null itself, as JSON Schema has it."
+      type: [string, 'null']
+      enum: [open, closed]
+      default: null
+    Ratio:
+      type: number
+      exclusiveMinimum: 0
+      multipleOf: 0.5
+      default: 0.75
+    Lang:
+      type: string
+      default: no
+    Start:
+      type: string
+      default: 12:30
+    Zip:
+      type: string
+      default: 01234
+    Amount:
+      $ref: '#/components/schemas/Level'
+      type: integer
+      default: many
