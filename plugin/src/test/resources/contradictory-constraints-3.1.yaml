@@ -108,3 +108,9 @@ components:
         type: string
         minLength: 3
         maxLength: 2
+    # More required keys than maxProperties allows (#121).
+    TooManyRequired:
+      type: object
+      maxProperties: 1
+      required: [a, b]
+      additionalProperties: { type: string }

@@ -329,7 +329,31 @@ val thing = ThingDto(id = "a".toOption(), additionalProperties = mapOf("count" t
 - A key of the map that the schema declares as a property fails serialization.
 - A class discriminator that `Json` writes into the object (in a sealed interface, or in every object with
   `ClassDiscriminatorMode.ALL_JSON_OBJECTS`) is no additional property.
-- `required` names that are not declared as properties are not checked.
+- A `required` name that `properties` doesn't declare becomes a property of its own when the object allows it, with
+  the schema that allows it: that of the matching pattern (`JsonElement` if several with different schemas match;
+  patterns are matched as Java regexes, and one that doesn't compile as such may match, which makes it `JsonElement`),
+  otherwise that of `additionalProperties`. Without `additionalProperties`, it is `JsonElement` if there are patterns
+  (other than `false`), and the name is left as it is (to an `allOf` sibling, say) if there are none. Such a property
+  is required and checked like any declared one, and it makes a class also of an object without `properties`:
+
+  ```yaml
+  Thing:
+    type: object
+    required: [tenant]
+    properties: { id: { type: string } }
+    additionalProperties: { type: string }
+  ```
+
+  ```kotlin
+  ThingDto(id: Option<String>, tenant: String, additionalProperties: Map<String, String>)
+  ```
+
+  With `additionalProperties: false`, a required name that no pattern allows is a spec error, and so is one that a
+  pattern with `false` matches. A required name whose Kotlin name another property already has stays in the map.
+- With `beanValidation`, `minProperties` and `maxProperties` of a class with a map are checked as the map's size
+  when every property is required, so that the number of keys is known: a class that only has required names from
+  `required` keeps the bounds of the map it was. With an optional property they are not checked, nor in a variant of a
+  sealed interface, whose class discriminator is a key only when the value is (de)serialized as the interface.
 
 ### The QUERY method
 

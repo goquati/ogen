@@ -36,7 +36,8 @@ class TestAdditionalProperties {
                     "WithExtras" to "class + map of untyped",
                     "WithTypedExtras" to "class + map of integer",
                 ),
-                schemas.filterKeys { it != "Reached" && "Patterns" !in it }.mapValues { it.value.kind() },
+                schemas.filterKeys { it != "Reached" && "Patterns" !in it && !it.startsWith("RequiredExtra") }
+                    .mapValues { it.value.kind() },
                 spec,
             )
             val reached = assertIs<Component.Schema.Obj>(schemas.getValue("Reached"), spec)
@@ -60,5 +61,47 @@ class TestAdditionalProperties {
             ),
             schemas("additional-properties-3.1").filterKeys { "Patterns" in it }.mapValues { it.value.kind() },
         )
+    }
+
+    @Test
+    fun `required keys that properties don't declare become properties`() {
+        val schemas = schemas("additional-properties-3.1")
+        fun obj(name: String) = assertIs<Component.Schema.Obj>(schemas.getValue(name), name)
+        fun Component.Schema.Obj.shape() = properties.mapValues { (key, value) ->
+            value.kind() + if (key in required) "" else "?"
+        } to additionalProperties?.kind()
+
+        assertEquals(mapOf("id" to "string?", "tenant" to "string") to "string", obj("RequiredExtra").shape())
+        assertEquals(mapOf("tenant" to "integer") to "integer", obj("RequiredExtraWithoutProperties").shape())
+        // `true` and `{}` leave the value untyped.
+        assertEquals(mapOf("id" to "string?", "tenant" to "untyped") to "untyped", obj("RequiredExtraOpen").shape())
+        assertEquals(
+            mapOf("id" to "string?", "tenant" to "untyped") to "untyped",
+            obj("RequiredExtraOpenSchema").shape(),
+        )
+        // An object schema gives the property the class of the map's values, not a copy of it.
+        val inline = obj("RequiredExtraInlineObject")
+        assertIs<Component.Schema.Ref.Nested>(inline.additionalProperties)
+        assertEquals(inline.additionalProperties, inline.properties.getValue("tenant"))
+        val ref = obj("RequiredExtraRef")
+        assertEquals(ref.additionalProperties, ref.properties.getValue("tenant"))
+        assertEquals(setOf("tenant"), ref.required)
+        assertEquals(
+            mapOf("id" to "string?", "x-tenant" to "string", "other" to "integer") to "untyped",
+            obj("RequiredExtraMatchingPattern").shape(),
+        )
+        // Several matching patterns with different schemas leave the value untyped.
+        assertEquals(mapOf("x-n-tenant" to "untyped") to "untyped", obj("RequiredExtraTwoMatches").shape())
+        assertEquals(mapOf("tenant" to "untyped") to "untyped", obj("RequiredExtraUnmatchedPattern").shape())
+        // A key nothing allows stays undeclared; the validator reports it.
+        assertEquals(mapOf("id" to "string?") to null, obj("RequiredExtraForbidden").shape())
+        assertEquals(mapOf("id" to "string?") to null, obj("RequiredExtraOnlyForbidden").shape())
+        assertEquals(
+            mapOf("id" to "string?", "x-tenant" to "untyped") to "string",
+            obj("RequiredExtraUncompiled").shape(),
+        )
+        assertEquals(mapOf("tenant_id" to "string") to "string", obj("RequiredExtraSameKotlinName").shape())
+        val composed = assertIs<Component.Schema.Composed>(schemas.getValue("RequiredExtraComposed"))
+        assertEquals("untyped", composed.schemas[1].kind())
     }
 }

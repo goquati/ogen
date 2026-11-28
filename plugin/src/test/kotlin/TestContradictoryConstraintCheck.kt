@@ -54,6 +54,7 @@ class TestContradictoryConstraintCheck {
                 "'Pair[0]': minimum 2 is above maximum 1",
                 "'Conditional.contains': minLength 3 is above maxLength 2",
                 "'Conditional.then.low': minimum 5 is above maximum 1",
+                "'TooManyRequired': 2 required properties are above maxProperties 1",
                 "'components.pathItems.Ping:GET.parameters.count': minimum 4 is above maximum 3",
                 // In 3.1, path-level parameters stay on the path item.
                 "'/items/{itemId}.parameters.itemId': minimum 10 is above maximum 1",

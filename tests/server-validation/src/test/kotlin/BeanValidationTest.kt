@@ -181,6 +181,23 @@ class BeanValidationTest {
     }
 
     @Test
+    fun `property count of an object with a required additional property`() {
+        post("/api/items", item("tenantAttributes" to "{\"tenant\":\"t\",\"a\":\"b\"}"), expectedStatus = 200)
+        post(
+            "/api/items",
+            item("tenantAttributes" to "{\"tenant\":\"t\",\"a\":\"b\",\"c\":\"d\"}"),
+            expectedStatus = 200,
+        )
+        post("/api/items", item("tenantAttributes" to "{\"tenant\":\"t\"}"), expectedStatus = 400) // minProperties
+        post(
+            "/api/items",
+            item("tenantAttributes" to "{\"tenant\":\"t\",\"a\":\"b\",\"c\":\"d\",\"e\":\"f\"}"),
+            expectedStatus = 400, // maxProperties
+        )
+        post("/api/items", item("tenantAttributes" to "{\"a\":\"b\",\"c\":\"d\"}"), expectedStatus = 400) // required
+    }
+
+    @Test
     fun `array body of a sealed interface`() {
         // the items' type isn't final, so a parameter's List<PetDto> is List<? extends PetDto> on the JVM
         post("/api/pets", "[{\"type\":\"Cat\",\"name\":\"Tom\"},{\"type\":\"Dog\"}]", expectedStatus = 204)

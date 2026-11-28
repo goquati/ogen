@@ -303,6 +303,14 @@ components:
           maxProperties: 2
           additionalProperties:
             type: string
+        # A map that requires a key is a class; its property count still applies (#121).
+        tenantAttributes:
+          type: object
+          required: [tenant]
+          minProperties: 2
+          maxProperties: 3
+          additionalProperties:
+            type: string
         code:
           $ref: '#/components/schemas/Code'
         otherCode:

@@ -62,3 +62,78 @@ components:
       additionalProperties: {type: integer}
     WithExtras: {type: object, properties: {id: {type: string}}, additionalProperties: true}
     WithTypedExtras: {type: object, properties: {id: {type: string}}, additionalProperties: {type: integer}}
+    # A required key that properties don't declare becomes a property with the schema that allows it (#121).
+    RequiredExtra:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      additionalProperties: {type: string}
+    RequiredExtraWithoutProperties:
+      type: object
+      required: [tenant]
+      additionalProperties: {type: integer}
+    RequiredExtraMatchingPattern:
+      type: object
+      required: [x-tenant, other]
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': {type: string}}
+      additionalProperties: {type: integer}
+    RequiredExtraTwoMatches:
+      type: object
+      required: [x-n-tenant]
+      patternProperties: {'^x-': {type: string}, 'n-': {type: integer}}
+      additionalProperties: false
+    RequiredExtraUnmatchedPattern:
+      type: object
+      required: [tenant]
+      patternProperties: {'^x-': {type: string}}
+    RequiredExtraForbidden:
+      type: object
+      required: [tenant, x-tenant]
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': false}
+      additionalProperties: false
+    # A pattern the JVM can't compile may match, so the value is untyped.
+    RequiredExtraUncompiled:
+      type: object
+      required: [x-tenant]
+      properties: {id: {type: string}}
+      patternProperties: {'^x-[^]*': {type: string}}
+      additionalProperties: false
+    # A key whose Kotlin name a property has stays in the map.
+    RequiredExtraSameKotlinName:
+      type: object
+      required: [tenantId, tenant-id, tenant_id]
+      properties: {tenant_id: {type: string}}
+      additionalProperties: {type: string}
+    # Patterns that all have `false` allow no other key either.
+    RequiredExtraOnlyForbidden:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': false}
+    # A key no pattern or additionalProperties allows is left to the schema that defines it.
+    RequiredExtraComposed:
+      allOf:
+        - {type: object, properties: {tenant: {type: string}}}
+        - {type: object, required: [tenant]}
+    RequiredExtraOpen:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      additionalProperties: true
+    RequiredExtraOpenSchema:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      additionalProperties: {}
+    RequiredExtraInlineObject:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      additionalProperties: {type: object, properties: {name: {type: string}}}
+    RequiredExtraRef:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      additionalProperties: {$ref: '#/components/schemas/Strict'}

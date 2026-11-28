@@ -53,3 +53,35 @@ components:
       dependentSchemas:
         nickname:
           required: [name]
+    # Without additionalProperties, patternProperties allow every name; with false, the names they match (#121).
+    PatternsOpen:
+      type: object
+      patternProperties:
+        '^x-': { type: string }
+      required: [x-tenant, code]
+    PatternsClosedMatching:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        '^x-': { type: string }
+      required: [x-tenant]
+    # A pattern the JVM can't compile may match any name.
+    PatternsClosedUncompiled:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        '^x-[^]*': { type: string }
+      required: [x-tenant]
+    # A `false` pattern of one alternative doesn't forbid what another allows.
+    PatternsAlternatives:
+      required: [x-id]
+      oneOf:
+        - type: object
+          additionalProperties: false
+          patternProperties:
+            '^x-': { type: string }
+        - type: object
+          additionalProperties: false
+          patternProperties:
+            '^x-': { type: string }
+            '^x-id$': false

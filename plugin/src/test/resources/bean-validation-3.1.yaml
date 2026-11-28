@@ -82,3 +82,26 @@ components:
           uniqueItems: true
           items:
             type: string
+    # The property count of an object that requires all its properties bounds the size of its map (#121).
+    Tagged:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+      minProperties: 3
+      maxProperties: 4
+      additionalProperties: { type: string }
+    # A variant has its discriminator key only as a value of the interface, so its property count is not checked.
+    Pet:
+      oneOf:
+        - $ref: '#/components/schemas/Cat'
+      discriminator:
+        propertyName: petType
+    Cat:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+      minProperties: 3
+      maxProperties: 4
+      additionalProperties: { type: string }

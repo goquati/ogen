@@ -37,3 +37,37 @@ components:
       type: object
       properties:
         x: { required: [zzz] }
+    # With additionalProperties false, patternProperties define only the names they match (#121).
+    PatternsClosed:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        '^x-': { type: string }
+        '^no-': false
+      required: [x-tenant, no-way, code]
+      properties:
+        name: { type: string }
+    # A name that a pattern with `false` matches is not defined, also when another pattern matches it.
+    PatternsClosedForbidden:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        '^x-': { type: string }
+        'tenant': false
+      required: [x-tenant, x-other]
+    # A property that a `false` pattern matches can't be present either.
+    PropertyForbidden:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        '^x-': false
+      required: [x-a]
+      properties:
+        x-a: { type: string }
+    # A `false` pattern forbids a required name also when additionalProperties allows any other.
+    ForbiddenNextToOpen:
+      type: object
+      required: [x-tenant]
+      patternProperties:
+        '^x-': false
+      additionalProperties: { type: string }
