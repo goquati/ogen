@@ -39,6 +39,15 @@ internal object Yaml11Schema : Schema {
     override fun getScalarResolver(): ScalarResolver = resolver
     override fun getSchemaTagConstructors(): Map<Tag, ConstructNode> = emptyMap()
 
+    // The YAML 1.2 core schema: what it reads as null, a boolean or a number.
+    private val CORE_NON_STRING = Regex(
+        "null|Null|NULL|~|true|True|TRUE|false|False|FALSE|[-+]?[0-9]+|0o[0-7]+|0x[0-9a-fA-F]+" +
+            "|[-+]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?|[-+]?\\.(inf|Inf|INF)|\\.(nan|NaN|NAN)"
+    )
+
+    /** Whether YAML 1.2's core schema, too, reads the plain scalar [value] as null, a boolean or a number. */
+    fun isYaml12NonString(value: String): Boolean = value.isEmpty() || CORE_NON_STRING.matches(value)
+
     fun toBoolean(value: String): Boolean = value.lowercase() in setOf("yes", "true", "on")
 
     /** An int as snakeyaml's ConstructYamlInt reads it: signs, `_`, `0b`, `0x`, a leading `0` for octal, `:` for base 60. */

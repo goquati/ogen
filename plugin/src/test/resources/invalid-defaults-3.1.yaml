@@ -19,3 +19,13 @@ components:
       exclusiveMinimum: 0
       multipleOf: 0.5
       default: 0.75
+    Lang:
+      type: string
+      default: no
+    Start:
+      type: string
+      default: 12:30
+    Amount:
+      $ref: '#/components/schemas/Level'
+      type: integer
+      default: many

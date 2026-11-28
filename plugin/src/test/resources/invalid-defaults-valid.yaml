@@ -40,6 +40,11 @@ components:
           type: string
           format: email
           default: a@b.c
+        born:
+          description: "Formats are not checked for defaults: an empty string is a common one."
+          type: string
+          format: date
+          default: ''
         unknownFormat:
           type: string
           format: color

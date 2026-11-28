@@ -35,10 +35,6 @@ components:
           type: string
           maxLength: 3
           default: Rex the dog
-        born:
-          type: string
-          format: date
-          default: yesterday
         tags:
           type: array
           items:

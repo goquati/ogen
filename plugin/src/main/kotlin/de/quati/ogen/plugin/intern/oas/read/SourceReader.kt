@@ -21,6 +21,11 @@ internal class ReadResult(
     val diagnostics: List<Diagnostic>,
     /** Where the key of a mapping entry stands; [positions] has where its value starts. */
     val keyPositions: Map<JsonPointer, SourcePosition> = emptyMap(),
+    /**
+     * Plain scalars that YAML 1.1, as the reader resolves them, reads as a boolean, number or null, but YAML 1.2 as a
+     * string, such as `no`, `on` or `12:30`; by their place, with the text as written.
+     */
+    val yaml11Scalars: Map<JsonPointer, String> = emptyMap(),
 ) {
     enum class Format { JSON, YAML }
 

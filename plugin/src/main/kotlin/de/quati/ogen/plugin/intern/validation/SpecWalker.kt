@@ -10,6 +10,7 @@ import de.quati.ogen.plugin.intern.oas.model.Callback
 import de.quati.ogen.plugin.intern.oas.model.Content
 import de.quati.ogen.plugin.intern.oas.model.Example
 import de.quati.ogen.plugin.intern.oas.model.Header
+import de.quati.ogen.plugin.intern.oas.model.MediaType
 import de.quati.ogen.plugin.intern.oas.model.OpenApi
 import de.quati.ogen.plugin.intern.oas.model.Operation
 import de.quati.ogen.plugin.intern.oas.model.Parameter
@@ -29,6 +30,9 @@ internal class ValidatedSpec(val api: OpenApi, val sourceVersion: OasVersion, va
 
     /** The object at [pointer] (a place in the bundle) as its file has it, before migration; null if unknown. */
     fun source(pointer: JsonPointer): JsonObject? = bundle?.source(pointer) as? JsonObject
+
+    /** The text of the plain scalar at [pointer] if only YAML 1.1 reads it as no string, such as `no` or `12:30`. */
+    fun yaml11Text(pointer: JsonPointer): String? = bundle?.yaml11Text(pointer)
 
     /** Where [pointer] is in the spec's files, for messages: `oas.yaml:12:5`. */
     fun position(pointer: JsonPointer): String? = bundle?.locate(pointer)?.let { location ->
@@ -79,6 +83,8 @@ internal class SchemaNode(
  */
 internal class ExampleNode(
     val location: String,
+    /** Its place in the bundle. */
+    val pointer: JsonPointer,
     val schema: Schema?,
     val example: JsonElement?,
     val examples: Map<String, RefOr<Example>>?,
@@ -168,6 +174,7 @@ private class SpecWalker(
             headers?.forEach { (name, header) -> header.walkHeader("components.headers.$name", components / "headers" / name) }
             callbacks?.forEach { (name, callback) -> callback.walkCallback("components.callbacks.$name", components / "callbacks" / name) }
             pathItems?.forEach { (name, item) -> item.walk("components.pathItems.$name", components / "pathItems" / name) }
+            mediaTypes?.forEach { (name, media) -> media.walkMedia("components.mediaTypes.$name", components / "mediaTypes" / name) }
         }
         spec.api.paths?.pathItems?.forEach { (path, item) -> item.walk(path, root / "paths" / path) }
         spec.api.webhooks?.forEach { (name, item) -> item.walk("webhooks.$name", root / "webhooks" / name) }
@@ -227,14 +234,18 @@ private class SpecWalker(
     }
 
     private fun Content.walk(location: String, pointer: JsonPointer) = forEach { (mediaType, refOrMedia) ->
-        val at = pointer / mediaType
-        if (refOrMedia.isReference("$location.$mediaType", at)) return@forEach
-        val media = (refOrMedia as RefOr.Value).value
-        visitExamples(ExampleNode("$location.$mediaType", media.schema, media.example, media.examples, mediaType.isJson()))
-        schema(media.schema, "$location.$mediaType", at / "schema")
+        refOrMedia.walkMedia("$location.$mediaType", pointer / mediaType, mediaType.isJson())
+    }
+
+    // A media type of `components.mediaTypes` has no name to tell its examples' format by, so they count as JSON.
+    private fun RefOr<MediaType>.walkMedia(location: String, at: JsonPointer, json: Boolean = true) {
+        if (isReference(location, at)) return
+        val media = (this as RefOr.Value).value
+        visitExamples(ExampleNode(location, at, media.schema, media.example, media.examples, json))
+        schema(media.schema, location, at / "schema")
         media.encoding?.forEach { (property, encoding) ->
             encoding.headers?.forEach { (name, header) ->
-                header.walkHeader("$location.$mediaType.encoding.$property.headers.$name", at / "encoding" / property / "headers" / name)
+                header.walkHeader("$location.encoding.$property.headers.$name", at / "encoding" / property / "headers" / name)
             }
         }
     }
@@ -248,7 +259,7 @@ private class SpecWalker(
         examples: Map<String, RefOr<Example>>?,
     ) {
         // With `content` instead of `schema`, examples belong in the media type.
-        if (schema != null) visitExamples(ExampleNode(location, schema, example, examples))
+        if (schema != null) visitExamples(ExampleNode(location, pointer, schema, example, examples))
         schema(schema, location, pointer / "schema")
         content?.walk(location, pointer / "content")
     }

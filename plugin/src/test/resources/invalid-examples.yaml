@@ -76,6 +76,26 @@ components:
         count:
           type: integer
           example: lots
+        born:
+          type: string
+          format: date
+          example: yesterday
+    NewPet:
+      description: "A request example may leave out id, which another allOf member defines as readOnly."
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - required: [id, name]
+          properties:
+            name:
+              type: string
+      example:
+        name: Rex
+    Base:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
   examples:
     OnePet:
       value:

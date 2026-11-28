@@ -211,11 +211,14 @@ ogen {
   effect, and ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and
   `/books/{id}`), property names of one schema with the same Kotlin name (`xTenant` and `x-tenant`), which get
   distinct names, see below, and examples their schema doesn't allow: the `example` and `examples` of schemas,
-  parameters, headers and JSON media types (those of other media types, such as XML, are often the serialized text, and
-  an Example Object's `externalValue` is not read). Defaults and examples are checked as JSON Schema does, except that in
+  parameters, headers and JSON media types (`json` and `+json` subtypes such as `application/problem+json`, and `components.mediaTypes`;
+  examples of other media types, such as XML or the wildcard `*/*`, are often the serialized text and not checked, nor
+  is an Example Object's `externalValue`). Defaults and examples are checked as JSON Schema does, except that in
   OpenAPI 3.0 a nullable `enum` allows `null`, a missing required property that is `readOnly` or `writeOnly` is no
-  finding, a `discriminator` picks the `oneOf` or `anyOf` alternative, and only the formats `date`, `date-time`,
-  `time`, `uuid`, `email`, `ipv4`, `int32` and `int64` are checked. Recommendations are warnings too, and
+  finding, a `discriminator` (and 3.2's `defaultMapping`) picks the `oneOf` or `anyOf` alternative, and formats are
+  checked only for examples, and only `date`, `date-time`, `time`, `uuid`, `email`, `ipv4`, `int32` and `int64`.
+  Unquoted values are read as YAML 1.1, as swagger-parser did: `no` is `false` and `12:30` is `750`, so a string
+  schema needs them quoted. Recommendations are warnings too, and
   `RuleSet.Lenient` turns them off: `properties` next to `oneOf`, a request body on GET or HEAD, header names with `_`, `nullable` in OpenAPI 3.1 and later (which
   has no effect there), schema keywords the spec's version deprecates (`example` since 3.1, the XML Object's
   `attribute` and `wrapped` since 3.2), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without

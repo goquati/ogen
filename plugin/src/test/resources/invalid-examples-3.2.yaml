@@ -1,0 +1,41 @@
+openapi: 3.2.0
+info:
+  title: Examples their schema doesn't allow
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              $ref: '#/components/mediaTypes/PetJson'
+components:
+  mediaTypes:
+    PetJson:
+      schema:
+        $ref: '#/components/schemas/Pet'
+      example:
+        kind: bird
+        wings: many
+  schemas:
+    Pet:
+      oneOf:
+        - $ref: '#/components/schemas/Cat'
+        - $ref: '#/components/schemas/Other'
+      discriminator:
+        propertyName: kind
+        defaultMapping: Other
+    Cat:
+      type: object
+      properties:
+        kind:
+          type: string
+    Other:
+      type: object
+      properties:
+        kind:
+          type: string
+        wings:
+          type: integer

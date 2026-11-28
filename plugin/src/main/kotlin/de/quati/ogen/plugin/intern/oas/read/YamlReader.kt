@@ -75,6 +75,7 @@ internal object YamlReader {
             positions = converter.positions,
             diagnostics = converter.diagnostics,
             keyPositions = converter.keyPositions,
+            yaml11Scalars = converter.yaml11Scalars,
         )
     }
 
@@ -84,6 +85,7 @@ internal object YamlReader {
     private class NodeConverter(private val source: String) {
         val positions = LinkedHashMap<JsonPointer, SourcePosition>()
         val keyPositions = LinkedHashMap<JsonPointer, SourcePosition>()
+        val yaml11Scalars = LinkedHashMap<JsonPointer, String>()
         val diagnostics = mutableListOf<Diagnostic>()
         private val inProgress: MutableSet<Node> = Collections.newSetFromMap(IdentityHashMap())
 
@@ -138,7 +140,13 @@ internal object YamlReader {
             return JsonObject(content)
         }
 
-        private fun scalar(node: ScalarNode, pointer: JsonPointer): JsonElement = when (node.tag) {
+        private fun scalar(node: ScalarNode, pointer: JsonPointer): JsonElement {
+            if (node.isPlain && node.tag in YAML11_TAGS && !Yaml11Schema.isYaml12NonString(node.value))
+                yaml11Scalars[pointer] = node.value
+            return scalarValue(node, pointer)
+        }
+
+        private fun scalarValue(node: ScalarNode, pointer: JsonPointer): JsonElement = when (node.tag) {
             Tag.NULL -> JsonNull
             Tag.BOOL -> JsonPrimitive(Yaml11Schema.toBoolean(node.value))
             Tag.INT -> number(Yaml11Schema.toInteger(node.value).toString())
@@ -149,6 +157,8 @@ internal object YamlReader {
             // Strings, and scalars with any other tag, keep their text.
             else -> JsonPrimitive(node.value)
         }
+
+        private val YAML11_TAGS = setOf(Tag.NULL, Tag.BOOL, Tag.INT, Tag.FLOAT)
 
         @OptIn(ExperimentalSerializationApi::class)
         private fun number(literal: String) = JsonUnquotedLiteral(literal)
