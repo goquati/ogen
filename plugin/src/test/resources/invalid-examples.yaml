@@ -96,6 +96,17 @@ components:
         id:
           type: integer
           readOnly: true
+    Order:
+      type: object
+      required: [id]
+      properties:
+        id:
+          allOf:
+            - $ref: '#/components/schemas/Id'
+      example: {}
+    Id:
+      type: integer
+      readOnly: true
   examples:
     OnePet:
       value:

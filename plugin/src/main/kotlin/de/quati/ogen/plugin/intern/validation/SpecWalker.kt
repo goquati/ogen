@@ -31,7 +31,7 @@ internal class ValidatedSpec(val api: OpenApi, val sourceVersion: OasVersion, va
     /** The object at [pointer] (a place in the bundle) as its file has it, before migration; null if unknown. */
     fun source(pointer: JsonPointer): JsonObject? = bundle?.source(pointer) as? JsonObject
 
-    /** The text of the plain scalar at [pointer] if only YAML 1.1 reads it as no string, such as `no` or `12:30`. */
+    /** The text of the plain scalar at [pointer] if YAML 1.1 reads it otherwise than YAML 1.2, such as `no` or `010`. */
     fun yaml11Text(pointer: JsonPointer): String? = bundle?.yaml11Text(pointer)
 
     /** Where [pointer] is in the spec's files, for messages: `oas.yaml:12:5`. */
@@ -79,9 +79,10 @@ internal class SchemaNode(
 
 /**
  * A parameter, header or media type, with the examples it gives for the values [schema] describes. [json] is false for
- * a media type whose examples need not be JSON, such as `application/xml`.
+ * a media type whose examples need not be JSON, such as `application/xml`. [componentMediaType] names a media type of
+ * `components.mediaTypes`.
  */
-internal class ExampleNode(
+internal data class ExampleNode(
     val location: String,
     /** Its place in the bundle. */
     val pointer: JsonPointer,
@@ -89,6 +90,7 @@ internal class ExampleNode(
     val example: JsonElement?,
     val examples: Map<String, RefOr<Example>>?,
     val json: Boolean = true,
+    val componentMediaType: String? = null,
 )
 
 /** A parameter; [ownerLocation] is where it is declared: a component, a path or an operation. */
@@ -115,9 +117,22 @@ internal fun String.componentName(section: String): String? =
 /** Visits every schema the spec defines, at every place it is written, without following `$ref`s. */
 internal fun ValidatedSpec.walkSchemas(visit: (SchemaNode) -> Unit) = SpecWalker(this, visitSchema = visit).walk()
 
-/** Every parameter, header and media type, with its examples. */
-internal fun ValidatedSpec.exampleNodes(): List<ExampleNode> =
-    mutableListOf<ExampleNode>().also { nodes -> SpecWalker(this, visitExamples = { nodes.add(it) }).walk() }
+/**
+ * Every parameter, header and media type, with its examples. A media type of `components.mediaTypes` counts as JSON
+ * only if every content entry that refers to it is of a JSON media type.
+ */
+internal fun ValidatedSpec.exampleNodes(): List<ExampleNode> {
+    val nodes = mutableListOf<ExampleNode>()
+    val usedAsJson = mutableMapOf<String, MutableSet<Boolean>>()
+    SpecWalker(
+        this,
+        visitExamples = { nodes.add(it) },
+        visitMediaTypeReference = { name, json -> usedAsJson.getOrPut(name) { mutableSetOf() }.add(json) },
+    ).walk()
+    return nodes.map { node ->
+        node.componentMediaType?.let { node.copy(json = usedAsJson[it] == setOf(true)) } ?: node
+    }
+}
 
 /** Every operation: in `paths`, webhooks, callbacks and component path items. */
 internal fun ValidatedSpec.operations(): List<OperationNode> =
@@ -160,6 +175,8 @@ private class SpecWalker(
     private val visitParameter: (ParameterNode) -> Unit = {},
     private val visitReference: (ReferenceNode) -> Unit = {},
     private val visitExamples: (ExampleNode) -> Unit = {},
+    /** A content entry that refers to a media type of `components.mediaTypes`, and whether it is of a JSON one. */
+    private val visitMediaTypeReference: (String, Boolean) -> Unit = { _, _ -> },
 ) {
     fun walk() {
         val root = JsonPointer.ROOT
@@ -174,7 +191,9 @@ private class SpecWalker(
             headers?.forEach { (name, header) -> header.walkHeader("components.headers.$name", components / "headers" / name) }
             callbacks?.forEach { (name, callback) -> callback.walkCallback("components.callbacks.$name", components / "callbacks" / name) }
             pathItems?.forEach { (name, item) -> item.walk("components.pathItems.$name", components / "pathItems" / name) }
-            mediaTypes?.forEach { (name, media) -> media.walkMedia("components.mediaTypes.$name", components / "mediaTypes" / name) }
+            mediaTypes?.forEach { (name, media) ->
+                media.walkMedia("components.mediaTypes.$name", components / "mediaTypes" / name, componentName = name)
+            }
         }
         spec.api.paths?.pathItems?.forEach { (path, item) -> item.walk(path, root / "paths" / path) }
         spec.api.webhooks?.forEach { (name, item) -> item.walk("webhooks.$name", root / "webhooks" / name) }
@@ -234,14 +253,15 @@ private class SpecWalker(
     }
 
     private fun Content.walk(location: String, pointer: JsonPointer) = forEach { (mediaType, refOrMedia) ->
+        (refOrMedia as? RefOr.Ref)?.ref?.componentName("mediaTypes")?.let { visitMediaTypeReference(it, mediaType.isJson()) }
         refOrMedia.walkMedia("$location.$mediaType", pointer / mediaType, mediaType.isJson())
     }
 
-    // A media type of `components.mediaTypes` has no name to tell its examples' format by, so they count as JSON.
-    private fun RefOr<MediaType>.walkMedia(location: String, at: JsonPointer, json: Boolean = true) {
+    // A media type of `components.mediaTypes` has no name to tell its examples' format by: see [exampleNodes].
+    private fun RefOr<MediaType>.walkMedia(location: String, at: JsonPointer, json: Boolean = true, componentName: String? = null) {
         if (isReference(location, at)) return
         val media = (this as RefOr.Value).value
-        visitExamples(ExampleNode(location, at, media.schema, media.example, media.examples, json))
+        visitExamples(ExampleNode(location, at, media.schema, media.example, media.examples, json, componentName))
         schema(media.schema, location, at / "schema")
         media.encoding?.forEach { (property, encoding) ->
             encoding.headers?.forEach { (name, header) ->

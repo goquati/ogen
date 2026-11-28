@@ -11,14 +11,29 @@ paths:
           content:
             application/json:
               $ref: '#/components/mediaTypes/PetJson'
+            application/xml:
+              $ref: '#/components/mediaTypes/PetXml'
 components:
   mediaTypes:
     PetJson:
       schema:
         $ref: '#/components/schemas/Pet'
-      example:
-        kind: bird
-        wings: many
+      examples:
+        bird:
+          value:
+            kind: bird
+            wings: many
+        dog:
+          $ref: '#/components/examples/pet%2Ddog'
+    PetXml:
+      schema:
+        $ref: '#/components/schemas/Pet'
+      example: '<pet>Rex</pet>'
+  examples:
+    pet-dog:
+      value:
+        kind: Cat
+        name: 1
   schemas:
     Pet:
       oneOf:
@@ -31,6 +46,8 @@ components:
       type: object
       properties:
         kind:
+          type: string
+        name:
           type: string
     Other:
       type: object

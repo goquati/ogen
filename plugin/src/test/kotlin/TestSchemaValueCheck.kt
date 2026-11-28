@@ -22,10 +22,9 @@ class TestSchemaValueCheck {
                 "default in 'Level' does not match its schema: 'lots' is not of type integer",
                 "default in 'State' does not match its schema: null is not one of its enum values 'open', 'closed'",
                 "default in 'Ratio' does not match its schema: 0.75 is not a multiple of 0.5",
-                "default in 'Lang' does not match its schema: no (unquoted, so YAML 1.1 reads it as false; " +
-                    "quote it to make it a string) is not of type string",
-                "default in 'Start' does not match its schema: 12:30 (unquoted, so YAML 1.1 reads it as 750; " +
-                    "quote it to make it a string) is not of type string",
+                "default in 'Lang' does not match its schema: no (unquoted, YAML 1.1 reads it as false) is not of type string",
+                "default in 'Start' does not match its schema: 12:30 (unquoted, YAML 1.1 reads it as 750) is not of type string",
+                "default in 'Zip' does not match its schema: 01234 (unquoted, YAML 1.1 reads it as 668) is not of type string",
                 // Reported by the reference and by the type next to it, but only once.
                 "default in 'Amount' does not match its schema: 'many' is not of type integer",
             )
@@ -40,7 +39,8 @@ class TestSchemaValueCheck {
         assertPasses("invalid-defaults-valid-3.1", ::invalidDefaultErrors)
     }
 
-    // A missing readOnly property, also one another allOf member defines, and an XML example are no findings.
+    // A missing readOnly property, also one another allOf member defines or one behind an allOf, and an XML example
+    // are no findings.
     @Test
     fun testInvalidExamples() {
         assertWarnings(
@@ -64,11 +64,14 @@ class TestSchemaValueCheck {
                 "examples[1] in 'Tag' does not match its schema: property 'color' is not allowed",
             )
         )
-        // A media type of components.mediaTypes; the discriminator's defaultMapping picks Other.
+        // A media type of components.mediaTypes; the discriminator's defaultMapping picks Other. PetXml is only used
+        // as XML.
         assertWarnings(
             "invalid-examples-3.2", ::invalidExampleWarnings, listOf(
-                "example in 'components.mediaTypes.PetJson' does not match its schema: " +
+                "example 'bird' in 'components.mediaTypes.PetJson' does not match its schema: " +
                     "at 'wings': 'many' is not of type integer",
+                "example 'dog' in 'components.mediaTypes.PetJson' does not match its schema: " +
+                    "at 'name': 1 is not of type string",
             )
         )
     }

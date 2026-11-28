@@ -46,7 +46,7 @@ internal class Bundle(
     /** What a place in the bundle was in its file, as written: before references were bundled and before migration. */
     fun source(pointer: JsonPointer): JsonElement? = origin(pointer).let { (document, at) -> document.read.element?.at(at) }
 
-    /** The text of the plain scalar at [pointer] if YAML 1.2 would read it as a string, but the reader did not. */
+    /** The text of the plain scalar at [pointer] if YAML 1.1, as the reader has it, reads it otherwise than YAML 1.2. */
     fun yaml11Text(pointer: JsonPointer): String? = origin(pointer).let { (document, at) -> document.read.yaml11Scalars[at] }
 }
 

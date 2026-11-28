@@ -45,8 +45,15 @@ internal object Yaml11Schema : Schema {
             "|[-+]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][-+]?[0-9]+)?|[-+]?\\.(inf|Inf|INF)|\\.(nan|NaN|NAN)"
     )
 
-    /** Whether YAML 1.2's core schema, too, reads the plain scalar [value] as null, a boolean or a number. */
-    fun isYaml12NonString(value: String): Boolean = value.isEmpty() || CORE_NON_STRING.matches(value)
+    // An integer with a leading zero: octal in YAML 1.1, decimal in YAML 1.2.
+    private val LEADING_ZERO = Regex("[-+]?0[0-9]+")
+
+    /**
+     * Whether YAML 1.2's core schema reads the plain scalar [value], which YAML 1.1 reads as null, a boolean or a
+     * number, the same: not as a string (`no`, `12:30`), and not as another number (`010`, octal only in YAML 1.1).
+     */
+    fun readsAlikeInYaml12(value: String): Boolean =
+        (value.isEmpty() || CORE_NON_STRING.matches(value)) && !LEADING_ZERO.matches(value)
 
     fun toBoolean(value: String): Boolean = value.lowercase() in setOf("yes", "true", "on")
 

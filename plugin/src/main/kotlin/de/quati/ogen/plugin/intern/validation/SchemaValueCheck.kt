@@ -75,7 +75,8 @@ private fun ValidatedSpec.example(refOr: RefOr<Example>, pointer: JsonPointer): 
         current = when (current) {
             is RefOr.Value -> return current.value to at
             is RefOr.Ref -> {
-                val name = current.ref.componentName("examples")?.takeIf { seen.add(it) } ?: return null
+                val name = current.ref.localPointer()?.takeIf { it.size == 3 && it[0] == "components" && it[1] == "examples" }
+                    ?.get(2)?.takeIf { seen.add(it) } ?: return null
                 at = JsonPointer.of("components", "examples", name)
                 api.components?.examples?.get(name) ?: return null
             }
@@ -114,9 +115,8 @@ internal class ValueChecker(private val spec: ValidatedSpec, private val checkFo
         fun child(key: String) = Value((json as JsonObject).getValue(key), pointer / key)
         fun child(index: Int) = Value((json as JsonArray)[index], pointer / index)
 
-        /** As messages show it, `no` as written, with what YAML 1.1 reads, if that is no string. */
-        fun shown(): String = spec.yaml11Text(pointer)
-            ?.let { "$it (unquoted, so YAML 1.1 reads it as ${json.describe()}; quote it to make it a string)" }
+        /** As messages show it; `no` or `010` as written, with what YAML 1.1 reads, which ogen uses. */
+        fun shown(): String = spec.yaml11Text(pointer)?.let { "$it (unquoted, YAML 1.1 reads it as ${json.describe()})" }
             ?: json.describe()
     }
 
@@ -228,9 +228,11 @@ internal class ValueChecker(private val spec: ValidatedSpec, private val checkFo
         return names
     }
 
+    /** Whether the schema, its reference or one of its `allOf`, `anyOf` or `oneOf` members is readOnly or writeOnly. */
     private fun Schema?.isReadOrWriteOnly(refs: Set<String>): Boolean {
         val s = this as? Schema.Obj ?: return false
         if (s.readOnly == true || s.writeOnly == true) return true
+        if (s.compositionMembers.any { it.isReadOrWriteOnly(refs) }) return true
         val ref = s.ref?.takeIf { it !in refs } ?: return false
         return resolve(ref).isReadOrWriteOnly(refs + ref)
     }
@@ -336,9 +338,7 @@ internal class ValueChecker(private val spec: ValidatedSpec, private val checkFo
     }
 
     private fun lookUp(ref: String): Schema? {
-        val fragment = runCatching { URI(ref) }.getOrNull()?.takeIf { it.scheme == null && it.path.isNullOrEmpty() }
-            ?.fragment ?: return null
-        val segments = runCatching { JsonPointer.parse(fragment).segments }.getOrNull() ?: return null
+        val segments = ref.localPointer() ?: return null
         if (segments.size < 3 || segments[0] != "components" || segments[1] != "schemas") return null
         val component = components[segments[2]] ?: return null
         if (segments.size == 3) return component
@@ -403,6 +403,13 @@ private fun JsonElement.valueKey(): Any = when (this) {
     is JsonObject -> mapValues { it.value.valueKey() }
     is JsonArray -> map { it.valueKey() }
     else -> enumKey()
+}
+
+/** The segments of a local reference such as `#/components/examples/pet%2Ddog`, decoded; null for any other. */
+private fun String.localPointer(): List<String>? {
+    val fragment = runCatching { URI(this) }.getOrNull()?.takeIf { it.scheme == null && it.path.isNullOrEmpty() }
+        ?.fragment ?: return null
+    return runCatching { JsonPointer.parse(fragment).segments }.getOrNull()
 }
 
 private fun String.toBigDecimalOrNull() = runCatching { BigDecimal(this) }.getOrNull()

@@ -25,6 +25,9 @@ components:
     Start:
       type: string
       default: 12:30
+    Zip:
+      type: string
+      default: 01234
     Amount:
       $ref: '#/components/schemas/Level'
       type: integer

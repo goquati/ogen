@@ -141,7 +141,7 @@ internal object YamlReader {
         }
 
         private fun scalar(node: ScalarNode, pointer: JsonPointer): JsonElement {
-            if (node.isPlain && node.tag in YAML11_TAGS && !Yaml11Schema.isYaml12NonString(node.value))
+            if (node.isPlain && node.tag in YAML11_TAGS && !Yaml11Schema.readsAlikeInYaml12(node.value))
                 yaml11Scalars[pointer] = node.value
             return scalarValue(node, pointer)
         }
