@@ -423,9 +423,17 @@ class KtorClientTest {
     fun `test optional multipart body with a required part`(): TestResult = runTest {
         val file = FileUpload(fileName = "notes.txt", content = "file content".encodeToByteArray())
         clientPublic.debugApi.debugOptionalMultipartBody(file = file, note = "foo")
-            .check(expectedStatus = 200, expectedInput = "notes.txt|foo")
+            .check(expectedStatus = 200, expectedInput = "notes.txt|foo|null||null")
         clientPublic.debugApi.debugOptionalMultipartBody()
-            .check(expectedStatus = 200, expectedInput = "null|null")
+            .check(expectedStatus = 200, expectedInput = "null|null|null||null")
+        // names that are Kotlin keywords
+        clientPublic.debugApi.debugOptionalMultipartBody(file = file, `in` = "bar", is1 = "baz")
+            .check(expectedStatus = 200, expectedInput = "notes.txt|null|bar||baz")
+        // a list of files that is empty adds no part, so the body is left out
+        clientPublic.debugApi.debugOptionalMultipartBody(attachments = emptyList())
+            .check(expectedStatus = 200, expectedInput = "null|null|null||null")
+        clientPublic.debugApi.debugOptionalMultipartBody(attachments = listOf(file, file))
+            .check(expectedStatus = 200, expectedInput = "null|null|null|notes.txt,notes.txt|null")
     }
 
     @Test

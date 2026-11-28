@@ -85,9 +85,12 @@ class DebugController : DebugApi {
 
     override suspend fun debugOptionalMultipartBody(
         op: DebugApi.DebugOptionalMultipartBodyContext,
+        is1: String?,
         `file`: FilePart?,
         note: String?,
+        in1: String?,
+        attachments: MutableList<FilePart>?,
     ) = op.createResponse200 {
-        addInputHeader(file?.filename(), note)
+        addInputHeader(file?.filename(), note, in1, attachments.orEmpty().joinToString(",") { it.filename() }, is1)
     }
 }

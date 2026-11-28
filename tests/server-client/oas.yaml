@@ -534,6 +534,12 @@ paths:
       description: Echoes the parts of an optional multipart body with a required part, or nulls when it is left out.
       operationId: debugOptionalMultipartBody
       security: [ ]
+      parameters:
+        - name: is
+          in: query
+          required: false
+          schema:
+            type: string
       requestBody:
         required: false
         content:
@@ -548,6 +554,13 @@ paths:
                   format: binary
                 note:
                   type: string
+                in:
+                  type: string
+                attachments:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
       responses:
         '200':
           description: "the parts, echoed"

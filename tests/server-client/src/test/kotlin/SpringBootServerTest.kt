@@ -495,14 +495,14 @@ class SpringBootServerTest {
             fileName = "notes.txt",
             fileContent = "file content",
             expectedStatus = 200,
-            expectedInput = "notes.txt|foo",
+            expectedInput = "notes.txt|foo|null||null",
         )
         // an optional body may be left out, although it has a required part
         client.post().uri(op.url).exchange()
-            .expectStatus().isOk.expectHeader().valueEquals("input-data", "null|null")
+            .expectStatus().isOk.expectHeader().valueEquals("input-data", "null|null|null||null")
         // without `consumes`, a body of another media type has no parts, so it counts as left out
         client.post().uri(op.url).header("Content-Type", "application/json").bodyValue("{}").exchange()
-            .expectStatus().isOk.expectHeader().valueEquals("input-data", "null|null")
+            .expectStatus().isOk.expectHeader().valueEquals("input-data", "null|null|null||null")
         // a present body that lacks its required part can't be told apart from a left-out one per part
         client.doMultipartRequest(
             op = op,
@@ -511,7 +511,7 @@ class SpringBootServerTest {
             fileName = null,
             fileContent = null,
             expectedStatus = 200,
-            expectedInput = "null|foo",
+            expectedInput = "null|foo|null||null",
         )
     }
 
