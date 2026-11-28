@@ -30,8 +30,8 @@ import io.ktor.client.request.forms.formData
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
-import io.ktor.util.reflect.typeInfo
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.util.reflect.typeInfo
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
@@ -399,8 +399,16 @@ class KtorClientTest {
             .check(expectedStatus = 200, expectedInput = "foo")
         clientPublic.debugApi.debugOptionalJsonBody()
             .check(expectedStatus = 200, expectedInput = "null")
+        clientPublic.debugApi.debugOptionalBinaryBody("raw bytes".encodeToByteArray())
+            .check(expectedStatus = 200, expectedInput = "9")
         clientPublic.debugApi.debugOptionalBinaryBody()
             .check(expectedStatus = 200, expectedInput = "null")
+    }
+
+    @Test
+    fun `test bodies read as is`(): TestResult = runTest {
+        clientPublic.debugApi.debugTextBody("\"foo\" bar", typeInfo<String>())
+            .check(expectedStatus = 200, expectedInput = "\"foo\" bar")
     }
 
     @Test

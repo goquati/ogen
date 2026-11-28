@@ -42,9 +42,30 @@ class DebugController : DebugApi {
 
     override suspend fun debugOptionalBinaryBody(
         op: DebugApi.DebugOptionalBinaryBodyContext,
-        body: Any?,
+        body: ByteArray?,
     ) = op.createResponse200 {
-        addInputHeader(body?.let { it::class.simpleName })
+        addInputHeader(body?.size)
+    }
+
+    override suspend fun debugTextBody(
+        op: DebugApi.DebugTextBodyContext,
+        body: String,
+    ) = op.createResponse200 {
+        addInputHeader(body)
+    }
+
+    override suspend fun debugJsonStringBody(
+        op: DebugApi.DebugJsonStringBodyContext,
+        debugLabelDto: DebugLabelDto,
+    ) = op.createResponse200 {
+        addInputHeader(debugLabelDto.value)
+    }
+
+    override suspend fun debugJsonInlineStringBody(
+        op: DebugApi.DebugJsonInlineStringBodyContext,
+        string: String?,
+    ) = op.createResponse200 {
+        addInputHeader(string)
     }
 
     override suspend fun debugOptionalJsonBody(

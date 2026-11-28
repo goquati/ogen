@@ -80,6 +80,45 @@ paths:
       responses:
         '204':
           description: no content
+  /raw/text:
+    post:
+      operationId: postRawText
+      tags:
+        - raw
+      requestBody:
+        content:
+          text/plain: {}
+          text/csv: {}
+      responses:
+        '204':
+          description: no content
+  /raw/text-or-binary:
+    post:
+      operationId: postRawTextOrBinary
+      tags:
+        - raw
+      requestBody:
+        required: true
+        content:
+          text/plain: {}
+          application/octet-stream: {}
+      responses:
+        '204':
+          description: no content
+  /raw/typed:
+    post:
+      operationId: postRawTyped
+      tags:
+        - raw
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/Leaf'
+      responses:
+        '204':
+          description: no content
 components:
   schemas:
     Leaf:

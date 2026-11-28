@@ -1,6 +1,7 @@
 package de.quati.ogen.plugin.intern.codegen.generator
 
 import com.squareup.kotlinpoet.AnnotationSpec
+import com.squareup.kotlinpoet.BYTE_ARRAY
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
@@ -174,12 +175,19 @@ private fun TypeSpec.Builder.createController(
                 else -> {
                     val isJson = requestBody.contentType is ContentType.Json
                     val (type, validation) = when (val bodySchema = requestBody.schema.takeIf { isJson }) {
-                        // a body without a JSON schema is `Any`, nullable when it is optional
-                        null -> (if (isJson) requestBody.typeName else Any::class.asClassName())
-                            .copy(nullable = !requestBody.required) to emptyList()
+                        // a body without a JSON schema is read as is: Spring has no decoder for `Any` (415), but
+                        // reads any media type into a `ByteArray`, and text into a `String`
+                        null -> when {
+                            isJson -> requestBody.typeName
+                            requestBody.contentType?.values?.takeIfNotEmpty()?.all { it.startsWith("text/") } == true ->
+                                String::class.asClassName()
+                            else -> BYTE_ARRAY
+                        }.copy(nullable = !requestBody.required) to emptyList()
                         else -> bodySchema.validated(type = requestBody.typeName, nullable = !requestBody.required)
                     }
-                    addParameter(name = paramNameResolver.resolve(requestBody.prettyBodyName), type = type) {
+                    // a body that is read as is keeps no name of its schema's type
+                    val name = if (isJson) requestBody.prettyBodyName else "body"
+                    addParameter(name = paramNameResolver.resolve(name), type = type) {
                         // @RequestBody is required by default, so an optional body that is left out would get a 400
                         addAnnotation(Poet.Spring.requestBody) {
                             if (!requestBody.required) addMember("required = false")

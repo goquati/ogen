@@ -438,6 +438,58 @@ paths:
         '200':
           description: "the body size, echoed"
 
+  /api/v1/public/debug/body/text:
+    post:
+      tags:
+        - debug
+      summary: Echo a text body
+      description: Echoes a plain text body.
+      operationId: debugTextBody
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          text/plain: {}
+      responses:
+        '200':
+          description: "the body, echoed"
+
+  /api/v1/public/debug/body/json-string:
+    post:
+      tags:
+        - debug
+      summary: Echo a JSON string body
+      description: Echoes a JSON body whose schema is a string component.
+      operationId: debugJsonStringBody
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DebugLabel"
+      responses:
+        '200':
+          description: "the body, echoed"
+
+  /api/v1/public/debug/body/json-inline-string:
+    post:
+      tags:
+        - debug
+      summary: Echo an optional inline JSON string body
+      description: Echoes an optional JSON body whose schema is an inline string, or null when it is left out.
+      operationId: debugJsonInlineStringBody
+      security: [ ]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: "the body, echoed"
+
   /api/v1/public/debug/optional-body/json:
     post:
       tags:
