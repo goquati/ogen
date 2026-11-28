@@ -203,17 +203,34 @@ private fun Schema.Obj.unwrapMigratedNullableAllOf(): SchemaView? {
 }
 
 /**
+ * `additionalProperties`, or `unevaluatedProperties` where it means the same (#130): in an object without in-place
+ * applicators (`$ref`, `$dynamicRef`, `allOf`, `anyOf`, `oneOf`, `if`/`then`/`else`, `dependentSchemas`), only
+ * `properties` and `patternProperties` evaluate keys, so `unevaluatedProperties` applies to the keys
+ * `additionalProperties` would. With applicators, the keys they evaluate depend on their schemas, and
+ * `unevaluatedProperties` is ignored as before; so it is in OpenAPI 3.0, which doesn't know the keyword.
+ */
+context(pc: ParserContext)
+private fun Schema.Obj.additionalOrUnevaluatedProperties(): Schema? =
+    additionalProperties ?: unevaluatedProperties.takeIf {
+        pc.version != Spec.Version.V3_0 && ref == null && "\$dynamicRef" !in other &&
+            allOf == null && anyOf == null && oneOf == null &&
+            ifSchema == null && thenSchema == null && elseSchema == null && dependentSchemas == null
+    }
+
+/**
  * The schema of the values of the keys an object allows beyond its `properties`, or null when it allows none a map
  * keeps (#108).
  *
- * Without `additionalProperties`, other keys are ignored, as they always were; with `false` there are none. All keys
+ * Without `additionalProperties` (or `unevaluatedProperties` in its place, see [additionalOrUnevaluatedProperties]),
+ * other keys are ignored, as they always were; with `false` there are none. All keys
  * `patternProperties` and `additionalProperties` allow share one map: its values have their schema when they all have
  * the same one, otherwise they are untyped. Without `additionalProperties`, keys that match no pattern are allowed
  * too, with any value. A pattern whose schema is `false` allows no key.
  */
+context(pc: ParserContext)
 private fun Schema.Obj.additionalValueSchemaOrNull(): Schema? {
     val patterns = patternProperties.orEmpty().values.filter { it != Schema.Bool(false) }
-    val additional = when (val it = additionalProperties) {
+    val additional = when (val it = additionalOrUnevaluatedProperties()) {
         null -> if (patterns.isEmpty()) return null else Schema.Bool(true)
         Schema.Bool(false) -> null
         else -> it
@@ -237,6 +254,7 @@ private fun Schema.Obj.additionalValueSchemaOrNull(): Schema? {
  * whose schema isn't `false`: an object without (an `allOf` member requiring what a sibling defines, say) leaves the
  * key to the schema that defines it.
  */
+context(pc: ParserContext)
 private fun Schema.Obj.undeclaredRequiredSchemaOrNull(name: String): Schema? {
     val matching = patternProperties.orEmpty()
         .filterKeys { pattern -> runCatching { Regex(pattern).containsMatchIn(name) }.getOrDefault(false) }
@@ -248,7 +266,7 @@ private fun Schema.Obj.undeclaredRequiredSchemaOrNull(name: String): Schema? {
         uncompiled.isNotEmpty() -> Schema.Bool(true)
         matching.size == 1 -> matching.single()
         matching.isNotEmpty() -> Schema.Bool(true)
-        else -> when (val it = additionalProperties) {
+        else -> when (val it = additionalOrUnevaluatedProperties()) {
             null -> if (patternProperties.orEmpty().values.all { it == Schema.Bool(false) }) null else Schema.Bool(true)
             Schema.Bool(false) -> null
             else -> it

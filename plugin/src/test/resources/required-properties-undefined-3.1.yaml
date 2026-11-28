@@ -71,3 +71,10 @@ components:
       patternProperties:
         '^x-': false
       additionalProperties: { type: string }
+    # unevaluatedProperties false closes the object like additionalProperties false (#130).
+    PatternsClosedUnevaluated:
+      type: object
+      unevaluatedProperties: false
+      patternProperties:
+        '^x-': { type: string }
+      required: [x-tenant, tenant]

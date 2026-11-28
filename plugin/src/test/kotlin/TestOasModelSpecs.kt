@@ -57,6 +57,7 @@ class TestOasModelSpecs {
         "invalid-type.yaml" to "an unknown 'type' value; InvalidTypeCheck reports it",
         "validator-warnings.yaml" to "an unknown 'type' value; InvalidTypeCheck reports it",
         "pattern-invalid.yaml" to "an invalid regular expression; PatternCheck reports it",
+        "unevaluated-properties-3.0.yaml" to "'unevaluatedProperties', which 3.0 doesn't know and ogen ignores (#130)",
     )
 
     // Specs with schema contents only the strict 3.2 check sees as invalid; ogen's own checks report them.

@@ -36,7 +36,10 @@ class TestAdditionalProperties {
                     "WithExtras" to "class + map of untyped",
                     "WithTypedExtras" to "class + map of integer",
                 ),
-                schemas.filterKeys { it != "Reached" && "Patterns" !in it && !it.startsWith("RequiredExtra") }
+                schemas.filterKeys {
+                    it != "Reached" && "Patterns" !in it && !it.startsWith("RequiredExtra") &&
+                        !it.startsWith("Unevaluated")
+                }
                     .mapValues { it.value.kind() },
                 spec,
             )
@@ -106,5 +109,31 @@ class TestAdditionalProperties {
         )
         val composed = assertIs<Component.Schema.Composed>(schemas.getValue("RequiredExtraComposed"))
         assertEquals("untyped", composed.schemas[1].kind())
+    }
+
+    @Test
+    fun `unevaluatedProperties stands in for a missing additionalProperties`() {
+        val schemas = schemas("additional-properties-3.1")
+        assertEquals(
+            mapOf(
+                "UnevaluatedMap" to "map of integer",
+                "UnevaluatedClosed" to "class",
+                "UnevaluatedExtras" to "class + map of integer",
+                "UnevaluatedRequired" to "class + map of string",
+                "UnevaluatedRequiredWithPattern" to "class + map of untyped",
+                "UnevaluatedRequiredForbidden" to "class + map of string",
+                "UnevaluatedBesideAdditional" to "class + map of string",
+                "UnevaluatedConditional" to "class",
+                "UnevaluatedDynamicRef" to "class",
+            ),
+            schemas.filterKeys { it.startsWith("Unevaluated") }.mapValues { it.value.kind() },
+        )
+        fun properties(name: String) = assertIs<Component.Schema.Obj>(schemas.getValue(name), name).let { obj ->
+            obj.properties.mapValues { (key, value) -> value.kind() + if (key in obj.required) "" else "?" }
+        }
+        assertEquals(mapOf("id" to "string?", "tenant" to "string"), properties("UnevaluatedRequired"))
+        assertEquals(mapOf("id" to "string?", "tenant" to "integer"), properties("UnevaluatedRequiredWithPattern"))
+        assertEquals(mapOf("id" to "string?"), properties("UnevaluatedRequiredForbidden"))
+        assertEquals("class", schemas("unevaluated-properties-3.0").getValue("UnevaluatedIgnored").kind())
     }
 }

@@ -43,6 +43,7 @@ class TestUndefinedRequiredPropertyCheck {
                 "x-tenant" to "PatternsClosedForbidden",
                 "x-a" to "PropertyForbidden",
                 "x-tenant" to "ForbiddenNextToOpen",
+                "tenant" to "PatternsClosedUnevaluated",
             ).map { (name, location) -> "required property '$name' in '$location' is not defined in its properties" }
         )
     }
@@ -52,5 +53,6 @@ class TestUndefinedRequiredPropertyCheck {
     fun testRequiredPropertiesDefined() {
         assertPasses("required-properties-defined", ::undefinedRequiredPropertyErrors)
         assertPasses("required-properties-defined-3.1", ::undefinedRequiredPropertyErrors)
+        assertPasses("unevaluated-properties-3.0", ::undefinedRequiredPropertyErrors)
     }
 }

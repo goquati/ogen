@@ -85,3 +85,20 @@ components:
           patternProperties:
             '^x-': { type: string }
             '^x-id$': false
+    # unevaluatedProperties false closes the object, but not the names a `then` may evaluate (#130).
+    PatternsClosedUnevaluatedConditional:
+      type: object
+      unevaluatedProperties: false
+      patternProperties:
+        '^x-': { type: string }
+      if: { required: [x-kind] }
+      then: { properties: { tenant: { type: string } } }
+      required: [x-tenant, tenant]
+    # Neither do the names a $dynamicRef may evaluate.
+    PatternsClosedUnevaluatedDynamicRef:
+      type: object
+      $dynamicRef: '#node'
+      unevaluatedProperties: false
+      patternProperties:
+        '^x-': { type: string }
+      required: [x-tenant, tenant]
