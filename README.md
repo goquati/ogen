@@ -71,11 +71,17 @@ Calling the API with the Ktor client:
 import com.example.api.gen.client.UsersApi.Companion.usersApi
 import de.quati.ogen.client.ktor.HttpClientOgen
 
+// Optional properties that are left out (Option.Undefined) must not be encoded: Ktor's default Json does
+val json = Json {
+    encodeDefaults = false
+    explicitNulls = true
+}
 val client = HttpClientOgen.Base(
     httpClient = HttpClient(CIO) {
-        install(ContentNegotiation) { json() }
+        install(ContentNegotiation) { json(json) }
     },
     baseUrl = "https://api.example.com",
+    json = json,
 )
 
 val response = client.usersApi.getUser(userId = "42")   // HttpResponseTyped<UserDto>
@@ -158,10 +164,13 @@ ogen {
             schemaMapping(schema = "UserId", clazz = "com.example.models.UserId")
         }
 
-        // Optional: Generate Spring Boot server interfaces
+        // Optional: Generate Spring Boot server interfaces, see docs/spring-server.md
         serverSpringV4 {
+            // Adds an OperationContext parameter (containing meta-info about the endpoint) to each generated function
             addOperationContext = true
+            // If the operation has any security requirements, add the specified class as a parameter
             contextIfAnySecurity("com.example.api.AuthContext")
+            // Return typed ApiResponse classes instead of ResponseEntity (requires de.quati.ogen:server-spring)
             apiResponse = true
         }
 
