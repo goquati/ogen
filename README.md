@@ -12,7 +12,7 @@
 - **Ktor Client Support**: Generates Ktor clients (a Ktor server generator is planned).
 - **Bean Validation**: Optionally generates Jakarta Bean Validation annotations from the schemas' validation
   keywords, for models (also in multiplatform code) and the Spring server.
-- **Multipart Requests**: Supports `multipart/form-data` request bodies, including file uploads, in the Spring server and the Ktor client.
+- **Multipart Requests**: Supports `multipart/form-data` request bodies, including file uploads, in the Spring server and the Ktor client. A body whose parts aren't all known (an object with `additionalProperties`, or no object) comes to the Spring server as `MultiValueMap<String, Part>`.
 - **OpenAPI Validation**: Built-in validator to ensure your OpenAPI specs follow best practices and naming conventions.
 - **Highly Configurable**: Custom type mappings, schema mappings, and naming convention enforcement.
 

@@ -120,6 +120,12 @@ private fun TypeSpec.Builder.createController(
                     name = paramNameResolver.resolve("op"),
                     type = config.packageName.className(controllerName, endpoint.operationNameContextName),
                 ) {
+                    // without an annotation Spring binds the request onto it as a model attribute, which reads a
+                    // form or multipart body before a @RequestBody can; the missing attribute leaves the default
+                    addAnnotation(Poet.Spring.requestAttribute) {
+                        addMember("name = %S", "de.quati.ogen.internal.operationContext")
+                        addMember("required = false")
+                    }
                     defaultValue(endpoint.operationNameContextName)
                 }
             for (parameter in endpoint.parametersContents) {
@@ -150,6 +156,18 @@ private fun TypeSpec.Builder.createController(
                             addMember("required = %L", part.required)
                         }
                         addAnnotations(validation)
+                    }
+                }
+
+                // a multipart body without parts (extra properties, or not an object) comes as all its parts
+                requestBody.contentType is ContentType.Multipart -> addParameter(
+                    name = paramNameResolver.resolve("parts"),
+                    type = Poet.Spring.multiValueMap
+                        .parameterizedBy(String::class.asClassName(), Poet.Spring.WebFlux.part)
+                        .copy(nullable = !requestBody.required),
+                ) {
+                    addAnnotation(Poet.Spring.requestBody) {
+                        addMember("required = %L", requestBody.required)
                     }
                 }
 

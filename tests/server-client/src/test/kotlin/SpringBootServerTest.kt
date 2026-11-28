@@ -305,7 +305,32 @@ class SpringBootServerTest {
             parts = emptyMap(),
             fileName = "avatar.png",
             fileContent = "image bytes",
-            expectedStatus = 415, // a multipart body that is not an object keeps its @RequestBody Any
+            expectedStatus = 201,
+            expectedInput = "testUser|$userId|file=avatar.png",
+        )
+    }
+
+    @Test
+    fun `test uploadUserDocument`() {
+        val userId = "75897dbc-8dea-4d14-82c6-dd0ee2243cb3"
+        val op = Operation(HttpMethod.POST, "/api/v1/users/$userId/documents")
+        client.doMultipartRequest(
+            op = op,
+            user = User.USER,
+            parts = mapOf("title" to "report", "author" to "jane"),
+            fileName = "notes.txt",
+            fileContent = "file content",
+            expectedStatus = 201,
+            expectedInput = "testUser|$userId|author=jane|file=notes.txt|title=report",
+        )
+        client.doMultipartRequest(
+            op = op,
+            user = User.USER,
+            parts = mapOf("title" to "report"),
+            fileName = null,
+            fileContent = null,
+            expectedStatus = 201,
+            expectedInput = "testUser|$userId|title=report",
         )
     }
 

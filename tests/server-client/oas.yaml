@@ -202,6 +202,31 @@ paths:
         '201':
           description: "uploaded attachments"
 
+  /api/v1/users/{userId}/documents:
+    parameters:
+      - $ref: "#/components/parameters/UserIdPath"
+    post:
+      tags:
+        - users
+      summary: Upload user document
+      description: Uploads a file with any number of extra text fields.
+      operationId: uploadUserDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              additionalProperties:
+                type: string
+      responses:
+        '201':
+          description: "uploaded document"
+
   /api/v1/users/{userId}/avatar:
     parameters:
       - $ref: "#/components/parameters/UserIdPath"

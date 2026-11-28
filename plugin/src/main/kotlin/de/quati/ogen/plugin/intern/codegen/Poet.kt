@@ -163,7 +163,9 @@ internal object Poet {
         val requestMapping = ClassName("org.springframework.web.bind.annotation", "RequestMapping")
         val requestBody = ClassName("org.springframework.web.bind.annotation", "RequestBody")
         val requestPart = ClassName("org.springframework.web.bind.annotation", "RequestPart")
+        val requestAttribute = ClassName("org.springframework.web.bind.annotation", "RequestAttribute")
         val responseEntity = ClassName("org.springframework.http", "ResponseEntity")
+        val multiValueMap = ClassName("org.springframework.util", "MultiValueMap")
         val httpStatusCode = ClassName("org.springframework.http", "HttpStatus")
         val httpStatusCodeInterface = ClassName("org.springframework.http", "HttpStatusCode")
         val httpHeaders = ClassName("org.springframework.http", "HttpHeaders")
@@ -180,6 +182,7 @@ internal object Poet {
                 ClassName("org.springframework.web.reactive.config", "WebFluxConfigurer")
 
             val filePart = ClassName("org.springframework.http.codec.multipart", "FilePart")
+            val part = ClassName("org.springframework.http.codec.multipart", "Part")
         }
     }
 }
