@@ -14,6 +14,9 @@ import kotlinx.coroutines.reactive.awaitSingle
 import org.springframework.core.io.buffer.DataBufferUtils
 import org.springframework.http.HttpStatus
 import org.springframework.http.codec.multipart.FilePart
+import org.springframework.http.codec.multipart.FormFieldPart
+import org.springframework.http.codec.multipart.Part
+import org.springframework.util.MultiValueMap
 import org.springframework.stereotype.Service
 import kotlin.uuid.Uuid
 
@@ -113,13 +116,22 @@ class UsersController : UsersApi {
         addInputHeader(ctx.name, userId, *files.map { it.filename() }.toTypedArray())
     }
 
+    override suspend fun uploadUserDocument(
+        ctx: AuthContext,
+        op: UsersApi.UploadUserDocumentContext,
+        userId: UserId,
+        parts: MultiValueMap<String, Part>,
+    ) = op.createResponse201 {
+        addInputHeader(ctx.name, userId, *parts.describe())
+    }
+
     override suspend fun uploadUserAvatar(
         ctx: AuthContext,
         op: UsersApi.UploadUserAvatarContext,
         userId: UserId,
-        string: Any
+        parts: MultiValueMap<String, Part>,
     ) = op.createResponse201 {
-        addInputHeader(ctx.name, userId)
+        addInputHeader(ctx.name, userId, *parts.describe())
     }
 
     override suspend fun getUser(
@@ -212,3 +224,16 @@ class UsersController : UsersApi {
         addInputHeader(ctx.name, userId, email, locale)
     }
 }
+
+/** Each part as `name=value`, a file as `name=filename`, sorted by name. */
+private fun MultiValueMap<String, Part>.describe(): Array<String> = entries.sortedBy { it.key }
+    .flatMap { (name, parts) ->
+        parts.map { part ->
+            when (part) {
+                is FilePart -> "$name=${part.filename()}"
+                is FormFieldPart -> "$name=${part.value()}"
+                else -> name
+            }
+        }
+    }
+    .toTypedArray()

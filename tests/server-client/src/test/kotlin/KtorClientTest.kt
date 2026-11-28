@@ -24,7 +24,12 @@ import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BasicAuthCredentials
 import io.ktor.client.plugins.auth.providers.basic
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import io.ktor.util.reflect.typeInfo
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.TestResult
@@ -230,6 +235,28 @@ class KtorClientTest {
                 type = "application/json",
                 content = UserFileDto(fileId = "notes.txt", name = "report", size = 12),
             )
+        )
+    }
+
+    @Test
+    fun `test uploadUserDocument`(): TestResult = runTest {
+        val userId = UserId(Uuid.parse("75897dbc-8dea-4d14-82c6-dd0ee2243cb3"))
+
+        clientUser.usersApi.uploadUserDocument(
+            userId = userId,
+            uploadUserDocumentRequestBodyDto = MultiPartFormDataContent(formData {
+                append("title", "report")
+                append("author", "jane")
+                append(
+                    key = "file",
+                    value = "file content".encodeToByteArray(),
+                    headers = Headers.build { append(HttpHeaders.ContentDisposition, "filename=\"notes.txt\"") },
+                )
+            }),
+            bodyType = typeInfo<MultiPartFormDataContent>(),
+        ).check(
+            expectedStatus = 201,
+            expectedInput = "testUser|$userId|author=jane|file=notes.txt|title=report",
         )
     }
 
