@@ -43,6 +43,7 @@ class TestUndefinedRequiredPropertyCheck {
                 "x-tenant" to "PatternsClosedForbidden",
                 "x-a" to "PropertyForbidden",
                 "x-tenant" to "ForbiddenNextToOpen",
+                "tenant" to "PatternsClosedUnevaluated",
             ).map { (name, location) -> "required property '$name' in '$location' is not defined in its properties" }
         )
     }

@@ -6,8 +6,8 @@ import de.quati.ogen.plugin.intern.oas.model.Schema
  * `required` names that the schema does not define. A schema that constrains its parent's value (an `allOf` member,
  * `then`, …) may require what the parent and its other members define (`allOf: [{ $ref: Base }, { required: [name] }]`),
  * and a schema that allows any name (`additionalProperties`, `unevaluatedProperties`, or `patternProperties` without
- * `additionalProperties: false`) may require any. With `additionalProperties: false`, `patternProperties` define the
- * names their patterns match, matched with the JVM's regex (#121). A name that a pattern whose schema is `false`
+ * `additionalProperties: false` or `unevaluatedProperties: false`) may require any. With either `false`,
+ * `patternProperties` define the names their patterns match, matched with the JVM's regex (#121). A name that a pattern whose schema is `false`
  * matches is not defined by that schema, also when it is a property. Schemas under `not` are skipped.
  */
 internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> {
@@ -21,8 +21,13 @@ internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> 
         // A boolean schema defines no names of its own.
         val schema = this as? Schema.Obj ?: return DefinedNames.NONE
         val patterns = schema.patternProperties.orEmpty()
+        // `unevaluatedProperties: false` closes the object like `additionalProperties: false`, as the names of a
+        // `$ref` and of composition members count below; `if`/`then`/`else` and `dependentSchemas` aren't (#130).
+        val closedUnevaluated = schema.unevaluatedProperties == Schema.Bool(false) &&
+            schema.ifSchema == null && schema.thenSchema == null && schema.elseSchema == null &&
+            schema.dependentSchemas == null
         if (schema.additionalProperties.allowsAnyName() || schema.unevaluatedProperties.allowsAnyName() ||
-            (patterns.isNotEmpty() && schema.additionalProperties == null)
+            (patterns.isNotEmpty() && schema.additionalProperties == null && !closedUnevaluated)
         ) return null
         // A pattern the JVM can't compile (a warning of its own) may match any name.
         val uncompiled = patterns.any { (pattern, value) ->

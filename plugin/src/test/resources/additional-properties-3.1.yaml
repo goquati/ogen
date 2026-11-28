@@ -137,3 +137,38 @@ components:
       required: [tenant]
       properties: {id: {type: string}}
       additionalProperties: {$ref: '#/components/schemas/Strict'}
+    # Without additionalProperties and in-place applicators, unevaluatedProperties means the same (#130).
+    UnevaluatedMap: {type: object, unevaluatedProperties: {type: integer}}
+    UnevaluatedClosed: {type: object, properties: {id: {type: string}}, unevaluatedProperties: false}
+    UnevaluatedExtras: {type: object, properties: {id: {type: string}}, unevaluatedProperties: {type: integer}}
+    UnevaluatedRequired:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      unevaluatedProperties: {type: string}
+    UnevaluatedRequiredWithPattern:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': {type: string}}
+      unevaluatedProperties: {type: integer}
+    # A key no pattern matches can't be present; the validator reports it.
+    UnevaluatedRequiredForbidden:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': {type: string}}
+      unevaluatedProperties: false
+    # additionalProperties evaluates every other key, so unevaluatedProperties applies to none.
+    UnevaluatedBesideAdditional:
+      type: object
+      properties: {id: {type: string}}
+      additionalProperties: {type: string}
+      unevaluatedProperties: {type: integer}
+    # Which keys `then` evaluates depends on `if`, so unevaluatedProperties is ignored as before.
+    UnevaluatedConditional:
+      type: object
+      properties: {id: {type: string}}
+      if: {required: [id]}
+      then: {properties: {tenant: {type: string}}}
+      unevaluatedProperties: {type: integer}
