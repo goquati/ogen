@@ -100,7 +100,7 @@ components:
       properties: {id: {type: string}}
       patternProperties: {'^x-[^]*': {type: string}}
       additionalProperties: false
-    # A key whose Kotlin name a property has stays in the map.
+    # A key whose Kotlin name a property has is a property too, with a distinct Kotlin name (#129).
     RequiredExtraSameKotlinName:
       type: object
       required: [tenantId, tenant-id, tenant_id]

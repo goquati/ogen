@@ -10,6 +10,9 @@ import de.quati.ogen.oas.schemas.gen.model.PatternPropertiesObjectDto
 import de.quati.ogen.oas.schemas.gen.model.RequiredAdditionalPropertyDto
 import de.quati.ogen.oas.schemas.gen.model.RequiredObjectAdditionalPropertyDto
 import de.quati.ogen.oas.schemas.gen.model.RequiredOpenAdditionalPropertyDto
+import de.quati.ogen.oas.schemas.gen.model.SameKotlinNameDto
+import de.quati.ogen.oas.schemas.gen.model.SameKotlinNameUnionDto
+import de.quati.ogen.oas.schemas.gen.model.SameKotlinNameVariantDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesInlineObjectDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesOpenObjectDto
 import de.quati.kotlin.util.toOption
@@ -434,6 +437,24 @@ class ModelsV31Test {
         assertFailsWith<SerializationException> {
             json.encodeToString(AdditionalPropertiesObjectDto(additionalProperties = mapOf("knownProperty" to 1)))
         }
+    }
+
+    @Test
+    fun `test properties with the same Kotlin name`() {
+        // The name that already is the Kotlin name keeps it; the others get `_` appended and keep their JSON name.
+        SameKotlinNameDto(
+            xTenant_ = "a",
+            xTenant = 1.toOption(),
+            xTenant__ = false,
+            additionalProperties = mapOf("x-other" to true),
+        ).test(expectedString = """{"x-tenant":"a","xTenant":1,"x_tenant":false,"x-other":true}""")
+        assertFailsWith<SerializationException> {
+            json.decodeFromString<SameKotlinNameDto>("""{"x-tenant":"a"}""")
+        }
+
+        // The discriminator has no property in the variant, so it takes no name.
+        (SameKotlinNameVariantDto(objectType = "a".toOption()) as SameKotlinNameUnionDto)
+            .test(expectedString = """{"objectType":"SameKotlinNameVariant","object-type":"a"}""")
     }
 
     @Test

@@ -208,7 +208,8 @@ ogen {
   keywords that apply to none of the schema's declared types, such as `maxLength` on an integer, in OpenAPI 3.1
   `maximum` next to `exclusiveMaximum` or `minimum` next to `exclusiveMinimum`, where only the tighter bound has an
   effect, and ambiguous paths: two paths that share a method where neither is more concrete (`/{entity}/me` and
-  `/books/{id}`). Recommendations are warnings too, and `RuleSet.Lenient` turns them off: `properties`
+  `/books/{id}`), and property names of one schema with the same Kotlin name (`xTenant` and `x-tenant`), which get
+  distinct names, see below. Recommendations are warnings too, and `RuleSet.Lenient` turns them off: `properties`
   next to `oneOf`, a request body on GET or HEAD, header names with `_`, `nullable` in OpenAPI 3.1 and later (which
   has no effect there), schema keywords the spec's version deprecates (`example` since 3.1, the XML Object's
   `attribute` and `wrapped` since 3.2), keywords next to a `$ref` that are ignored, `exclusiveMinimum: true` without
@@ -290,6 +291,12 @@ Hibernate Validator reads them from JVM type annotations, so with `beanValidatio
 
 ### Objects and `additionalProperties`
 
+A property's Kotlin name is its name in camelCase, with `@SerialName` keeping the JSON name when they differ. When
+several names have the same camelCase form, e.g. `xTenant` and `x-tenant`, the name that already is that form keeps
+it and the others get `_` appended until their name is free (`xTenant`, `xTenant_`). A class discriminator the class
+has no property for takes no name. Since adding or reordering such a name can move a Kotlin name to another JSON
+key without breaking the code that uses it, the validator warns about them (`sameKotlinNames`).
+
 What a `type: object` schema without `allOf`, `anyOf` or `oneOf` becomes, the same in every OpenAPI version and
 wherever the schema is used (with a composition, any `additionalProperties` makes it `JsonElement`, and so does an
 `allOf` or `anyOf` of classes that allow other keys, also through `patternProperties`):
@@ -349,7 +356,7 @@ val thing = ThingDto(id = "a".toOption(), additionalProperties = mapOf("count" t
   ```
 
   With `additionalProperties: false`, a required name that no pattern allows is a spec error, and so is one that a
-  pattern with `false` matches. A required name whose Kotlin name another property already has stays in the map.
+  pattern with `false` matches.
 - With `beanValidation`, `minProperties` and `maxProperties` of a class with a map are checked as the map's size
   when every property is required, so that the number of keys is known: a class that only has required names from
   `required` keeps the bounds of the map it was. With an optional property they are not checked, nor in a variant of a
