@@ -526,6 +526,45 @@ paths:
         '200':
           description: "the body, echoed"
 
+  /api/v1/public/debug/optional-body/multipart:
+    post:
+      tags:
+        - debug
+      summary: Echo an optional multipart body
+      description: Echoes the parts of an optional multipart body with a required part, or nulls when it is left out.
+      operationId: debugOptionalMultipartBody
+      security: [ ]
+      parameters:
+        - name: is
+          in: query
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                note:
+                  type: string
+                in:
+                  type: string
+                attachments:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '200':
+          description: "the parts, echoed"
+
 security:
   - user: [ ]
   - service: [ ]

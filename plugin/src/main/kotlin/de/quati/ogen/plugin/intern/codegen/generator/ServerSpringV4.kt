@@ -109,7 +109,10 @@ private fun TypeSpec.Builder.createController(
                 }
                 // without parameters: Spring rejects a request whose parameter differs, e.g. `charset=iso-8859-1` for
                 // `consumes = ["application/json; charset=utf-8"]`
-                requestBody?.contentType?.essences?.takeIfNotEmpty()?.toList()?.also { types ->
+                // not for an optional body bound as parts: only `@RequestBody(required = false)` lets a request
+                // without a body pass `consumes`, so it would get a 415
+                requestBody?.takeUnless { !it.required && requestBodyParts.isNotEmpty() }
+                    ?.contentType?.essences?.takeIfNotEmpty()?.toList()?.also { types ->
                     addStringArrayMember(name = "consumes", values = types)
                 }
             }

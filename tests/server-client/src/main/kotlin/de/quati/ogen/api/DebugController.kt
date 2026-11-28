@@ -4,6 +4,7 @@ import de.quati.ogen.gen.model.DebugLabelDto
 import de.quati.ogen.gen.model.DebugNoteDto
 import de.quati.ogen.gen.model.DebugTraceIdDto
 import de.quati.ogen.gen.server.DebugApi
+import org.springframework.http.codec.multipart.FilePart
 import org.springframework.stereotype.Service
 
 @Service
@@ -80,5 +81,16 @@ class DebugController : DebugApi {
         debugNoteDto: DebugNoteDto,
     ) = op.createResponse200 {
         addInputHeader(debugNoteDto.text)
+    }
+
+    override suspend fun debugOptionalMultipartBody(
+        op: DebugApi.DebugOptionalMultipartBodyContext,
+        is1: String?,
+        `file`: FilePart?,
+        note: String?,
+        in1: String?,
+        attachments: MutableList<FilePart>?,
+    ) = op.createResponse200 {
+        addInputHeader(file?.filename(), note, in1, attachments.orEmpty().joinToString(",") { it.filename() }, is1)
     }
 }

@@ -57,7 +57,10 @@ private data class PartInfo(
     val typeName: TypeName,
     val required: Boolean,
     val file: Endpoint.Part.File,
-)
+) {
+    // the name as it is written in code, escaped when it is a keyword
+    val ref: String get() = CodeBlock.of("%N", prettyName).toString()
+}
 
 context(_: CodeGenContext)
 private fun Endpoint.Part.toPartInfo(reservedNames: Set<String>) = PartInfo(
@@ -255,7 +258,7 @@ private fun TypeSpec.Builder.addEndpoint(
             returns(Poet.Lib.Client.Ktor.httpResponseTyped.parameterizedBy(info.typeName))
             addCode("val stmt = $funNamePrepare(\n")
             paramNames.forEach { paramName ->
-                addCode("    $paramName = $paramName,\n")
+                addCode("    %N = %N,\n", paramName, paramName)
             }
             addCode(
                 "    $acceptParamName = %L,\n",
@@ -273,7 +276,7 @@ private fun TypeSpec.Builder.addEndpoint(
             returns(Poet.flow.parameterizedBy(info.typeName))
             addCode("val stmt = $funNamePrepare(\n")
             paramNames.forEach { paramName ->
-                addCode("    $paramName = $paramName,\n")
+                addCode("    %N = %N,\n", paramName, paramName)
             }
             addCode("    $acceptParamName = %L,\n", Poet.Ktor.contentTypeCodeBlock(info.contentType!!))
             addCode(")\n")
@@ -313,7 +316,10 @@ private fun TypeSpec.Builder.addEndpoint(
                 }
                 addStatement("%L?.also { this.%T(it) }", acceptParamName, Poet.Ktor.Request.accept)
                 if (requestBodyParts.isNotEmpty())
-                    addMultipartRequestBody(requestBodyParts)
+                    addMultipartRequestBody(
+                        parts = requestBodyParts,
+                        optional = endpoint.requestBodyResolved?.required == false,
+                    )
                 if (requestBodyInfo != null)
                     addRequestBody(requestBodyInfo)
                 addStatement("this@$controllerName.client.baseModifier(this)")
@@ -333,9 +339,9 @@ private fun CodeBlock.Builder.addParam(param: Endpoint.StringableParameter) {
         Endpoint.Parameter.Type.PATH -> return
     }
     if (param.nullable)
-        add("if (%L != null) ", param.prettyName)
+        add("if (%N != null) ", param.prettyName)
     add(
-        "this.%T(%S, %L%L)\n",
+        "this.%T(%S, %N%L)\n",
         setterTypeName, param.name,
         param.prettyName, param.toStringCodeBlock,
     )
@@ -356,7 +362,12 @@ private fun CodeBlock.Builder.addPath(
 }
 
 context(_: CodeGenContext)
-private fun CodeBlock.Builder.addMultipartRequestBody(parts: List<PartInfo>) {
+private fun CodeBlock.Builder.addMultipartRequestBody(parts: List<PartInfo>, optional: Boolean) {
+    // an optional body whose parts are all left out is sent as no body at all, not as an empty form
+    // a list of files that is empty adds no part either
+    if (optional) beginControlFlow("if (%L)", parts.joinToString(" || ") {
+        if (it.file == Endpoint.Part.File.MANY) "!${it.ref}.isNullOrEmpty()" else "${it.ref} != null"
+    })
     addStatement(
         "this.%T(%T(%T {",
         Poet.Ktor.Request.setBody,
@@ -367,25 +378,26 @@ private fun CodeBlock.Builder.addMultipartRequestBody(parts: List<PartInfo>) {
         parts.forEach { part -> addPart(part) }
     }
     addStatement("}))")
+    if (optional) endControlFlow()
 }
 
 context(_: CodeGenContext)
 private fun CodeBlock.Builder.addPart(part: PartInfo) {
-    val access = part.prettyName
+    val access = part.ref
     when (part.file) {
         Endpoint.Part.File.NONE -> {
-            if (!part.required) add("if (%L != null) ", part.prettyName)
+            if (!part.required) add("if (%L != null) ", access)
             val isString = part.typeName.copy(nullable = false) == String::class.asClassName()
             addStatement("append(%S, %L%L)", part.name, access, if (isString) "" else ".toString()")
         }
 
         Endpoint.Part.File.ONE -> {
-            if (!part.required) add("if (%L != null) ", part.prettyName)
+            if (!part.required) add("if (%L != null) ", access)
             addFileAppend(wireName = part.name, access = access)
         }
 
         Endpoint.Part.File.MANY -> {
-            addStatement("%L%L.forEach { file ->", part.prettyName, if (part.required) "" else "?")
+            addStatement("%L%L.forEach { file ->", access, if (part.required) "" else "?")
             indent { addFileAppend(wireName = part.name, access = "file") }
             addStatement("}")
         }

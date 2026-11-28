@@ -188,8 +188,10 @@ internal data class Endpoint(
                 val obj = schema as? Component.Schema.Obj ?: return emptyList()
                 // the parts beyond the properties have no parameter, so the body is passed whole
                 if (obj.additionalProperties != null) return emptyList()
+                // the parts of an optional body are all optional, as the whole body may be left out; so a present
+                // body that lacks a required part is accepted too, as per-part checks can't tell the two apart
                 return obj.properties.map { (name, propertySchema) ->
-                    Part(name = name, schema = propertySchema, required = name in obj.required)
+                    Part(name = name, schema = propertySchema, required = data.required && name in obj.required)
                 }
             }
     }
