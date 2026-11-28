@@ -49,10 +49,19 @@ class TestUndefinedRequiredPropertyCheck {
     }
 
     // allOf members, additionalProperties and schemas under `not` may require names the schema doesn't define.
+    // OpenAPI 3.0 doesn't know unevaluatedProperties, so the class leaves out a required key it would allow (#149).
+    @Test
+    fun testUnevaluatedPropertiesIgnored30() {
+        assertErrors(
+            "unevaluated-properties-3.0", ::undefinedRequiredPropertyErrors, listOf(
+                "required property 'tenant' in 'UnevaluatedRequiredIgnored' is not defined in its properties",
+            )
+        )
+    }
+
     @Test
     fun testRequiredPropertiesDefined() {
         assertPasses("required-properties-defined", ::undefinedRequiredPropertyErrors)
         assertPasses("required-properties-defined-3.1", ::undefinedRequiredPropertyErrors)
-        assertPasses("unevaluated-properties-3.0", ::undefinedRequiredPropertyErrors)
     }
 }

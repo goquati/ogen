@@ -178,3 +178,18 @@ components:
       $dynamicRef: '#node'
       properties: {id: {type: string}}
       unevaluatedProperties: {type: integer}
+    # Next to if/then, a required key it allows is kept untyped, as `then` may evaluate it (#149).
+    UnevaluatedRequiredConditional:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      if: {required: [id]}
+      then: {properties: {other: {type: string}}}
+      unevaluatedProperties: {type: string}
+    UnevaluatedRequiredConditionalClosed:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      if: {required: [id]}
+      then: {properties: {tenant: {type: string}}}
+      unevaluatedProperties: false

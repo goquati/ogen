@@ -125,6 +125,8 @@ class TestAdditionalProperties {
                 "UnevaluatedBesideAdditional" to "class + map of string",
                 "UnevaluatedConditional" to "class",
                 "UnevaluatedDynamicRef" to "class",
+                "UnevaluatedRequiredConditional" to "class",
+                "UnevaluatedRequiredConditionalClosed" to "class",
             ),
             schemas.filterKeys { it.startsWith("Unevaluated") }.mapValues { it.value.kind() },
         )
@@ -134,6 +136,14 @@ class TestAdditionalProperties {
         assertEquals(mapOf("id" to "string?", "tenant" to "string"), properties("UnevaluatedRequired"))
         assertEquals(mapOf("id" to "string?", "tenant" to "integer"), properties("UnevaluatedRequiredWithPattern"))
         assertEquals(mapOf("id" to "string?"), properties("UnevaluatedRequiredForbidden"))
-        assertEquals("class", schemas("unevaluated-properties-3.0").getValue("UnevaluatedIgnored").kind())
+        assertEquals(mapOf("id" to "string?", "tenant" to "untyped"), properties("UnevaluatedRequiredConditional"))
+        assertEquals(mapOf("id" to "string?"), properties("UnevaluatedRequiredConditionalClosed"))
+        val schemas30 = schemas("unevaluated-properties-3.0")
+        assertEquals("class", schemas30.getValue("UnevaluatedIgnored").kind())
+        assertEquals("class", schemas30.getValue("UnevaluatedRequiredIgnored").kind())
+        assertEquals(
+            setOf("id"),
+            assertIs<Component.Schema.Obj>(schemas30.getValue("UnevaluatedRequiredIgnored")).properties.keys,
+        )
     }
 }

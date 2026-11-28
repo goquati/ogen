@@ -7,6 +7,7 @@ import de.quati.ogen.plugin.intern.model.RefString
 import de.quati.ogen.plugin.intern.model.Spec
 import de.quati.ogen.plugin.intern.model.TypeWithFormat
 import de.quati.ogen.plugin.intern.oas.model.Schema
+import de.quati.ogen.plugin.intern.oas.model.additionalOrUnevaluatedProperties
 import de.quati.ogen.plugin.intern.parsing.helper.ParserContext
 import de.quati.ogen.plugin.intern.parsing.helper.SchemaLocation
 import kotlinx.serialization.json.JsonElement
@@ -202,20 +203,10 @@ private fun Schema.Obj.unwrapMigratedNullableAllOf(): SchemaView? {
     return SchemaView(copy(anyOf = null, allOf = inner.allOf), is30 = true, nullable = true)
 }
 
-/**
- * `additionalProperties`, or `unevaluatedProperties` where it means the same (#130): in an object without in-place
- * applicators (`$ref`, `$dynamicRef`, `allOf`, `anyOf`, `oneOf`, `if`/`then`/`else`, `dependentSchemas`), only
- * `properties` and `patternProperties` evaluate keys, so `unevaluatedProperties` applies to the keys
- * `additionalProperties` would. With applicators, the keys they evaluate depend on their schemas, and
- * `unevaluatedProperties` is ignored as before; so it is in OpenAPI 3.0, which doesn't know the keyword.
- */
+/** See [Schema.Obj.additionalOrUnevaluatedProperties]. */
 context(pc: ParserContext)
 private fun Schema.Obj.additionalOrUnevaluatedProperties(): Schema? =
-    additionalProperties ?: unevaluatedProperties.takeIf {
-        pc.version != Spec.Version.V3_0 && ref == null && "\$dynamicRef" !in other &&
-            allOf == null && anyOf == null && oneOf == null &&
-            ifSchema == null && thenSchema == null && elseSchema == null && dependentSchemas == null
-    }
+    additionalOrUnevaluatedProperties(is30 = pc.version == Spec.Version.V3_0)
 
 /**
  * The schema of the values of the keys an object allows beyond its `properties`, or null when it allows none a map
@@ -251,8 +242,8 @@ private fun Schema.Obj.additionalValueSchemaOrNull(): Schema? {
  * `additionalProperties`; several matching patterns with different schemas leave the value untyped. Patterns are
  * matched with the JVM's regex, unanchored as in JSON Schema; one it can't compile may match, so the value is untyped.
  * Without `additionalProperties` and without a matching pattern the key is allowed freely only if there are patterns
- * whose schema isn't `false`: an object without (an `allOf` member requiring what a sibling defines, say) leaves the
- * key to the schema that defines it.
+ * whose schema isn't `false`, or an `unevaluatedProperties` that isn't `false`: an object without (an `allOf` member
+ * requiring what a sibling defines, say) leaves the key to the schema that defines it.
  */
 context(pc: ParserContext)
 private fun Schema.Obj.undeclaredRequiredSchemaOrNull(name: String): Schema? {
@@ -267,7 +258,14 @@ private fun Schema.Obj.undeclaredRequiredSchemaOrNull(name: String): Schema? {
         matching.size == 1 -> matching.single()
         matching.isNotEmpty() -> Schema.Bool(true)
         else -> when (val it = additionalOrUnevaluatedProperties()) {
-            null -> if (patternProperties.orEmpty().values.all { it == Schema.Bool(false) }) null else Schema.Bool(true)
+            null -> when {
+                patternProperties.orEmpty().values.any { it != Schema.Bool(false) } -> Schema.Bool(true)
+                // Next to applicators, `unevaluatedProperties` allows the keys they don't evaluate; which ones they do
+                // depends on their schemas, so the key is kept untyped (#149).
+                pc.version != Spec.Version.V3_0 && unevaluatedProperties.let { it != null && it != Schema.Bool(false) } ->
+                    Schema.Bool(true)
+                else -> null
+            }
             Schema.Bool(false) -> null
             else -> it
         }
