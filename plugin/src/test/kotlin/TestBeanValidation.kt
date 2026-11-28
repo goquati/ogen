@@ -188,8 +188,31 @@ class TestBeanValidation {
         listOf(true, false).forEach { enabled ->
             val api = generate("bean-validation-edge-cases", beanValidation = enabled)
                 .file("RawApi.kt")
-            assertContains(api, "fun postRaw(@RequestBody body: Any?)")
+            assertContains(api, "fun postRaw(@RequestBody(required = false) body: Any?)")
         }
+    }
+
+    @Test
+    fun `an optional body that is not JSON is nullable and not required`() {
+        val api = generate("bean-validation-edge-cases").file("RawApi.kt")
+        assertContains(api, "fun postRawBinary(@RequestBody(required = false) body: Any?)")
+        assertContains(api, "fun postRawBinaryRequired(@RequestBody body: Any)")
+    }
+
+    @Test
+    fun `the streaming client function passes the body type once`() {
+        val client = generate("bean-validation-edge-cases").file("RawClient.kt")
+        assertContains(client, "fun postRawBinaryStreamAsFlow(")
+        assertContains(client, "val stmt = preparePostRawBinaryStream( body = body, bodyType = bodyType, block = block, acceptContentType")
+    }
+
+    @Test
+    fun `the client sends no body for an optional body that is left out`() {
+        val client = generate("bean-validation-edge-cases").file("RawClient.kt")
+        assertContains(client, "if (body != null) { this.contentType(ContentType.Application.Json) this.setBody(body) }")
+        assertContains(client, "if (body != null) { this.contentType(ContentType.Application.OctetStream) this.setBody(body, bodyType ?: TypeInfo(body::class)) }")
+        assertContains(client, "fun postRawBinary( body: Any? = null, bodyType: TypeInfo? = null,")
+        assertContains(client, "this.contentType(ContentType.Application.OctetStream) this.setBody(body, bodyType) this@RawClient")
     }
 
     @Test

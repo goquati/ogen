@@ -422,6 +422,40 @@ paths:
         '200':
           description: "the parameters, echoed"
 
+  /api/v1/public/debug/optional-body/binary:
+    post:
+      tags:
+        - debug
+      summary: Echo an optional binary body
+      description: Echoes the size of an optional binary body, or null when it is left out.
+      operationId: debugOptionalBinaryBody
+      security: [ ]
+      requestBody:
+        required: false
+        content:
+          application/octet-stream: {}
+      responses:
+        '200':
+          description: "the body size, echoed"
+
+  /api/v1/public/debug/optional-body/json:
+    post:
+      tags:
+        - debug
+      summary: Echo an optional JSON body
+      description: Echoes an optional JSON body, or null when it is left out.
+      operationId: debugOptionalJsonBody
+      security: [ ]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DebugNote"
+      responses:
+        '200':
+          description: "the body, echoed"
+
 security:
   - user: [ ]
   - service: [ ]
@@ -478,6 +512,14 @@ components:
     DebugLabel:
       description: A label, as a string component of its own.
       type: string
+    DebugNote:
+      description: A note, as a JSON object.
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
     DebugTraceId:
       description: A trace ID that may be null, as a component of its own.
       type: string

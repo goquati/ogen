@@ -432,6 +432,23 @@ class SpringBootServerTest {
     }
 
     @Test
+    fun `test optional request bodies`() {
+        val binary = "/api/v1/public/debug/optional-body/binary"
+        // TODO(#137): a body that is neither JSON nor multipart is `Any`, which Spring can't decode yet; expect 200 and
+        //  the body's type once #137 is fixed
+        client.post().uri(binary).header("Content-Type", "application/octet-stream")
+            .bodyValue("raw bytes".encodeToByteArray())
+            .exchange().expectStatus().isEqualTo(415)
+        // an optional body may be left out
+        client.post().uri(binary).exchange()
+            .expectStatus().isOk.expectHeader().valueEquals("input-data", "null")
+
+        val json = Operation(HttpMethod.POST, "/api/v1/public/debug/optional-body/json")
+        client.doRequest(op = json, user = null, body = mapOf("text" to "foo"), expectedStatus = 200, expectedInput = "foo")
+        client.doRequest(op = json, user = null, expectedStatus = 200, expectedInput = "null")
+    }
+
+    @Test
     fun `test operation context`() {
         UsersApi.GetUsersContext.name shouldBe "getUsers"
         UsersApi.GetUsersContext.description shouldBe "Returns users, optionally filtered by tenant, verification status, search term, locale or email."

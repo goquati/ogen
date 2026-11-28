@@ -226,11 +226,14 @@ private fun TypeSpec.Builder.addEndpoint(
             ) {
                 if (!bodyInfo.body.required) defaultValue("null")
             }
+            // an optional body can be left out without a type; one that is sent without falls back to its class
             if (bodyInfo.typeInfoName != null)
                 addParameter(
                     name = bodyInfo.typeInfoName,
-                    type = Poet.Ktor.typeInfo
-                )
+                    type = Poet.Ktor.typeInfo.copy(nullable = !bodyInfo.body.required),
+                ) {
+                    if (!bodyInfo.body.required) defaultValue("null")
+                }
         }
         block()
         addParameter(
@@ -269,9 +272,6 @@ private fun TypeSpec.Builder.addEndpoint(
             addCode("val stmt = $funNamePrepare(\n")
             paramNames.forEach { paramName ->
                 addCode("    $paramName = $paramName,\n")
-            }
-            requestBodyInfo?.typeInfoName?.also {
-                addCode("    $it = $it,\n")
             }
             addCode("    $acceptParamName = %L,\n", Poet.Ktor.contentTypeCodeBlock(info.contentType!!))
             addCode(")\n")
@@ -404,12 +404,20 @@ private fun CodeBlock.Builder.addFileAppend(wireName: String, access: String) {
 }
 
 private fun CodeBlock.Builder.addRequestBody(info: RequestBodyInfo) {
+    // an optional body that is left out is sent as no body at all, not as a JSON `null`; so an optional body
+    // whose schema is nullable can't be sent as an explicit `null`
+    val optional = !info.body.required
+    if (optional) beginControlFlow("if (%L != null)", info.name)
     val contentType = info.body.contentType?.values?.firstOrNull()
     if (contentType != null)
         addStatement("this.%T(%L)", Poet.Ktor.contentTypeFun, Poet.Ktor.contentTypeCodeBlock(contentType))
     addStatement("this.%T(%L)", Poet.Ktor.Request.setBody, buildCodeBlock {
         add(info.name)
-        if (info.typeInfoName != null)
-            add(", %L", info.typeInfoName)
+        when {
+            info.typeInfoName == null -> Unit
+            optional -> add(", %L ?: %T(%L::class)", info.typeInfoName, Poet.Ktor.typeInfo, info.name)
+            else -> add(", %L", info.typeInfoName)
+        }
     })
+    if (optional) endControlFlow()
 }
