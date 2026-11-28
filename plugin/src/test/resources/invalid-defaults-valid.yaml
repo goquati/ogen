@@ -1,0 +1,54 @@
+openapi: 3.0.3
+info:
+  title: Valid defaults
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [open, closed]
+          default: open
+        level:
+          description: "In 3.0, nullable allows null also when the enum doesn't list it."
+          type: string
+          nullable: true
+          enum: [low, high]
+          default: null
+        count:
+          description: "1.0 is an integer in JSON Schema."
+          type: integer
+          format: int32
+          default: 1.0
+        owner:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Owner'
+          default: null
+        defaultOwner:
+          allOf:
+            - $ref: '#/components/schemas/Owner'
+          default: {id: 1, name: Ann}
+        created:
+          type: string
+          format: date-time
+          default: '2026-01-01T10:00:00Z'
+        mail:
+          type: string
+          format: email
+          default: a@b.c
+        unknownFormat:
+          type: string
+          format: color
+          default: anything
+    Owner:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string

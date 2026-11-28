@@ -1,0 +1,20 @@
+openapi: 3.1.0
+info:
+  title: Examples their schema doesn't allow
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Size:
+      type: integer
+      examples: [1, big, 3]
+    Tag:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+      examples:
+        - name: a
+        - name: b
+          color: red

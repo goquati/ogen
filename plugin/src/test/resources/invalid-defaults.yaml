@@ -1,0 +1,59 @@
+openapi: 3.0.3
+info:
+  title: Defaults their schema doesn't allow
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: size
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2]
+            default: 3
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [open, closed]
+          default: pending
+        count:
+          type: integer
+          default: lots
+        age:
+          type: integer
+          minimum: 0
+          default: -1
+        name:
+          type: string
+          maxLength: 3
+          default: Rex the dog
+        born:
+          type: string
+          format: date
+          default: yesterday
+        tags:
+          type: array
+          items:
+            type: string
+          default: [a, 1]
+        owner:
+          allOf:
+            - $ref: '#/components/schemas/Owner'
+          default: {}
+        nick:
+          type: string
+          default: null
+    Owner:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
