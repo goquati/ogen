@@ -48,7 +48,14 @@ internal fun contradictoryConstraintErrors(spec: ValidatedSpec): List<String> {
         checkRange("minLength", schema.minLength, "maxLength", schema.maxLength)
         checkRange("minItems", schema.minItems, "maxItems", schema.maxItems)
         checkRange("minProperties", schema.minProperties, "maxProperties", schema.maxProperties)
-        val required = schema.required.orEmpty().distinct().size
+        // A required readOnly property applies to responses only, a writeOnly one to requests only, so they don't count.
+        fun Schema?.isDirectional(): Boolean {
+            val obj = this as? Schema.Obj ?: return false
+            val target = obj.ref?.componentName("schemas")?.let { spec.api.components?.schemas?.get(it) } as? Schema.Obj
+            return listOfNotNull(obj, target).any { it.readOnly == true || it.writeOnly == true }
+        }
+        val required = schema.required.orEmpty().distinct()
+            .count { !schema.properties?.get(it).isDirectional() }
         val maxProperties = schema.maxProperties
         // Both only constrain objects, so a schema that allows other values (or any type) has some.
         val onlyObjects = schema.type == listOf("object")

@@ -64,3 +64,10 @@ components:
       required: [x-a]
       properties:
         x-a: { type: string }
+    # A `false` pattern forbids a required name also when additionalProperties allows any other.
+    ForbiddenNextToOpen:
+      type: object
+      required: [x-tenant]
+      patternProperties:
+        '^x-': false
+      additionalProperties: { type: string }

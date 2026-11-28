@@ -68,3 +68,19 @@ components:
           type: integer
           maximum: 5
           exclusiveMaximum: true
+    # A required readOnly property applies to responses only, a writeOnly one to requests only (#121).
+    Account:
+      type: object
+      required: [id, password, name]
+      maxProperties: 2
+      properties:
+        id:
+          type: string
+          readOnly: true
+        password:
+          $ref: '#/components/schemas/Password'
+        name:
+          type: string
+    Password:
+      type: string
+      writeOnly: true

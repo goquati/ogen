@@ -75,10 +75,15 @@ internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> 
             }
     }
 
+    // A name that a `false` pattern of the schema itself matches can't be present, whatever else allows it.
+    fun Schema.forbids(name: String) = (this as? Schema.Obj)?.patternProperties.orEmpty()
+        .filterValues { it == Schema.Bool(false) }.keys
+        .any { pattern -> runCatching { Regex(pattern).containsMatchIn(name) }.getOrDefault(false) }
+
     return allowedNames(componentInherited = { referencedMemberNames.getOrDefault(it, DefinedNames.NONE) })
         .flatMap { (node, allowed) ->
-            if (allowed == null) emptyList()
-            else node.schema.required.orEmpty().filter { it !in allowed }
+            node.schema.required.orEmpty().distinct()
+                .filter { (allowed != null && it !in allowed) || node.schema.forbids(it) }
                 .map { "required property '$it' in '${node.location}' is not defined in its properties" }
         }
 }
@@ -86,7 +91,9 @@ internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> 
 /**
  * The names schemas define, each schema's on its own: its properties and the names its patterns match, unless a pattern
  * of the same schema whose schema is `false` matches them too, as all its matching patterns apply. A `false` pattern of
- * one schema doesn't forbid what another defines, as the other may be a `oneOf` or `anyOf` alternative.
+ * one schema doesn't forbid what another defines, as the other may be a `oneOf` or `anyOf` alternative. For a `$ref`
+ * sibling or an `allOf` member, which apply together, that is more lenient than JSON Schema: such a contradiction is
+ * only reported when the requiring schema's own `false` pattern matches the name.
  */
 private class DefinedNames(private val groups: List<Group>) {
     class Group(val names: Set<String>, val patterns: List<Regex>, val forbiddenPatterns: List<Regex>) {
