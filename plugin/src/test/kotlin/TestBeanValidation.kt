@@ -239,4 +239,19 @@ class TestBeanValidation {
             generate(it)
         }
     }
+
+    @Test
+    fun `media types with parameters are classified without them`() {
+        val files = generate("bean-validation-edge-cases")
+        val api = files.file("MediaTypeParametersApi.kt")
+        assertContains(api, "fun postJsonWithCharset(@RequestBody @Valid leafDto: LeafDto): ResponseEntity<LeafDto>")
+        assertContains(api, "fun postMultipartWithBoundary(@RequestPart(value = \"title\", required = true) title: String)")
+        // Spring would reject a request whose parameters differ, so `consumes` has none; `produces` keeps them
+        assertContains(api, "produces = [\"application/json; charset=utf-8\"], consumes = [\"application/json\"],")
+        assertContains(api, "consumes = [\"multipart/form-data\"],")
+        val client = files.file("MediaTypeParametersClient.kt")
+        assertContains(client, "fun postJsonWithCharset(leafDto: LeafDto, block: HttpRequestBuilder.() -> Unit = {}): HttpResponseTyped<LeafDto>")
+        assertContains(client, "this.contentType(ContentType.parse(\"application/json; charset=utf-8\"))")
+        assertContains(client, "fun postMultipartWithBoundary(title: String,")
+    }
 }

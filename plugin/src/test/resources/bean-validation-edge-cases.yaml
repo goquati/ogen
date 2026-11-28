@@ -119,6 +119,43 @@ paths:
       responses:
         '204':
           description: no content
+  /media-type-parameters/json:
+    post:
+      operationId: postJsonWithCharset
+      tags:
+        - mediaTypeParameters
+      requestBody:
+        required: true
+        content:
+          application/json; charset=utf-8:
+            schema:
+              $ref: '#/components/schemas/Leaf'
+      responses:
+        '200':
+          description: the leaf
+          content:
+            Application/JSON; charset=UTF-8:
+              schema:
+                $ref: '#/components/schemas/Leaf'
+  /media-type-parameters/multipart:
+    post:
+      operationId: postMultipartWithBoundary
+      tags:
+        - mediaTypeParameters
+      requestBody:
+        required: true
+        content:
+          multipart/form-data; boundary=xyz:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+      responses:
+        '204':
+          description: no content
 components:
   schemas:
     Leaf:

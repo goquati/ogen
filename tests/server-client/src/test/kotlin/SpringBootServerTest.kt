@@ -447,6 +447,18 @@ class SpringBootServerTest {
     }
 
     @Test
+    fun `test JSON body whose media type has a charset`() {
+        val uri = "/api/v1/public/debug/body/json-charset"
+        // deserialized as JSON, whatever the charset parameter of the request
+        listOf("application/json; charset=UTF-8", "application/json").forEach { contentType ->
+            client.post().uri(uri).header("Content-Type", contentType).bodyValue("""{"text":"foo"}""")
+                .exchange().expectStatus().isOk.expectHeader().valueEquals("input-data", "foo")
+        }
+        client.post().uri(uri).header("Content-Type", "application/json").bodyValue("""{}""")
+            .exchange().expectStatus().isBadRequest
+    }
+
+    @Test
     fun `test bodies read as is`() {
         val text = "/api/v1/public/debug/body/text"
         client.post().uri(text).header("Content-Type", "text/plain").bodyValue("\"foo\" bar")
