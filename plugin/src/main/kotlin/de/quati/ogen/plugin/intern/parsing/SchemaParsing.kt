@@ -344,18 +344,24 @@ internal fun Schema.parse(
                 val declared = o.properties.orEmpty()
                 val undeclaredRequired = o.required.orEmpty().filter { it !in declared }.distinct()
                     .mapNotNull { name -> o.undeclaredRequiredSchemaOrNull(name)?.let { name to it } }
-                val props = (declared + undeclaredRequired).mapValues {
+                val declaredProps = declared.mapValues {
                     it.value.parse(location = location + it.key.toCamelCase(capitalized = true))
                 }
-                if (props.isNotEmpty()) {
+                if (declaredProps.isNotEmpty() || undeclaredRequired.isNotEmpty()) {
+                    val additionalRaw = o.additionalValueSchemaOrNull()
+                    val additional = additionalRaw?.parse(location = location + "AdditionalProperty")
+                    // A key with the schema of the map's values has their type, not a copy of it.
+                    val undeclaredProps = undeclaredRequired.associate { (name, schema) ->
+                        name to (additional.takeIf { schema == additionalRaw }
+                            ?: schema.parse(location = location + name.toCamelCase(capitalized = true)))
+                    }
                     return@run Component.Schema.Obj(
                         isNullable = s.isNullable,
                         required = o.required?.toSet() ?: emptySet(),
-                        properties = props,
+                        properties = declaredProps + undeclaredProps,
                         name = location.name,
                         typeWithFormat = s.toTypeWithFormatOrNull(),
-                        additionalProperties = o.additionalValueSchemaOrNull()
-                            ?.parse(location = location + "AdditionalProperty"),
+                        additionalProperties = additional,
                     )
                 }
                 // Without properties, `true` is the same as `{}`: a map of untyped values. An object that must stay

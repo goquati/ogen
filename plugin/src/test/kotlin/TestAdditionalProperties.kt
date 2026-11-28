@@ -72,6 +72,17 @@ class TestAdditionalProperties {
 
         assertEquals(mapOf("id" to "string?", "tenant" to "string") to "string", obj("RequiredExtra").shape())
         assertEquals(mapOf("tenant" to "integer") to "integer", obj("RequiredExtraWithoutProperties").shape())
+        // `true` and `{}` leave the value untyped.
+        assertEquals(mapOf("id" to "string?", "tenant" to "untyped") to "untyped", obj("RequiredExtraOpen").shape())
+        assertEquals(mapOf("id" to "string?", "tenant" to "untyped") to "untyped", obj("RequiredExtraOpenSchema").shape())
+        // An object schema gives the property a class, as it gives one to the values of the map.
+        // An object schema gives the property the class of the map's values, not a copy of it.
+        val inline = obj("RequiredExtraInlineObject")
+        assertIs<Component.Schema.Ref.Nested>(inline.additionalProperties)
+        assertEquals(inline.additionalProperties, inline.properties.getValue("tenant"))
+        val ref = obj("RequiredExtraRef")
+        assertEquals(ref.additionalProperties, ref.properties.getValue("tenant"))
+        assertEquals(setOf("tenant"), ref.required)
         assertEquals(
             mapOf("id" to "string?", "x-tenant" to "string", "other" to "integer") to "untyped",
             obj("RequiredExtraMatchingPattern").shape(),

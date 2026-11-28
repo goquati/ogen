@@ -98,3 +98,23 @@ components:
       allOf:
         - {type: object, properties: {tenant: {type: string}}}
         - {type: object, required: [tenant]}
+    RequiredExtraOpen:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      additionalProperties: true
+    RequiredExtraOpenSchema:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      additionalProperties: {}
+    RequiredExtraInlineObject:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      additionalProperties: {type: object, properties: {name: {type: string}}}
+    RequiredExtraRef:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      additionalProperties: {$ref: '#/components/schemas/Strict'}

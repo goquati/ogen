@@ -468,6 +468,29 @@ components:
       additionalProperties:
         type: string
 
+    RequiredOpenAdditionalProperty:
+      description: Object that requires a key its properties don't declare, of any value (#121).
+      type: object
+      required: [tenant]
+      properties:
+        id:
+          type: string
+      additionalProperties: true
+
+    RequiredObjectAdditionalProperty:
+      description: Object that requires a key its properties don't declare, whose value is an object (#121).
+      type: object
+      required: [tenant]
+      properties:
+        id:
+          type: string
+      additionalProperties:
+        type: object
+        required: [name]
+        properties:
+          name:
+            type: string
+
     OneOfExtras:
       description: Union whose variant allows additional properties.
       oneOf:

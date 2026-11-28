@@ -8,6 +8,8 @@ import de.quati.ogen.oas.schemas.gen.model.OneOfExtras2Dto
 import de.quati.ogen.oas.schemas.gen.model.OneOfExtras1Dto
 import de.quati.ogen.oas.schemas.gen.model.PatternPropertiesObjectDto
 import de.quati.ogen.oas.schemas.gen.model.RequiredAdditionalPropertyDto
+import de.quati.ogen.oas.schemas.gen.model.RequiredObjectAdditionalPropertyDto
+import de.quati.ogen.oas.schemas.gen.model.RequiredOpenAdditionalPropertyDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesInlineObjectDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesOpenObjectDto
 import de.quati.kotlin.util.toOption
@@ -411,6 +413,21 @@ class ModelsV31Test {
             .test(expectedString = """{"tenant":"t","a":"x"}""")
         assertFailsWith<SerializationException> {
             json.decodeFromString<RequiredAdditionalPropertyDto>("""{"id":"a"}""")
+        }
+
+        // With `true`, the key is untyped.
+        RequiredOpenAdditionalPropertyDto(tenant = JsonPrimitive(1), additionalProperties = mapOf("a" to JsonNull))
+            .test(expectedString = """{"tenant":1,"a":null}""")
+        assertFailsWith<SerializationException> {
+            json.decodeFromString<RequiredOpenAdditionalPropertyDto>("""{"a":1}""")
+        }
+        // With an object schema, the key has the class of the map's values.
+        RequiredObjectAdditionalPropertyDto(
+            tenant = RequiredObjectAdditionalPropertyDto.AdditionalPropertyDto(name = "t"),
+            additionalProperties = mapOf("a" to RequiredObjectAdditionalPropertyDto.AdditionalPropertyDto(name = "x")),
+        ).test(expectedString = """{"tenant":{"name":"t"},"a":{"name":"x"}}""")
+        assertFailsWith<SerializationException> {
+            json.decodeFromString<RequiredObjectAdditionalPropertyDto>("""{"a":{"name":"x"}}""")
         }
 
         // A declared key in the map would be written twice.
