@@ -366,7 +366,7 @@ private fun Component.Schema.Obj.generateDataClassTypeSpec(): TypeSpec {
             discInfo.interfaces.forEach { addSuperinterface(it.name.typename) }
         }
         primaryConstructor {
-            val kotlinNames = this@generateDataClassTypeSpec.propertyKotlinNames()
+            val kotlinNames = this@generateDataClassTypeSpec.propertyKotlinNames(discInfo)
             this@generateDataClassTypeSpec.properties.forEach { (fieldName, prop) ->
                 if (fieldName == discInfo?.discriminatorName) return@forEach
                 val prettyFieldName = kotlinNames.getValue(fieldName)
@@ -450,18 +450,20 @@ private fun Component.Schema.Obj.additionalPropertiesConstraints(discInfo: Eleme
 /**
  * The Kotlin name of each property of [this]: its name in camel case. Of the names that have the same one, a name that
  * already is it keeps it, and the others get `_` appended until it is free; `@SerialName` keeps their JSON name (#129).
+ * The class discriminator of [discInfo] has no property in the class, so it takes no name.
  */
-private fun Component.Schema.Obj.propertyKotlinNames(): Map<String, String> {
-    val camelCase = properties.keys.associateWith { it.toCamelCase(capitalized = false) }
+private fun Component.Schema.Obj.propertyKotlinNames(discInfo: ElementDiscriminatorInfo?): Map<String, String> {
+    val camelCase = properties.keys.filter { it != discInfo?.discriminatorName }
+        .associateWith { it.toCamelCase(capitalized = false) }
     val taken = mutableSetOf<String>()
     val kotlinNames = camelCase.entries.sortedBy { (name, kotlinName) -> name != kotlinName }
         .associate { (name, kotlinName) -> name to generateSequence(kotlinName) { "${it}_" }.first(taken::add) }
-    return properties.keys.associateWith(kotlinNames::getValue)
+    return camelCase.keys.associateWith(kotlinNames::getValue)
 }
 
 /** The Kotlin name of the map of additional properties; one that no property of [obj] has. */
-private fun additionalPropertiesName(obj: Component.Schema.Obj): String {
-    val taken = obj.propertyKotlinNames().values.toSet()
+private fun additionalPropertiesName(obj: Component.Schema.Obj, discInfo: ElementDiscriminatorInfo?): String {
+    val taken = obj.propertyKotlinNames(discInfo).values.toSet()
     return generateSequence("additionalProperties") { "${it}_" }.first { it !in taken }
 }
 
@@ -477,7 +479,7 @@ private fun FunSpec.Builder.addAdditionalProperties(
     discInfo: ElementDiscriminatorInfo?,
 ) {
     val className = obj.name.typename
-    val propName = additionalPropertiesName(obj)
+    val propName = additionalPropertiesName(obj, discInfo)
     val mapSchema = Component.Schema.MapS.Inline(
         valueSchema = valueSchema,
         isNullable = false,

@@ -20,6 +20,7 @@ import de.quati.ogen.plugin.intern.validation.nullableIn31Warnings
 import de.quati.ogen.plugin.intern.validation.nullableWithoutTypeWarnings
 import de.quati.ogen.plugin.intern.validation.operationIdRequiredErrors
 import de.quati.ogen.plugin.intern.validation.oneOfWithPropertiesWarnings
+import de.quati.ogen.plugin.intern.validation.sameKotlinNameWarnings
 import de.quati.ogen.plugin.intern.validation.pathParameterErrors
 import de.quati.ogen.plugin.intern.validation.patternWarnings
 import de.quati.ogen.plugin.intern.validation.queryOrFragmentInPathErrors
@@ -75,6 +76,7 @@ public enum class ValidatorRule(
     KeywordsForOtherTypes(Severity.Warning, ::typeKeywordWarnings),
     NullableWithoutType(Severity.Warning, ::nullableWithoutTypeWarnings),
     UnusedSchemas(Severity.Warning, ::unusedSchemaWarnings, needsValidSpec = true),
+    SameKotlinNames(Severity.Warning, ::sameKotlinNameWarnings),
 
     NullableIn31(Severity.Warning, ::nullableIn31Warnings, recommendation = true),
     DeprecatedKeywords(Severity.Warning, ::deprecatedKeywordWarnings, recommendation = true),

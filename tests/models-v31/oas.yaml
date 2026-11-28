@@ -503,6 +503,21 @@ components:
       additionalProperties:
         type: boolean
 
+    SameKotlinNameUnion:
+      description: Union whose variant has a property with the Kotlin name of the discriminator (#129).
+      oneOf:
+        - $ref: '#/components/schemas/SameKotlinNameVariant'
+      discriminator:
+        propertyName: objectType
+    SameKotlinNameVariant:
+      type: object
+      required: [objectType]
+      properties:
+        objectType:
+          type: string
+        object-type:
+          type: string
+
     OneOfExtras:
       description: Union whose variant allows additional properties.
       oneOf:

@@ -460,6 +460,12 @@ public open class SpecsConfigBuilder {
                 /** Component schemas no operation uses; `x-ogen-keep: true` on a schema keeps it on purpose. */
                 public var unusedSchemas: Severity by rule(ValidatorRule.UnusedSchemas)
 
+                /**
+                 * Property names of one schema with the same Kotlin name, such as `xTenant` and `x-tenant`: all but one
+                 * get `_` appended, so adding or reordering one can move a Kotlin name to another JSON key.
+                 */
+                public var sameKotlinNames: Severity by rule(ValidatorRule.SameKotlinNames)
+
                 // Recommendations: warnings by default, off in [RuleSet.Lenient].
 
                 /** `nullable` in 3.1 and later, which has no effect there. */

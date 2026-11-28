@@ -11,6 +11,8 @@ import de.quati.ogen.oas.schemas.gen.model.RequiredAdditionalPropertyDto
 import de.quati.ogen.oas.schemas.gen.model.RequiredObjectAdditionalPropertyDto
 import de.quati.ogen.oas.schemas.gen.model.RequiredOpenAdditionalPropertyDto
 import de.quati.ogen.oas.schemas.gen.model.SameKotlinNameDto
+import de.quati.ogen.oas.schemas.gen.model.SameKotlinNameUnionDto
+import de.quati.ogen.oas.schemas.gen.model.SameKotlinNameVariantDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesInlineObjectDto
 import de.quati.ogen.oas.schemas.gen.model.AdditionalPropertiesOpenObjectDto
 import de.quati.kotlin.util.toOption
@@ -449,6 +451,10 @@ class ModelsV31Test {
         assertFailsWith<SerializationException> {
             json.decodeFromString<SameKotlinNameDto>("""{"x-tenant":"a"}""")
         }
+
+        // The discriminator has no property in the variant, so it takes no name.
+        (SameKotlinNameVariantDto(objectType = "a".toOption()) as SameKotlinNameUnionDto)
+            .test(expectedString = """{"objectType":"SameKotlinNameVariant","object-type":"a"}""")
     }
 
     @Test
