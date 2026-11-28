@@ -154,8 +154,26 @@ paths:
                 title:
                   type: string
       responses:
-        '204':
-          description: no content
+        '200':
+          description: the parts
+          content:
+            multipart/mixed; boundary=abc:
+              schema:
+                type: object
+  /media-type-parameters/ndjson:
+    get:
+      operationId: getNdjson
+      tags:
+        - mediaTypeParameters
+      responses:
+        '200':
+          description: the leaves, one per line
+          content:
+            application/ndjson; charset=utf-8:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Leaf'
 components:
   schemas:
     Leaf:

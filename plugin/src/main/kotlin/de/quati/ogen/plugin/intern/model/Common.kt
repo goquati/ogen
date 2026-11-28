@@ -74,9 +74,14 @@ internal sealed interface ContentType {
     }
 
     companion object {
-        /** classifies by the media type without its parameters, but keeps them in [values] */
+        /**
+         * classifies by the media type without its parameters, but keeps them in [values]; except `boundary`, which
+         * each message chooses itself, and Spring rejects a request whose `boundary` differs from the one given
+         */
         fun parse(value: String): ContentType {
-            val value = value.trim().lowercase()
+            val value = value.trim().lowercase().split(';').map { it.trim() }
+                .filterIndexed { i, part -> i == 0 || part.substringBefore('=').trim() != "boundary" }
+                .joinToString("; ")
             val essence = value.essence
             if (essence == "application/json") return Json(value)
             if (essence == "application/ndjson") return Json(value)

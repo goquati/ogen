@@ -29,9 +29,9 @@ import de.quati.ogen.plugin.intern.codegen.Poet
 import de.quati.ogen.plugin.intern.codegen.getTypeName
 import de.quati.ogen.plugin.intern.codegen.toParameterMapCodeBlock
 import de.quati.ogen.plugin.intern.model.ContentType
-import de.quati.ogen.plugin.intern.model.essence
 import de.quati.ogen.plugin.intern.model.Endpoint
 import de.quati.ogen.plugin.intern.model.config.GeneratorConfig
+import de.quati.ogen.plugin.intern.model.essence
 
 
 context(d: DirectorySyncService, c: CodeGenContext)
@@ -72,7 +72,7 @@ private fun Endpoint.Part.toPartInfo(reservedNames: Set<String>) = PartInfo(
     file = file,
 )
 
-private val streamContentTypes = setOf("application/x-ndjson")
+private val streamContentTypes = setOf("application/x-ndjson", "application/ndjson")
 
 private data class ResponseBodyInfo(
     val typeName: TypeName,
