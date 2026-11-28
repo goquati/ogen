@@ -75,7 +75,6 @@ class TestAdditionalProperties {
         // `true` and `{}` leave the value untyped.
         assertEquals(mapOf("id" to "string?", "tenant" to "untyped") to "untyped", obj("RequiredExtraOpen").shape())
         assertEquals(mapOf("id" to "string?", "tenant" to "untyped") to "untyped", obj("RequiredExtraOpenSchema").shape())
-        // An object schema gives the property a class, as it gives one to the values of the map.
         // An object schema gives the property the class of the map's values, not a copy of it.
         val inline = obj("RequiredExtraInlineObject")
         assertIs<Component.Schema.Ref.Nested>(inline.additionalProperties)
@@ -92,6 +91,7 @@ class TestAdditionalProperties {
         assertEquals(mapOf("tenant" to "untyped") to "untyped", obj("RequiredExtraUnmatchedPattern").shape())
         // A key nothing allows stays undeclared; the validator reports it.
         assertEquals(mapOf("id" to "string?") to null, obj("RequiredExtraForbidden").shape())
+        assertEquals(mapOf("id" to "string?") to null, obj("RequiredExtraOnlyForbidden").shape())
         val composed = assertIs<Component.Schema.Composed>(schemas.getValue("RequiredExtraComposed"))
         assertEquals("untyped", composed.schemas[1].kind())
     }

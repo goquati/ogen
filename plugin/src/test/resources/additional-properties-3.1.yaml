@@ -93,6 +93,12 @@ components:
       properties: {id: {type: string}}
       patternProperties: {'^x-': false}
       additionalProperties: false
+    # Patterns that all have `false` allow no other key either.
+    RequiredExtraOnlyForbidden:
+      type: object
+      required: [tenant]
+      properties: {id: {type: string}}
+      patternProperties: {'^x-': false}
     # A key no pattern or additionalProperties allows is left to the schema that defines it.
     RequiredExtraComposed:
       allOf:

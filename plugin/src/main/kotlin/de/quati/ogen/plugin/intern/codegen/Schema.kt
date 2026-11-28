@@ -21,6 +21,7 @@ import de.quati.kotlin.util.poet.toCamelCase
 import de.quati.kotlin.util.poet.toSnakeCase
 import de.quati.ogen.plugin.intern.model.Component
 import de.quati.ogen.plugin.intern.model.ComponentName
+import de.quati.ogen.plugin.intern.model.Constraints
 import de.quati.ogen.plugin.intern.model.ElementDiscriminatorInfo
 import de.quati.ogen.plugin.intern.model.Type
 
@@ -430,6 +431,20 @@ private fun Component.Schema.Obj.generateObjectTypeSpec(discInfo: ElementDiscrim
         }
     }.build()
 
+/**
+ * `minProperties` and `maxProperties` of [this] as bounds of the size of its map of additional properties. They count
+ * the map's keys and the properties, so they are only known when every property is required and thus present; with an
+ * optional property they are not checked.
+ */
+private fun Component.Schema.Obj.additionalPropertiesConstraints(): Constraints {
+    if (!properties.keys.all { it in required }) return Constraints()
+    val count = properties.size
+    return Constraints(
+        minProperties = constraints.minProperties?.let { it - count }?.takeIf { it > 0 },
+        maxProperties = constraints.maxProperties?.let { (it - count).coerceAtLeast(0) },
+    )
+}
+
 /** The Kotlin name of the map of additional properties; one that no property of [obj] has. */
 private fun additionalPropertiesName(obj: Component.Schema.Obj): String {
     val taken = obj.properties.keys.map { it.toCamelCase(capitalized = false) }.toSet()
@@ -449,7 +464,9 @@ private fun FunSpec.Builder.addAdditionalProperties(
 ) {
     val className = obj.name.typename
     val propName = additionalPropertiesName(obj)
-    val mapSchema = Component.Schema.MapS.Inline(valueSchema, isNullable = false, typeWithFormat = null)
+    val mapSchema = Component.Schema.MapS.Inline(
+        valueSchema, isNullable = false, typeWithFormat = null, constraints = obj.additionalPropertiesConstraints(),
+    )
     val mapType = mapSchema.getTypeName(withFlow = false) as Type.NonPrimitiveType.Map
     val mapTypeName = if (!beanValidation) mapType.poet
     else mapSchema.withElementConstraints(mapType.poet) { it.forModelType() }

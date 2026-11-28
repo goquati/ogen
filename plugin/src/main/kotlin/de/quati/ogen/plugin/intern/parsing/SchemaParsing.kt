@@ -233,8 +233,8 @@ private fun Schema.Obj.additionalValueSchemaOrNull(): Schema? {
  * In JSON Schema such a key is validated by the `patternProperties` whose patterns match it, otherwise by
  * `additionalProperties`; several matching patterns with different schemas leave the value untyped. Patterns are
  * matched with the JVM's regex, unanchored as in JSON Schema. Without `additionalProperties` and without a matching
- * pattern the key is allowed freely only if there are patterns at all: an object without either (an `allOf` member
- * requiring what a sibling defines, say) leaves the key to the schema that defines it.
+ * pattern the key is allowed freely only if there are patterns whose schema isn't `false`: an object without (an
+ * `allOf` member requiring what a sibling defines, say) leaves the key to the schema that defines it.
  */
 private fun Schema.Obj.undeclaredRequiredSchemaOrNull(name: String): Schema? {
     val matching = patternProperties.orEmpty()
@@ -245,7 +245,7 @@ private fun Schema.Obj.undeclaredRequiredSchemaOrNull(name: String): Schema? {
         matching.size == 1 -> matching.single()
         matching.isNotEmpty() -> Schema.Bool(true)
         else -> when (val it = additionalProperties) {
-            null -> if (patternProperties.isNullOrEmpty()) null else Schema.Bool(true)
+            null -> if (patternProperties.orEmpty().values.all { it == Schema.Bool(false) }) null else Schema.Bool(true)
             Schema.Bool(false) -> null
             else -> it
         }
@@ -362,6 +362,7 @@ internal fun Schema.parse(
                         name = location.name,
                         typeWithFormat = s.toTypeWithFormatOrNull(),
                         additionalProperties = additional,
+                        constraints = s.toConstraints(),
                     )
                 }
                 // Without properties, `true` is the same as `{}`: a map of untyped values. An object that must stay

@@ -47,3 +47,11 @@ components:
       required: [x-tenant, no-way, code]
       properties:
         name: { type: string }
+    # A name that a pattern with `false` matches is not defined, also when another pattern matches it.
+    PatternsClosedForbidden:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        '^x-': { type: string }
+        'tenant': false
+      required: [x-tenant, x-other]

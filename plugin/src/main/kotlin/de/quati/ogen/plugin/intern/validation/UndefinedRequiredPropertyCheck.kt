@@ -7,7 +7,7 @@ import de.quati.ogen.plugin.intern.oas.model.Schema
  * `then`, …) may require what the parent and its other members define (`allOf: [{ $ref: Base }, { required: [name] }]`),
  * and a schema that allows any name (`additionalProperties`, `unevaluatedProperties`, or `patternProperties` without
  * `additionalProperties: false`) may require any. With `additionalProperties: false`, `patternProperties` define the
- * names their patterns match (unless their schema is `false`), matched with the JVM's regex (#121). Schemas under `not`
+ * names their patterns match (unless a pattern whose schema is `false` matches them too), matched with the JVM's regex (#121). Schemas under `not`
  * are skipped.
  */
 internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> {
@@ -24,10 +24,12 @@ internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> 
         if (schema.additionalProperties.allowsAnyName() || schema.unevaluatedProperties.allowsAnyName() ||
             (patterns.isNotEmpty() && schema.additionalProperties == null)
         ) return null
+        fun regexes(forbidden: Boolean) = patterns.filterValues { (it == Schema.Bool(false)) == forbidden }.keys
+            .mapNotNull { runCatching { Regex(it) }.getOrNull() }
         var names = DefinedNames(
             names = schema.properties.orEmpty().keys,
-            patterns = patterns.filterValues { it != Schema.Bool(false) }.keys
-                .mapNotNull { runCatching { Regex(it) }.getOrNull() },
+            patterns = regexes(forbidden = false),
+            forbiddenPatterns = regexes(forbidden = true),
         )
         schema.ref?.takeIf { it !in seenRefs }?.let { ref ->
             val target = ref.componentName("schemas")?.let { componentSchemas[it] } ?: return null
@@ -73,12 +75,18 @@ internal fun undefinedRequiredPropertyErrors(spec: ValidatedSpec): List<String> 
         }
 }
 
-/** The names a schema defines: its properties and the names its patterns match. */
-private class DefinedNames(val names: Set<String>, val patterns: List<Regex>) {
-    operator fun plus(other: DefinedNames) = DefinedNames(names + other.names, patterns + other.patterns)
-    operator fun contains(name: String) = name in names || patterns.any { it.containsMatchIn(name) }
+/**
+ * The names a schema defines: its properties and the names its patterns match, unless a pattern whose schema is `false`
+ * matches them too, as all matching patterns apply.
+ */
+private class DefinedNames(val names: Set<String>, val patterns: List<Regex>, val forbiddenPatterns: List<Regex>) {
+    operator fun plus(other: DefinedNames) =
+        DefinedNames(names + other.names, patterns + other.patterns, forbiddenPatterns + other.forbiddenPatterns)
+
+    operator fun contains(name: String) = name in names ||
+        (patterns.any { it.containsMatchIn(name) } && forbiddenPatterns.none { it.containsMatchIn(name) })
 
     companion object {
-        val NONE = DefinedNames(emptySet(), emptyList())
+        val NONE = DefinedNames(emptySet(), emptyList(), emptyList())
     }
 }

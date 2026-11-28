@@ -348,7 +348,11 @@ val thing = ThingDto(id = "a".toOption(), additionalProperties = mapOf("count" t
   ThingDto(id: Option<String>, tenant: String, additionalProperties: Map<String, String>)
   ```
 
-  With `additionalProperties: false`, a required name that no pattern allows is a spec error.
+  With `additionalProperties: false`, a required name that no pattern allows is a spec error, and so is one that a
+  pattern with `false` matches.
+- With `beanValidation`, `minProperties` and `maxProperties` of a class with a map are checked as the map's size
+  when every property is required, so that the number of keys is known: a class that only has required names from
+  `required` keeps the bounds of the map it was. With an optional property they are not checked.
 
 ### The QUERY method
 
